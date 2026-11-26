@@ -1,0 +1,78 @@
+# cargo-deny configuration, enforced by the `deny` job in CI.
+# `cargo install cargo-deny --locked && cargo deny check --all-features`
+# locally gives the same answer.
+
+[graph]
+# The desktop targets the crate is built and tested for in CI.
+targets = ["x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
+all-features = true
+
+[advisories]
+yanked = "warn"
+# An entry must say which crate, what pulls it in, why there is no fix, and
+# what would clear it.
+ignore = [
+    # async-std 1.13 (discontinued) and pin-utils 0.1 (archived), both
+    # unmaintained, not vulnerable. Pulled in by dark-light 2.0, which the
+    # theme uses to detect the OS light/dark preference. There is no
+    # dark-light release without them. Cleared by a dark-light release that
+    # drops async-std, or by replacing dark-light.
+    { id = "RUSTSEC-2025-0052", reason = "async-std via dark-light 2.0; unmaintained, not vulnerable" },
+    { id = "RUSTSEC-2026-0441", reason = "pin-utils via async-std via dark-light 2.0; unmaintained, not vulnerable" },
+    # rustybuzz 0.20 and ttf-parser 0.25, unmaintained, not vulnerable.
+    # Pulled in by resvg/usvg (SVG icons; also egui_extras' svg loader in
+    # dev) and by ab_glyph via epaint. Cleared when resvg and epaint move
+    # to harfrust/skrifa.
+    { id = "RUSTSEC-2026-0206", reason = "rustybuzz via resvg/usvg; unmaintained, not vulnerable" },
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser via resvg, fontdb and ab_glyph; unmaintained, not vulnerable" },
+    # zvariant, zvariant_derive and zbus_names, unmaintained, not
+    # vulnerable. Pulled in on Linux by eframe -> egui-winit ->
+    # accesskit_unix (AT-SPI over D-Bus). Cleared by an accesskit release
+    # that moves off them.
+    { id = "RUSTSEC-2026-0370", reason = "zvariant via eframe's accesskit_unix; unmaintained, not vulnerable" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names via eframe's accesskit_unix; unmaintained, not vulnerable" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive via eframe's accesskit_unix; unmaintained, not vulnerable" },
+]
+
+[licenses]
+# egui-material3 itself is MIT OR Apache-2.0. Everything it pulls in,
+# including the optional spreadsheet (rusqlite with bundled SQLite) and
+# ondemand (ureq) features, must be under a licence on this list.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "0BSD",
+    "Unlicense",
+    "BSL-1.0",
+    # egui's bundled default fonts (epaint_default_fonts) come in under
+    # these. Font licences, permissive for embedding and redistribution.
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+    # webpki-roots ships the Mozilla CA bundle as data under
+    # CDLA-Permissive-2.0 (pulled in by ureq for HTTPS: the ondemand font
+    # download, and the examples). Permissive, data only.
+    "CDLA-Permissive-2.0",
+]
+confidence-threshold = 0.9
+
+[licenses.private]
+ignore = false
+
+[bans]
+multiple-versions = "warn"
+deny = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+# .cargo/config.toml patches resvg/usvg 0.45 (egui_extras' SVG loader, a
+# dev-dependency here) to the crate author's fork. It only affects local
+# builds of this repository; the published crate resolves crates.io.
+# Cleared when that patch is dropped.
+allow-git = ["https://github.com/nikescar/resvg"]
