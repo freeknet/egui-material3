@@ -354,6 +354,7 @@ impl Widget for MaterialTopAppBar<'_> {
                     egui::Id::unique(("top_app_bar_nav", &title))
                 };
                 let nav_response = ui.interact(nav_rect, nav_id, Sense::click());
+                crate::a11y::button(&nav_response, true, &nav_icon);
 
                 // Icon background on hover
                 if nav_response.hovered() {
@@ -462,6 +463,7 @@ impl Widget for MaterialTopAppBar<'_> {
                     egui::Id::unique(("top_app_bar_action", &title, action_index))
                 };
                 let action_response = ui.interact(action_rect, action_id, Sense::click());
+                crate::a11y::button(&action_response, true, action_icon);
 
                 // Icon background on hover
                 if action_response.hovered() {

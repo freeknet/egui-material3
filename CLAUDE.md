@@ -218,10 +218,7 @@ values from WP-0 live in the `tokens` module that owns them.
 
 ## Known gaps
 
-- `examples/stories/theme_test.rs` holds `#[test]`s that flip the global
-  theme's dark mode and read colours back. Run in parallel they race (they
-  pass with `--test-threads=1`), and they still use `unwrap()`, which
-  clippy does not see because it does not build examples in test mode.
-  CI therefore runs `cargo test --lib --tests`, not `--examples`. WP-0
-  moves the theme into `ctx.data`, which removes the shared state; move
-  these tests into `tests/` then.
+- Components still read colours through the global `get_global_color`
+  shim; `MaterialTheme::of(ctx)` (WP-0) is the per-context source. Each
+  work package moves its own components onto `MaterialTheme::of` and the
+  `tokens`/`paint`/`a11y` helpers.

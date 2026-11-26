@@ -211,7 +211,16 @@ impl<'a> Widget for MaterialSlider<'a> {
             Vec2::new(slider_width, height)
         };
 
-        let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click_and_drag());
+        let (rect, mut response) = ui.allocate_exact_size(
+            desired_size,
+            crate::a11y::sense(self.enabled, Sense::click_and_drag()),
+        );
+        crate::a11y::slider(
+            &response,
+            self.enabled,
+            self.text.as_deref().unwrap_or_default(),
+            f64::from(*self.value),
+        );
 
         // Material Design colors
         let primary_color = get_global_color("primary");
@@ -286,14 +295,14 @@ impl<'a> Widget for MaterialSlider<'a> {
             (disabled_color, disabled_color, disabled_color)
         } else if response.hovered() || response.dragged() {
             (
-                Color32::from_rgba_premultiplied(
+                Color32::from_rgba_unmultiplied(
                     primary_color.r(),
                     primary_color.g(),
                     primary_color.b(),
                     200,
                 ),
                 surface_variant,
-                Color32::from_rgba_premultiplied(
+                Color32::from_rgba_unmultiplied(
                     effective_thumb_color.r().saturating_add(20),
                     effective_thumb_color.g().saturating_add(20),
                     effective_thumb_color.b().saturating_add(20),
@@ -321,7 +330,7 @@ impl<'a> Widget for MaterialSlider<'a> {
                     Vec2::new(secondary_x - thumb_x, track_rect.height()),
                 );
                 let secondary_color = self.secondary_active_color.unwrap_or_else(|| {
-                    Color32::from_rgba_premultiplied(
+                    Color32::from_rgba_unmultiplied(
                         primary_color.r(),
                         primary_color.g(),
                         primary_color.b(),
@@ -372,7 +381,7 @@ impl<'a> Widget for MaterialSlider<'a> {
         // Add ripple effect when interacting
         if response.hovered() && self.enabled {
             let ripple_color = self.overlay_color.unwrap_or_else(|| {
-                Color32::from_rgba_premultiplied(
+                Color32::from_rgba_unmultiplied(
                     primary_color.r(),
                     primary_color.g(),
                     primary_color.b(),
@@ -570,7 +579,17 @@ impl<'a> Widget for MaterialRangeSlider<'a> {
             Vec2::new(slider_width, height)
         };
 
-        let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::click_and_drag());
+        let (rect, mut response) = ui.allocate_exact_size(
+            desired_size,
+            crate::a11y::sense(self.enabled, Sense::click_and_drag()),
+        );
+        crate::a11y::describe(
+            &response,
+            egui::Role::Slider,
+            self.enabled,
+            self.text.as_deref().unwrap_or_default(),
+            None,
+        );
 
         // Material Design colors
         let primary_color = get_global_color("primary");
@@ -659,7 +678,7 @@ impl<'a> Widget for MaterialRangeSlider<'a> {
             (disabled_color, disabled_color, disabled_color)
         } else if response.hovered() || response.dragged() {
             (
-                Color32::from_rgba_premultiplied(
+                Color32::from_rgba_unmultiplied(
                     primary_color.r(),
                     primary_color.g(),
                     primary_color.b(),
@@ -722,7 +741,7 @@ impl<'a> Widget for MaterialRangeSlider<'a> {
 
         // Add ripple effects
         if response.hovered() && self.enabled {
-            let ripple_color = Color32::from_rgba_premultiplied(
+            let ripple_color = Color32::from_rgba_unmultiplied(
                 primary_color.r(),
                 primary_color.g(),
                 primary_color.b(),
