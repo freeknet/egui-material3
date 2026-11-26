@@ -214,36 +214,30 @@ fn load_image_from_url(url: &str, tmppath: &str) -> Option<egui::ColorImage> {
             .user_agent("egui-material3/1.0")
             .build();
 
-        match agent.get(url).call() {
-            Ok(response) => {
-                let status = response.status();
-                if status == 200 {
-                    let mut bytes = Vec::new();
-                    if let Ok(_) = response.into_reader().read_to_end(&mut bytes) {
-                        if !bytes.is_empty() {
-                            // Detect image format from content and add appropriate extension
-                            let extension = if bytes.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
-                                "png"
-                            } else if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
-                                "jpg"
-                            } else if bytes.starts_with(&[0x47, 0x49, 0x46]) {
-                                "gif"
-                            } else if bytes.starts_with(&[0x52, 0x49, 0x46, 0x46])
-                                && bytes.len() > 12
-                                && &bytes[8..12] == b"WEBP"
-                            {
-                                "webp"
-                            } else {
-                                "png"
-                            };
+        if let Ok(response) = agent.get(url).call() {
+            let status = response.status();
+            if status == 200 {
+                let mut bytes = Vec::new();
+                if response.into_reader().read_to_end(&mut bytes).is_ok() && !bytes.is_empty() {
+                    // Detect image format from content and add appropriate extension
+                    let extension = if bytes.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
+                        "png"
+                    } else if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                        "jpg"
+                    } else if bytes.starts_with(&[0x47, 0x49, 0x46]) {
+                        "gif"
+                    } else if bytes.starts_with(&[0x52, 0x49, 0x46, 0x46])
+                        && bytes.get(8..12) == Some(b"WEBP".as_slice())
+                    {
+                        "webp"
+                    } else {
+                        "png"
+                    };
 
-                            let filepath_with_ext = filepath.with_extension(extension);
-                            let _ = std::fs::write(&filepath_with_ext, &bytes);
-                        }
-                    }
+                    let filepath_with_ext = filepath.with_extension(extension);
+                    let _ = std::fs::write(&filepath_with_ext, &bytes);
                 }
             }
-            Err(_) => {}
         }
     }
 
@@ -277,8 +271,7 @@ fn load_image_from_url(url: &str, tmppath: &str) -> Option<egui::ColorImage> {
 
 /// Load image from data URL (base64 encoded)
 fn load_image_from_data_url(data_url: &str) -> Option<egui::ColorImage> {
-    if let Some(comma_pos) = data_url.find(',') {
-        let data_part = &data_url[comma_pos + 1..];
+    if let Some((_, data_part)) = data_url.split_once(',') {
         if let Ok(bytes) =
             base64::Engine::decode(&base64::engine::general_purpose::STANDARD, data_part)
         {

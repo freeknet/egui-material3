@@ -5,18 +5,13 @@ fn test_trailing_widget_structure() {
     // Structural test: verify ListItem accepts trailing_widget with multiline text
     // The actual positioning fix is validated visually in examples/stories
 
-    let _list = MaterialList::new()
-        .id(egui::Id::unique("test_list"))
-        .item(
-            ListItem::new("Short Title")
-                .secondary_text("Multiline\nDescription\nText")
-                .trailing_widget(|ui| {
-                    ui.label("Button");
-                })
-        );
-
-    // If this compiles and builds, the structure is correct
-    assert!(true, "List item with multiline text and trailing_widget compiles");
+    let _list = MaterialList::new().id(egui::Id::unique("test_list")).item(
+        ListItem::new("Short Title")
+            .secondary_text("Multiline\nDescription\nText")
+            .trailing_widget(|ui| {
+                ui.label("Button");
+            }),
+    );
 }
 
 #[test]
@@ -32,10 +27,8 @@ fn test_trailing_text_top_right_structure() {
                 .trailing_text("Expand ▶")
                 .trailing_widget(|ui| {
                     ui.label("Edit");
-                })
+                }),
         );
-
-    assert!(true, "List item accepts both trailing_text and trailing_widget");
 }
 
 #[test]
@@ -54,10 +47,8 @@ fn test_trailing_text_and_widget_no_overlap_structure() {
                         let _ = ui.button("Edit");
                         let _ = ui.button("Delete");
                     });
-                })
+                }),
         );
-
-    assert!(true, "Both trailing_text and trailing_widget build successfully");
 }
 
 #[test]
@@ -67,12 +58,7 @@ fn test_multiline_secondary_text_structure() {
 
     let _list = MaterialList::new()
         .id(egui::Id::unique("test_padding"))
-        .item(
-            ListItem::new("Title")
-                .secondary_text("Line 1\nLine 2\nLine 3")
-        );
-
-    assert!(true, "Multiline secondary text compiles");
+        .item(ListItem::new("Title").secondary_text("Line 1\nLine 2\nLine 3"));
 }
 
 #[test]
@@ -90,8 +76,6 @@ fn test_wrapped_text_with_trailing_widget() {
                         let _ = ui.button("Edit");
                         let _ = ui.button("Delete");
                     });
-                })
+                }),
         );
-
-    assert!(true, "Wrapped text with trailing widget compiles");
 }
