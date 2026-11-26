@@ -24,3 +24,5 @@ resources/*.ttf
 examples/ondemand/resources/*.ttf
 
 /reference
+# Standalone example crates keep their own lockfiles out of the tree.
+/examples/*/Cargo.lock
