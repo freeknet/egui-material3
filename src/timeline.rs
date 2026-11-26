@@ -70,6 +70,7 @@ pub enum TimelineDotColor {
 ///
 /// # Example
 /// ```rust
+/// # use egui_material3::*;
 /// # egui::__run_test_ui(|ui| {
 /// ui.add(MaterialTimeline::new()
 ///     .position(TimelinePosition::Right)
@@ -137,6 +138,7 @@ impl<'a> MaterialTimeline<'a> {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let timeline = MaterialTimeline::new();
     /// ```
     pub fn new() -> Self {
@@ -154,6 +156,7 @@ impl<'a> MaterialTimeline<'a> {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let timeline = MaterialTimeline::new()
     ///     .position(TimelinePosition::Alternate);
     /// ```
@@ -169,6 +172,7 @@ impl<'a> MaterialTimeline<'a> {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let timeline = MaterialTimeline::new()
     ///     .item(TimelineItem::new().content("Event"));
     /// ```
@@ -184,6 +188,7 @@ impl<'a> MaterialTimeline<'a> {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let timeline = MaterialTimeline::new()
     ///     .id(egui::Id::unique("my_timeline"));
     /// ```
@@ -198,6 +203,7 @@ impl<'a> TimelineItem<'a> {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let item = TimelineItem::new();
     /// ```
     pub fn new() -> Self {
@@ -221,6 +227,7 @@ impl<'a> TimelineItem<'a> {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let item = TimelineItem::new()
     ///     .content("Event description");
     /// ```
@@ -238,6 +245,7 @@ impl<'a> TimelineItem<'a> {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let item = TimelineItem::new()
     ///     .content_custom(|ui| {
     ///         ui.label("Custom content");
@@ -269,6 +277,7 @@ impl<'a> TimelineItem<'a> {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let item = TimelineItem::new()
     ///     .content("Event description")
     ///     .opposite_content("09:30 am");
@@ -285,6 +294,7 @@ impl<'a> TimelineItem<'a> {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let item = TimelineItem::new()
     ///     .content("Event")
     ///     .dot(TimelineDot::new()
@@ -302,6 +312,7 @@ impl<'a> TimelineItem<'a> {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let item = TimelineItem::new()
     ///     .content("Final event")
     ///     .show_connector(false); // Last item doesn't need connector
@@ -318,6 +329,7 @@ impl<'a> TimelineItem<'a> {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let item = TimelineItem::new()
     ///     .content("Clickable event")
     ///     .on_click(|| println!("Item clicked"));
@@ -351,6 +363,7 @@ impl TimelineDot {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let dot = TimelineDot::new();
     /// ```
     pub fn new() -> Self {
@@ -371,6 +384,7 @@ impl TimelineDot {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let dot = TimelineDot::new()
     ///     .variant(TimelineDotVariant::Outlined);
     /// ```
@@ -386,6 +400,7 @@ impl TimelineDot {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let dot = TimelineDot::new()
     ///     .color(TimelineDotColor::Primary);
     /// ```
@@ -401,6 +416,7 @@ impl TimelineDot {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let dot = TimelineDot::new()
     ///     .icon("✓");
     /// ```
@@ -416,6 +432,8 @@ impl TimelineDot {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
+    /// # let texture_id = egui::TextureId::default();
     /// let dot = TimelineDot::new()
     ///     .texture_icon(texture_id);
     /// ```
@@ -440,6 +458,7 @@ impl TimelineDot {
     ///
     /// # Example
     /// ```rust
+    /// # use egui_material3::*;
     /// let dot = TimelineDot::new()
     ///     .size(40.0)  // Large dot
     ///     .icon("🚀");
@@ -941,6 +960,7 @@ impl<'a> Widget for MaterialTimeline<'a> {
 ///
 /// # Example
 /// ```rust
+/// # use egui_material3::*;
 /// # egui::__run_test_ui(|ui| {
 /// ui.add(timeline()
 ///     .item(TimelineItem::new().content("Event 1"))

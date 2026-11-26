@@ -22,6 +22,7 @@ type TitleUiFn<'a> = Box<dyn FnMut(&mut Ui) + 'a>;
 ///
 /// # Example
 /// ```rust,no_run
+/// # use egui_material3::*;
 /// # egui::__run_test_ui(|ui| {
 /// let mut offset = 0.0f32;
 /// ui.add(MaterialDashCounter::new("Dashboard", &mut offset)
@@ -619,6 +620,7 @@ impl<'a> egui::Widget for MaterialDashCounter<'a> {
 ///
 /// # Example
 /// ```rust,no_run
+/// # use egui_material3::*;
 /// # egui::__run_test_ui(|ui| {
 /// let mut offset = 0.0f32;
 /// ui.add(dashcounter("Stats", &mut offset)
