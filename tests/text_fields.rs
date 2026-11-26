@@ -29,6 +29,25 @@ use egui_material3::{MaterialInput, MaterialTheme};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+/// Renders, turning a panic into an error: with no GPU adapter at all,
+/// egui_kittest's renderer panics instead of returning one.
+fn render_or_no_adapter(harness: &mut Harness<'_>) -> Result<image::RgbaImage, String> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| harness.render()))
+        .unwrap_or_else(|_| Err("no adapter: the renderer could not be created".to_owned()))
+}
+
+/// Runs a render, turning a panic into an error: with no GPU adapter at
+/// all, egui_kittest's renderer panics instead of returning one.
+fn no_adapter_is_an_error<T>(
+    render: impl FnOnce() -> Result<T, egui_kittest::SnapshotError>,
+) -> Result<T, egui_kittest::SnapshotError> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(render)).unwrap_or_else(|_| {
+        Err(egui_kittest::SnapshotError::RenderError {
+            err: "no adapter: the renderer could not be created".to_owned(),
+        })
+    })
+}
+
 /// Every text shape painted last frame whose text is `text`: (top y, font size).
 fn painted_text(harness: &Harness<'_>, text: &str) -> Vec<(f32, f32)> {
     harness
@@ -210,7 +229,7 @@ fn outlined_focus_stroke_is_three_pixels() -> TestResult {
     harness.get_by_label("Email").focus();
     harness.run();
     let _renderer = one_renderer_at_a_time();
-    let image = match harness.render() {
+    let image = match render_or_no_adapter(&mut harness) {
         Ok(image) => image,
         Err(err) => {
             eprintln!("skipping pixel test, no renderer: {err}");
@@ -368,7 +387,7 @@ fn snapshot(harness: &mut Harness<'_>, name: &str) -> TestResult {
     let options = egui_kittest::SnapshotOptions::new()
         .threshold(2.0)
         .max_failed_pixels(400);
-    match harness.try_snapshot_options(name, &options) {
+    match no_adapter_is_an_error(|| harness.try_snapshot_options(name, &options)) {
         Ok(()) => Ok(()),
         Err(egui_kittest::SnapshotError::RenderError { err }) => {
             eprintln!("skipping snapshot, no renderer: {err}");

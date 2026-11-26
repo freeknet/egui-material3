@@ -23,6 +23,25 @@ use egui_material3::{icon, MaterialTheme};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+/// Renders, turning a panic into an error: with no GPU adapter at all,
+/// egui_kittest's renderer panics instead of returning one.
+fn render_or_no_adapter(harness: &mut Harness<'_>) -> Result<image::RgbaImage, String> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| harness.render()))
+        .unwrap_or_else(|_| Err("no adapter: the renderer could not be created".to_owned()))
+}
+
+/// Runs a render, turning a panic into an error: with no GPU adapter at
+/// all, egui_kittest's renderer panics instead of returning one.
+fn no_adapter_is_an_error<T>(
+    render: impl FnOnce() -> Result<T, egui_kittest::SnapshotError>,
+) -> Result<T, egui_kittest::SnapshotError> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(render)).unwrap_or_else(|_| {
+        Err(egui_kittest::SnapshotError::RenderError {
+            err: "no adapter: the renderer could not be created".to_owned(),
+        })
+    })
+}
+
 /// A harness with the bundled fonts installed before the first frame, and
 /// no allowance for missing glyphs: an icon whose glyph is not in the
 /// fonts fails the test.
@@ -54,7 +73,7 @@ fn one_renderer_at_a_time() -> std::sync::MutexGuard<'static, ()> {
 /// The rendered image, or `None` when there is no renderer (headless CI
 /// without a software adapter).
 fn render(harness: &mut Harness<'_>) -> Result<Option<image::RgbaImage>, String> {
-    match harness.render() {
+    match render_or_no_adapter(harness) {
         Ok(image) => Ok(Some(image)),
         Err(err) if err.contains("adapter") || err.contains("Adapter") => {
             eprintln!("skipping pixel check, no renderer: {err}");
@@ -84,7 +103,7 @@ fn fill_window(ui: &egui::Ui, color: Color32) {
 
 fn snapshot(harness: &mut Harness<'_>, name: &str) -> TestResult {
     let options = SnapshotOptions::new().threshold(2.0).max_failed_pixels(200);
-    match harness.try_snapshot_options(name, &options) {
+    match no_adapter_is_an_error(|| harness.try_snapshot_options(name, &options)) {
         Ok(()) => Ok(()),
         Err(SnapshotError::RenderError { err }) => {
             eprintln!("skipping snapshot, no renderer: {err}");

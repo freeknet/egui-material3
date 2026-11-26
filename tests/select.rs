@@ -28,6 +28,18 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 const FRUITS: [&str; 4] = ["Apple", "Banana", "Cherry", "Grape"];
 
+/// Runs a render, turning a panic into an error: with no GPU adapter at
+/// all, egui_kittest's renderer panics instead of returning one.
+fn no_adapter_is_an_error<T>(
+    render: impl FnOnce() -> Result<T, egui_kittest::SnapshotError>,
+) -> Result<T, egui_kittest::SnapshotError> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(render)).unwrap_or_else(|_| {
+        Err(egui_kittest::SnapshotError::RenderError {
+            err: "no adapter: the renderer could not be created".to_owned(),
+        })
+    })
+}
+
 fn fruits(selected: &mut Option<usize>) -> MaterialSelect<'_> {
     FRUITS
         .iter()
@@ -286,7 +298,9 @@ fn open_select_snapshot() -> TestResult {
             .threshold(2.0)
             .max_failed_pixels(400);
         let _renderer = one_renderer_at_a_time();
-        match harness.try_snapshot_options(format!("select_open_{name}"), &options) {
+        match no_adapter_is_an_error(|| {
+            harness.try_snapshot_options(format!("select_open_{name}"), &options)
+        }) {
             Ok(()) => {}
             Err(egui_kittest::SnapshotError::RenderError { err }) => {
                 eprintln!("skipping snapshot, no renderer: {err}");

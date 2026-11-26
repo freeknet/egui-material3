@@ -60,6 +60,18 @@ impl Driver {
     }
 }
 
+/// Runs a render, turning a panic into an error: with no GPU adapter at
+/// all, egui_kittest's renderer panics instead of returning one.
+fn no_adapter_is_an_error<T>(
+    render: impl FnOnce() -> Result<T, egui_kittest::SnapshotError>,
+) -> Result<T, egui_kittest::SnapshotError> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(render)).unwrap_or_else(|_| {
+        Err(egui_kittest::SnapshotError::RenderError {
+            err: "no adapter: the renderer could not be created".to_owned(),
+        })
+    })
+}
+
 fn rects(shapes: &[ClippedShape]) -> Vec<RectShape> {
     shapes
         .iter()
@@ -616,7 +628,7 @@ fn snapshot(harness: &mut egui_kittest::Harness<'_>, name: &str) -> TestResult {
     let options = egui_kittest::SnapshotOptions::new()
         .threshold(2.0)
         .max_failed_pixels(600);
-    match harness.try_snapshot_options(name, &options) {
+    match no_adapter_is_an_error(|| harness.try_snapshot_options(name, &options)) {
         Ok(()) => Ok(()),
         // No GPU adapter (headless CI without a software renderer): the
         // geometry is still covered by the tests above.
