@@ -218,10 +218,6 @@ values from WP-0 live in the `tokens` module that owns them.
 
 ## Known gaps
 
-- Five list-height tests are `#[ignore]`d with a pointer to
-  nikescar/egui-material3#23: a headline with two lines of supporting
-  text measures about 80 dp instead of the M3 three-line 88 dp. The list
-  work package owns the fix; un-ignore them with it.
 - `examples/stories/theme_test.rs` holds `#[test]`s that flip the global
   theme's dark mode and read colours back. Run in parallel they race (they
   pass with `--test-threads=1`), and they still use `unwrap()`, which
