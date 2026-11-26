@@ -126,6 +126,41 @@ name = "svg_icon_demo"
 path = "examples/svg_icon_demo.rs"
 required-features = ["svg_emoji"]
 
+# House rules, enforced on every target (lib, tests, examples, build script).
+# Suppress one with `#[expect(lint, reason = "...")]`, never `#[allow]`:
+# `expect` fails the build when the lint stops firing. CLAUDE.md records the
+# decisions behind the few module-level expectations.
+[lints.rust]
+warnings = "deny"
+dead_code = "deny"
+unused_variables = "deny"
+unused_imports = "deny"
+unused_must_use = "deny"
+unreachable_patterns = "deny"
+unreachable_pub = "deny"
+missing_docs = "deny"
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+indexing_slicing = "deny"
+string_slice = "deny"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+match_wild_err_arm = "deny"
+rest_pat_in_fully_bound_structs = "deny"
+ignored_unit_patterns = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+missing_safety_doc = "deny"
+undocumented_unsafe_blocks = "deny"
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

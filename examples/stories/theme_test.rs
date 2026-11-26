@@ -404,6 +404,16 @@ fn test_selection_not_inverse_surface() {
         secondary_light_lum,
         inverse_light_lum
     );
+
+    // ...and much darker than inverse_surface in dark mode.
+    let inverse_dark_lum = calc_luminance(inverse_surface_dark);
+    let secondary_dark_lum = calc_luminance(secondary_container_dark);
+    assert!(
+        secondary_dark_lum * 2.0 < inverse_dark_lum,
+        "secondaryContainer (lum: {}) should be much darker than inverse_surface (lum: {}) in dark mode",
+        secondary_dark_lum,
+        inverse_dark_lum
+    );
 }
 
 #[test]

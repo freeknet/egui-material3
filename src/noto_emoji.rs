@@ -9,6 +9,13 @@
 //!
 //! Usage: `MaterialIcon::new(noto_emoji::SPARKLES)`
 
+// About 1400 constants named after their Unicode character names; a doc
+// line per constant would repeat the name (see CLAUDE.md).
+#![expect(
+    missing_docs,
+    reason = "generated emoji table: each constant is named after its Unicode name"
+)]
+
 // --- Punctuation & Basic Symbols ---
 pub const NUMBER_SIGN: &str = "\u{0023}";
 pub const ASTERISK: &str = "\u{002A}";

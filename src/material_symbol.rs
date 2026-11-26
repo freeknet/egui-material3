@@ -10,6 +10,13 @@
 //! Auto-generated from Material Icons font.
 //! Icons should use M3 color roles based on context.
 
+// Thousands of generated codepoint constants whose names are the icon
+// names; a doc line per constant would repeat the name (see CLAUDE.md).
+#![expect(
+    missing_docs,
+    reason = "generated codepoint table: each constant is named after its icon"
+)]
+
 use std::collections::HashMap;
 
 // Auto-generated from MaterialIcons-Regular.codepoints

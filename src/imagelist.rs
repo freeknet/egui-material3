@@ -485,7 +485,13 @@ impl Widget for MaterialImageList<'_> {
             text_protected,
             corner_radius,
             id_salt,
-            #[cfg_attr(not(feature = "ondemand"), allow(unused_variables))]
+            #[cfg_attr(
+                not(feature = "ondemand"),
+                expect(
+                    unused_variables,
+                    reason = "the image URL is only read by the ondemand download"
+                )
+            )]
             tmppath,
         } = self;
 
