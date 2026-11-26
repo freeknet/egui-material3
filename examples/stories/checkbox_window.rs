@@ -11,6 +11,7 @@
 
 use crate::{checkbox, MaterialButton, MaterialCheckbox};
 use eframe::egui::{self, Window};
+use egui_material3::checkbox::ToggleableState;
 
 #[doc(hidden)]
 pub(crate) struct CheckboxWindow {
@@ -27,6 +28,7 @@ pub(crate) struct CheckboxWindow {
     state_checked: bool,
     state_unchecked: bool,
     state_indeterminate: bool,
+    tri_state: ToggleableState,
     // For enabled/disabled comparison
     enabled_unchecked: bool,
     enabled_checked: bool,
@@ -54,6 +56,7 @@ impl Default for CheckboxWindow {
             state_checked: true,
             state_unchecked: false,
             state_indeterminate: false,
+            tri_state: ToggleableState::Indeterminate,
             // Enabled/disabled comparison states
             enabled_unchecked: false,
             enabled_checked: true,
@@ -152,6 +155,11 @@ impl CheckboxWindow {
             ui.vertical(|ui| {
                 ui.label("Indeterminate");
                 ui.add(checkbox(&mut self.state_indeterminate, "").indeterminate(true));
+            });
+            ui.add_space(20.0);
+            ui.vertical(|ui| {
+                ui.label(format!("Tri-state ({:?})", self.tri_state));
+                ui.add(MaterialCheckbox::tri_state(&mut self.tri_state, ""));
             });
         });
     }
