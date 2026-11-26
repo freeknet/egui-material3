@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       input_max_length_test (integration test)
+// Description:  `MaterialInput::max_length` counts characters, not bytes.
+//
+// Dependencies: egui_material3, egui
+// ============================================================================
+
 //! `MaterialInput::max_length` counts characters, not bytes.
 
 use egui_material3::MaterialInput;

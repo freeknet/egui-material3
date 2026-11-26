@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       material_symbol
+// Description:  Material Symbols Icon Font Constants.
+//
+// Dependencies: std only
+// ============================================================================
+
 //! Material Symbols Icon Font Constants
 //!
 //! Auto-generated from Material Icons font.

@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::slider_window (example)
+// Description:  Story window demonstrating the slider component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the slider component.
+
 #![doc(hidden)]
 
 use crate::{range_slider, slider, MaterialButton, RangeValues, SliderInteraction, ThumbShape};

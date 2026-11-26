@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       ondemand (standalone example crate)
+// Description:  Standalone example using the ondemand font download feature.
+//
+// Dependencies: eframe, egui_material3, egui
+// ============================================================================
+
+//! Standalone example using the ondemand font download feature.
+
 // Minimal egui-material3 example
 use eframe::egui;
 use egui_material3::{

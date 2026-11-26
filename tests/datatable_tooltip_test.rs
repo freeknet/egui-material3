@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       datatable_tooltip_test (integration test)
+// Description:  Tests for DataTable cell tooltip functionality.
+//
+// Dependencies: egui_material3
+// ============================================================================
+
 //! Tests for DataTable cell tooltip functionality
 
 use egui_material3::DataTableTheme;

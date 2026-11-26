@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list_wrapped_text_padding_test (integration test)
+// Description:  Integration test for wrapped text padding balance.
+//
+// Dependencies: egui_material3, egui
+// ============================================================================
+
 //! Integration test for wrapped text padding balance
 //!
 //! This test verifies that when secondary text wraps due to width constraints

@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       dialog_open_flag_test (integration test)
+// Description:  The dialog hands its open flag to the content callback.
+//
+// Dependencies: egui_material3, egui
+// ============================================================================
+
 //! The dialog hands its open flag to the content callback.
 
 use egui_material3::MaterialDialog;

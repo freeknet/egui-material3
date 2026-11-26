@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::timeline_window (example)
+// Description:  Story window demonstrating the timeline component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the timeline component.
+
 #![doc(hidden)]
 
 use crate::{

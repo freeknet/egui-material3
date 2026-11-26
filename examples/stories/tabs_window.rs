@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::tabs_window (example)
+// Description:  Story window demonstrating the tabs component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the tabs component.
+
 #![doc(hidden)]
 
 use crate::{get_global_color, tabs_primary, tabs_secondary, MaterialButton};

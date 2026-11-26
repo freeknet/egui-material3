@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list_drawer_height_test (integration test)
+// Description:  Integration tests for List drawer height expansion behavior.
+//
+// Dependencies: egui_material3, egui
+// ============================================================================
+
 //! Integration tests for List drawer height expansion behavior
 
 use egui_material3::{ListItem, MaterialList, MaterialListState};

@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       snackbar
+// Description:  Material Design 3 Snackbar Components.
+//
+// Dependencies: egui; crate::theme
+// ============================================================================
+
 //! Material Design 3 Snackbar Components
 //!
 //! # M3 Color Role Usage
@@ -70,9 +77,12 @@ pub struct MaterialSnackbar<'a> {
     on_visible: Option<Box<dyn Fn() + Send + Sync + 'a>>,
 }
 
+/// Where a snackbar appears on screen.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SnackbarPosition {
+    /// At the bottom of the screen.
     Bottom,
+    /// At the top of the screen.
     Top,
 }
 

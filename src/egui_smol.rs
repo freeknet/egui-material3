@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       egui_smol
+// Description:  Simple async binding for egui using async runtime.
+//
+// Dependencies: futures, smol
+// ============================================================================
+
 //! Simple async binding for egui using async runtime
 //!
 //! Provides async state management for egui UI.

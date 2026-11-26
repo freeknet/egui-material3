@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       treeview
+// Description:  Material Design 3 Tree View Components.
+//
+// Dependencies: egui; crate::material_symbol, crate::theme
+// ============================================================================
+
 //! Material Design 3 Tree View Components
 //!
 //! # M3 Color Role Usage

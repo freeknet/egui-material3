@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       actionsheet
+// Description:  Material Design 3 Action Sheet Components.
+//
+// Dependencies: egui; crate::theme
+// ============================================================================
+
 //! Material Design 3 Action Sheet Components
 //!
 //! # M3 Color Role Usage

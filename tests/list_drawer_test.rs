@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list_drawer_test (integration test)
+// Description:  Tests for List drawer functionality.
+//
+// Dependencies: egui_material3
+// ============================================================================
+
 //! Tests for List drawer functionality
 
 use egui_material3::ListItem;

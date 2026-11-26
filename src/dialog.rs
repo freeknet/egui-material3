@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       dialog
+// Description:  Material Design 3 Dialog Components.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Dialog Components
 //!
 //! # M3 Color Role Usage

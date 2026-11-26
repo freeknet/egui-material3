@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       package (standalone example crate)
+// Description:  Standalone example crate depending on egui-material3 by path.
+//
+// Dependencies: eframe, egui_material3, egui
+// ============================================================================
+
+//! Standalone example crate depending on egui-material3 by path.
+
 // Minimal egui-material3 example
 use eframe::egui;
 use egui_material3::{

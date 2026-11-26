@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       menu
+// Description:  Material Design 3 Menu Components.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Menu Components
 //!
 //! # M3 Color Role Usage
@@ -22,26 +29,37 @@ use egui::{self, Color32, Context, Id, Pos2, Rect, Response, Sense, Stroke, Ui, 
 /// Corner position for menu positioning.
 #[derive(Clone, Copy, PartialEq)]
 pub enum Corner {
+    /// The top-left corner.
     TopLeft,
+    /// The top-right corner.
     TopRight,
+    /// The bottom-left corner.
     BottomLeft,
+    /// The bottom-right corner.
     BottomRight,
 }
 
 /// Focus state for keyboard navigation.
 #[derive(Clone, Copy, PartialEq)]
 pub enum FocusState {
+    /// Nothing is focused when the menu opens.
     None,
+    /// The menu itself is focused when it opens.
     ListRoot,
+    /// The first item is focused when the menu opens.
     FirstItem,
 }
 
 /// Positioning mode for the menu.
 #[derive(Clone, Copy, PartialEq)]
 pub enum Positioning {
+    /// Positioned at absolute coordinates.
     Absolute,
+    /// Positioned relative to the viewport.
     Fixed,
+    /// Positioned relative to the document.
     Document,
+    /// Shown as a popover above other content.
     Popover,
 }
 

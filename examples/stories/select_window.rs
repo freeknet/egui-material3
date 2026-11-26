@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::select_window (example)
+// Description:  Story window demonstrating the select component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the select component.
+
 #![doc(hidden)]
 
 use crate::{select, MaterialButton, SelectVariant};

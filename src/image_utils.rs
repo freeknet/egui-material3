@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       image_utils
+// Description:  Image and SVG Utilities.
+//
+// Dependencies: egui, resvg, image
+// ============================================================================
+
 //! Image and SVG Utilities
 //!
 //! Helper functions for loading and caching images and SVG graphics.
@@ -15,6 +22,7 @@ lazy_static::lazy_static! {
     static ref TEXTURE_CACHE: Mutex<HashMap<String, TextureHandle>> = Mutex::new(HashMap::new());
 }
 
+/// Renders SVG markup to PNG bytes at the SVG's own size.
 pub fn svg_to_png_bytes(svg_data: &str) -> Result<Vec<u8>, String> {
     // Parse the SVG data into a usvg::Tree
     let tree = Tree::from_str(svg_data, &Options::default())
@@ -44,6 +52,7 @@ pub fn svg_to_png_bytes(svg_data: &str) -> Result<Vec<u8>, String> {
     Ok(png_bytes)
 }
 
+/// Renders SVG markup to a texture, cached under `name`.
 pub fn create_texture_from_svg(
     ctx: &Context,
     svg_data: &str,
@@ -84,6 +93,7 @@ pub fn create_texture_from_svg(
     Ok(texture)
 }
 
+/// Decodes PNG bytes to a texture, cached under `name`.
 pub fn create_texture_from_png_bytes(
     ctx: &Context,
     png_bytes: &[u8],
@@ -122,14 +132,22 @@ pub fn create_texture_from_png_bytes(
 }
 
 // Material Icons support - using Unicode characters
+/// Code points of Material Icons glyphs used by the crate.
 pub mod material_icons {
+    /// The `local_laundry_service` icon.
     pub const LOCAL_LAUNDRY_SERVICE: &str = "\u{e950}";
+    /// The `account_circle` icon.
     pub const ACCOUNT_CIRCLE: &str = "\u{e853}";
+    /// The `link` icon.
     pub const LINK: &str = "\u{e157}";
+    /// The `google` icon.
     pub const GOOGLE: &str = "\u{ea88}";
+    /// The `event` icon.
     pub const EVENT: &str = "\u{e878}";
 }
 
 // Include static assets
+/// The bundled Google logo, as SVG markup.
 pub const GOOGLE_LOGO_SVG: &str = include_str!("../resources/google_logo.svg");
+/// The bundled avatar image, as SVG markup.
 pub const AVATAR_SVG: &str = include_str!("../resources/avatar.svg");

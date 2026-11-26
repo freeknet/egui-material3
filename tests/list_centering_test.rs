@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list_centering_test (integration test)
+// Description:  Integration tests for list item vertical centering.
+//
+// Dependencies: egui_material3, egui
+// ============================================================================
+
 //! Integration tests for list item vertical centering
 
 use egui_material3::{ListItem, MaterialList};

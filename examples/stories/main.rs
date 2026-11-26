@@ -1,3 +1,13 @@
+// ============================================================================
+// Module:       stories (example crate root)
+// Description:  Component gallery: one window per widget, opened from a menu.
+//
+// Dependencies: eframe, egui, egui_material3, egui_file_dialog, smol, serde_json;
+//               self::*_window (one module per story)
+// ============================================================================
+
+//! Component gallery: one window per widget, opened from a menu.
+
 #![doc(hidden)]
 
 use eframe::egui::{self};

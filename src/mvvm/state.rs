@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       mvvm::state
+// Description:  Reactive state primitives for MVVM pattern.
+//
+// Dependencies: super
+// ============================================================================
+
 //! Reactive state primitives for MVVM pattern
 //!
 //! Provides reactive state containers that notify observers when values change.

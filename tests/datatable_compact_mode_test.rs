@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       datatable_compact_mode_test (integration test)
+// Description:  Integration tests: datatable compact mode test.
+//
+// Dependencies: egui, egui_material3
+// ============================================================================
+
+//! Integration tests: datatable compact mode test.
+
 /// Test: DataTable CompactMode override functionality
 ///
 /// Verifies that tables can be forced into specific display modes regardless

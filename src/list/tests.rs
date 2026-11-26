@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list::tests
+// Description:  Tests for MaterialList multiline text handling.
+//
+// Dependencies: egui; crate::list
+// ============================================================================
+
 //! Tests for MaterialList multiline text handling
 
 use crate::list::{ListItem, MaterialList};

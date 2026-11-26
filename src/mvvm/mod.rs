@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       mvvm
+// Description:  MVVM (Model-View-ViewModel) support for egui-material3.
+//
+// Dependencies: egui; self::state, self::viewmodel
+// ============================================================================
+
 //! MVVM (Model-View-ViewModel) support for egui-material3
 //!
 //! This module provides reactive state management and ViewModel patterns

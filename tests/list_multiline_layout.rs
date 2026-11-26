@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       list_multiline_layout (integration test)
+// Description:  Integration tests: list multiline layout.
+//
+// Dependencies: egui_material3, egui
+// ============================================================================
+
+//! Integration tests: list multiline layout.
+
 use egui_material3::{ListItem, MaterialList};
 
 #[test]

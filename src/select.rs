@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       select
+// Description:  Material Design 3 Select/Dropdown Components.
+//
+// Dependencies: egui; crate::theme
+// ============================================================================
+
 //! Material Design 3 Select/Dropdown Components
 //!
 //! # M3 Color Role Usage
@@ -60,6 +67,7 @@ pub enum MenuAlignment {
     End,
 }
 
+/// A Material Design select (dropdown) field.
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct MaterialSelect<'a> {
     /// Reference to the currently selected option

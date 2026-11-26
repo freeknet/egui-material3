@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list_drawer_click_test (integration test)
+// Description:  Integration tests for full-item drawer toggle behavior.
+//
+// Dependencies: egui_material3, egui
+// ============================================================================
+
 //! Integration tests for full-item drawer toggle behavior
 
 use egui_material3::{ListItem, MaterialList, MaterialListState};

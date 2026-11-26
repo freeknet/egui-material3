@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       badge
+// Description:  Material Design 3 Badge Components.
+//
+// Dependencies: egui; crate::theme
+// ============================================================================
+
 //! Material Design 3 Badge Components
 //!
 //! # M3 Color Role Usage

@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       slider
+// Description:  Material Design 3 Slider Components.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Slider Components
 //!
 //! # M3 Color Role Usage
@@ -51,11 +58,14 @@ pub enum ThumbShape {
 /// Range values for RangeSlider
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RangeValues {
+    /// Lower end of the selected range.
     pub start: f32,
+    /// Upper end of the selected range.
     pub end: f32,
 }
 
 impl RangeValues {
+    /// A range from `start` to `end`.
     pub fn new(start: f32, end: f32) -> Self {
         Self { start, end }
     }
@@ -97,6 +107,7 @@ pub struct MaterialSlider<'a> {
 }
 
 impl<'a> MaterialSlider<'a> {
+    /// A slider that edits `value` within `range`.
     pub fn new(value: &'a mut f32, range: RangeInclusive<f32>) -> Self {
         Self {
             value,
@@ -116,61 +127,73 @@ impl<'a> MaterialSlider<'a> {
         }
     }
 
+    /// Sets the label shown with the slider.
     pub fn text(mut self, text: impl Into<String>) -> Self {
         self.text = Some(text.into());
         self
     }
 
+    /// Sets whether the slider can be interacted with.
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
     }
 
+    /// Sets the width of the slider, in points.
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
         self
     }
 
+    /// Snaps the value to multiples of `step`.
     pub fn step(mut self, step: f32) -> Self {
         self.step = Some(step);
         self
     }
 
+    /// Sets whether the current value is shown next to the slider.
     pub fn show_value(mut self, show_value: bool) -> Self {
         self.show_value = show_value;
         self
     }
 
+    /// Sets a secondary track value, drawn as a second fill such as a buffer indicator.
     pub fn secondary_track_value(mut self, value: f32) -> Self {
         self.secondary_track_value = Some(value);
         self
     }
 
+    /// Sets whether a value indicator is shown above the thumb while dragging.
     pub fn show_value_indicator(mut self, show: bool) -> Self {
         self.show_value_indicator = show;
         self
     }
 
+    /// Sets how taps and drags change the value.
     pub fn interaction_mode(mut self, mode: SliderInteraction) -> Self {
         self.interaction_mode = mode;
         self
     }
 
+    /// Sets the shape of the thumb.
     pub fn thumb_shape(mut self, shape: ThumbShape) -> Self {
         self.thumb_shape = shape;
         self
     }
 
+    /// Sets the color of the ripple drawn around the thumb on interaction.
     pub fn overlay_color(mut self, color: Color32) -> Self {
         self.overlay_color = Some(color);
         self
     }
 
+    /// Sets the color of the thumb.
     pub fn thumb_color(mut self, color: Color32) -> Self {
         self.thumb_color = Some(color);
         self
     }
 
+    /// Sets the color of the secondary track fill.
     pub fn secondary_active_color(mut self, color: Color32) -> Self {
         self.secondary_active_color = Some(color);
         self
@@ -471,6 +494,7 @@ pub struct MaterialRangeSlider<'a> {
 }
 
 impl<'a> MaterialRangeSlider<'a> {
+    /// A range slider that edits `values` within `range`.
     pub fn new(values: &'a mut RangeValues, range: RangeInclusive<f32>) -> Self {
         Self {
             values,
@@ -486,41 +510,49 @@ impl<'a> MaterialRangeSlider<'a> {
         }
     }
 
+    /// Sets the label shown with the slider.
     pub fn text(mut self, text: impl Into<String>) -> Self {
         self.text = Some(text.into());
         self
     }
 
+    /// Sets whether the slider can be interacted with.
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
     }
 
+    /// Sets the width of the slider, in points.
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
         self
     }
 
+    /// Snaps both values to multiples of `step`.
     pub fn step(mut self, step: f32) -> Self {
         self.step = Some(step);
         self
     }
 
+    /// Sets whether the current values are shown next to the slider.
     pub fn show_values(mut self, show: bool) -> Self {
         self.show_values = show;
         self
     }
 
+    /// Sets whether a value indicator is shown above a thumb while dragging.
     pub fn show_value_indicator(mut self, show: bool) -> Self {
         self.show_value_indicator = show;
         self
     }
 
+    /// Sets the shape of the thumbs.
     pub fn thumb_shape(mut self, shape: ThumbShape) -> Self {
         self.thumb_shape = shape;
         self
     }
 
+    /// Sets the smallest allowed gap between the start and end values.
     pub fn min_separation(mut self, separation: f32) -> Self {
         self.min_separation = separation;
         self
@@ -739,10 +771,12 @@ impl<'a> Widget for MaterialRangeSlider<'a> {
     }
 }
 
+/// Creates a slider that edits `value` within `range`.
 pub fn slider<'a>(value: &'a mut f32, range: RangeInclusive<f32>) -> MaterialSlider<'a> {
     MaterialSlider::new(value, range)
 }
 
+/// Creates a range slider that edits `values` within `range`.
 pub fn range_slider<'a>(
     values: &'a mut RangeValues,
     range: RangeInclusive<f32>,

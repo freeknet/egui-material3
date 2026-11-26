@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::datatable_window (example)
+// Description:  Story window demonstrating the datatable component.
+//
+// Dependencies: eframe, serde, egui_material3, egui; crate::datatable, crate::tabs_secondary
+// ============================================================================
+
+//! Story window demonstrating the datatable component.
+
 #![doc(hidden)]
 
 use crate::datatable::{CompactMode, RowAction, SortDirection as DataTableSortDirection};

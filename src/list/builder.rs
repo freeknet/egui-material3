@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list::builder
+// Description:  Builder methods for MaterialList.
+//
+// Dependencies: egui; super
+// ============================================================================
+
 //! Builder methods for MaterialList
 
 use super::{types::*, MaterialList};

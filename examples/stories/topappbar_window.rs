@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::topappbar_window (example)
+// Description:  Story window demonstrating the topappbar component.
+//
+// Dependencies: eframe, egui_material3, egui
+// ============================================================================
+
+//! Story window demonstrating the topappbar component.
+
 #![doc(hidden)]
 
 use crate::{

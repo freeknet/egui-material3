@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       mvvm_todo_example (example)
+// Description:  MVVM Todo List Example.
+//
+// Dependencies: eframe, egui_material3, egui
+// ============================================================================
+
 //! MVVM Todo List Example
 //!
 //! Demonstrates more complex MVVM patterns with shared state:

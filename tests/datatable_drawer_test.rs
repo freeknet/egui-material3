@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       datatable_drawer_test (integration test)
+// Description:  Integration tests: datatable drawer test.
+//
+// Dependencies: egui, egui_material3
+// ============================================================================
+
+//! Integration tests: datatable drawer test.
+
 // Integration tests for conditional drawer functionality
 // Tests verify API compiles and can be used correctly
 

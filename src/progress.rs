@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       progress
+// Description:  Material Design 3 Progress Indicator Components.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Progress Indicator Components
 //!
 //! # M3 Color Role Usage
@@ -753,10 +760,12 @@ impl MaterialProgress {
     }
 }
 
+/// Creates a linear progress indicator.
 pub fn linear_progress() -> MaterialProgress {
     MaterialProgress::linear()
 }
 
+/// Creates a circular progress indicator.
 pub fn circular_progress() -> MaterialProgress {
     MaterialProgress::circular()
 }

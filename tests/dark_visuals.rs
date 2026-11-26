@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       dark_visuals (integration test)
+// Description:  Integration tests: dark visuals.
+//
+// Dependencies: egui_material3, egui
+// ============================================================================
+
+//! Integration tests: dark visuals.
+
 use egui_material3::theme::{apply_theme, set_theme_mode, ThemeMode};
 
 fn lum(c: egui::Color32) -> u32 {

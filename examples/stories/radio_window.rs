@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::radio_window (example)
+// Description:  Story window demonstrating the radio component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the radio component.
+
 #![doc(hidden)]
 
 use crate::{radio, radio_group, radio_list_tile, ListTileControlAffinity, MaterialButton};

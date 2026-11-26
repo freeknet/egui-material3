@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::list_window (example)
+// Description:  Story window demonstrating the list component.
+//
+// Dependencies: eframe, egui_material3, egui
+// ============================================================================
+
+//! Story window demonstrating the list component.
+
 #![doc(hidden)]
 
 use crate::{dialog, MaterialButton};

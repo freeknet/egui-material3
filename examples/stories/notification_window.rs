@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::notification_window (example)
+// Description:  Story window demonstrating the notification component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the notification component.
+
 #![doc(hidden)]
 
 use crate::{notification, MaterialButton, NotificationAlign};

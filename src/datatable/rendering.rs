@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       datatable::rendering
+// Description:  Rendering implementation for MaterialDataTable.
+//
+// Dependencies: egui; crate::tooltip, super
+// ============================================================================
+
 //! Rendering implementation for MaterialDataTable
 
 use super::{types::*, MaterialDataTable};

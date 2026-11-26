@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::input_window (example)
+// Description:  Story window demonstrating the input component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the input component.
+
 #![doc(hidden)]
 
 use crate::{MaterialButton, MaterialInput};

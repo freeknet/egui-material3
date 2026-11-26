@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::checkbox_window (example)
+// Description:  Story window demonstrating the checkbox component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the checkbox component.
+
 #![doc(hidden)]
 
 use crate::{checkbox, MaterialButton, MaterialCheckbox};

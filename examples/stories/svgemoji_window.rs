@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::svgemoji_window (example)
+// Description:  Story window demonstrating the svgemoji component.
+//
+// Dependencies: eframe, egui_material3, resvg, egui
+// ============================================================================
+
+//! Story window demonstrating the svgemoji component.
+
 #![doc(hidden)]
 
 use eframe::egui::{self, Window};

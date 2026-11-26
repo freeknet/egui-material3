@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       radio
+// Description:  Material Design 3 Radio Button Components.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Radio Button Components
 //!
 //! This module implements radio button controls following Material Design 3 color system.

@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       datatable::builder
+// Description:  Builder methods for MaterialDataTable.
+//
+// Dependencies: egui; super
+// ============================================================================
+
 //! Builder methods for MaterialDataTable
 
 use super::{types::*, MaterialDataTable};
@@ -81,6 +88,7 @@ impl<'a> MaterialDataTable<'a> {
         self
     }
 
+    /// Adds a sortable column with the given cell alignment.
     pub fn sortable_column_with_align(
         mut self,
         title: impl Into<String>,

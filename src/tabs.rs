@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       tabs
+// Description:  Material Design 3 Tabs Components.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Tabs Components
 //!
 //! # M3 Color Role Usage

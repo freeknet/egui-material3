@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       timeline
+// Description:  Material Design 3 Timeline Components.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Timeline Components
 //!
 //! # M3 Color Role Usage

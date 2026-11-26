@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       noto_emoji
+// Description:  Noto Emoji Unicode constants — fallback emoji font available in egui.
+//
+// Dependencies: std only
+// ============================================================================
+
 //! Noto Emoji Unicode constants — fallback emoji font available in egui.
 //!
 //! Usage: `MaterialIcon::new(noto_emoji::SPARKLES)`

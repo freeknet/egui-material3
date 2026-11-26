@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::actionsheet_window (example)
+// Description:  Story window demonstrating the actionsheet component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the actionsheet component.
+
 #![doc(hidden)]
 
 use crate::{action_sheet, MaterialButton};

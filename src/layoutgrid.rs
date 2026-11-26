@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       layoutgrid
+// Description:  Material Design 3 Layout Grid Components.
+//
+// Dependencies: egui; crate::theme
+// ============================================================================
+
 //! Material Design 3 Layout Grid Components
 //!
 //! # M3 Color Role Usage

@@ -1,3 +1,11 @@
+// ============================================================================
+// Module:       spreadsheet
+// Description:  Material Design Spreadsheet Component.
+//
+// Dependencies: futures, rusqlite, diesel, egui, egui_extras, smol; crate::theme,
+//               self::native_imports, crate::egui_smol, self::wasm_imports, super
+// ============================================================================
+
 //! Material Design Spreadsheet Component
 //!
 //! A spreadsheet widget with SQLite backend (via rusqlite) for data storage and manipulation.
@@ -46,8 +54,11 @@ pub use egui_extras::TableBuilder;
 #[cfg(feature = "spreadsheet")]
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ColumnDef {
+    /// Header text of the column.
     pub name: String,
+    /// Type of the values the column holds.
     pub col_type: ColumnType,
+    /// Width of the column, in points.
     pub width: f32,
 }
 
@@ -55,9 +66,13 @@ pub struct ColumnDef {
 #[cfg(feature = "spreadsheet")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ColumnType {
+    /// Free text, stored as SQLite `TEXT`.
     Text,
+    /// Whole numbers, stored as SQLite `INTEGER`.
     Integer,
+    /// Floating-point numbers, stored as SQLite `REAL`.
     Real,
+    /// True or false, stored as SQLite `INTEGER`.
     Boolean,
 }
 
@@ -77,7 +92,9 @@ impl ColumnType {
 #[cfg(feature = "spreadsheet")]
 #[derive(Clone, Debug)]
 pub struct RowData {
+    /// Identifier of the row.
     pub id: usize,
+    /// The row's cell values as text, one per column.
     pub values: Vec<String>,
 }
 
@@ -85,12 +102,15 @@ pub struct RowData {
 #[cfg(feature = "spreadsheet")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum FileFormat {
+    /// Comma-separated values (`.csv`).
     Csv,
+    /// An Excel workbook (`.xls` or `.xlsx`).
     Excel,
 }
 
 #[cfg(feature = "spreadsheet")]
 impl FileFormat {
+    /// The format for a path's extension, or `None` if it is not a supported one.
     pub fn from_path(path: &std::path::Path) -> Option<Self> {
         path.extension()?
             .to_str()
@@ -715,14 +735,22 @@ impl SpreadsheetDataModel {
 #[cfg(feature = "spreadsheet")]
 #[derive(Debug, Clone)]
 pub enum SpreadsheetAction {
+    /// A cell's value was changed.
     CellEdited {
+        /// Identifier of the edited row.
         row_id: usize,
+        /// Index of the edited column.
         col_idx: usize,
+        /// The cell's new value.
         value: String,
     },
+    /// A row was added.
     RowAdded,
+    /// A row was deleted; carries its identifier.
     RowDeleted(usize),
+    /// Data was loaded from this file.
     DataLoaded(PathBuf),
+    /// Data was saved to this file.
     DataSaved(PathBuf),
 }
 
@@ -730,6 +758,7 @@ pub enum SpreadsheetAction {
 #[cfg(feature = "spreadsheet")]
 pub struct MaterialSpreadsheet {
     id: Id,
+    /// The SQLite-backed data shown by the widget.
     pub data_model: Arc<Mutex<SpreadsheetDataModel>>,
     cached_rows: Vec<RowData>,
     editing_cell: Option<(usize, usize)>,

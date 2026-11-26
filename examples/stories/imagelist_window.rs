@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::imagelist_window (example)
+// Description:  Story window demonstrating the imagelist component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the imagelist component.
+
 #![doc(hidden)]
 
 use crate::{image_list, masonry_image_list, woven_image_list, MaterialButton, MaterialCheckbox};

@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       button
+// Description:  Material Design 3 Button Components.
+//
+// Dependencies: self::types
+// ============================================================================
+
 //! Material Design 3 Button Components
 //!
 //! This module implements button controls following Material Design 3 color system.

@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::breadcrumbs_window (example)
+// Description:  Story window demonstrating the breadcrumbs component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the breadcrumbs component.
+
 #![doc(hidden)]
 
 use crate::{breadcrumbs, MaterialButton};

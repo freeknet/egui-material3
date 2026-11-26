@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list
+// Description:  Material Design 3 List Components.
+//
+// Dependencies: self::rendering, self::types
+// ============================================================================
+
 //! Material Design 3 List Components
 
 mod builder;

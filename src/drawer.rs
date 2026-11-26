@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       drawer
+// Description:  Material Design 3 Navigation Drawer Components.
+//
+// Dependencies: egui, eframe; crate::theme
+// ============================================================================
+
 //! Material Design 3 Navigation Drawer Components
 //!
 //! # M3 Color Role Usage
@@ -25,8 +32,11 @@ use egui::{
 /// Material Design navigation drawer variants.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum DrawerVariant {
+    /// Always visible, laid out beside the content.
     Permanent,
+    /// Laid out beside the content and can be opened and closed.
     Dismissible,
+    /// Floats above the content behind a scrim while open.
     Modal,
 }
 
@@ -42,14 +52,23 @@ pub enum DrawerAlignment {
 /// Theme data for Material Design drawers.
 #[derive(Clone, Debug, Default)]
 pub struct DrawerThemeData {
+    /// Background color of the drawer.
     pub background_color: Option<Color32>,
+    /// Color of the scrim behind a modal drawer.
     pub scrim_color: Option<Color32>,
+    /// Elevation of the drawer, which sets its shadow.
     pub elevation: Option<f32>,
+    /// Color of the drawer's shadow.
     pub shadow_color: Option<Color32>,
+    /// Tint color blended into the surface to show elevation.
     pub surface_tint_color: Option<Color32>,
+    /// Corner rounding of a drawer at the start side.
     pub shape: Option<CornerRadius>,
+    /// Corner rounding of a drawer at the end side.
     pub end_shape: Option<CornerRadius>,
+    /// Width of the drawer, in points.
     pub width: Option<f32>,
+    /// Whether the drawer's content is clipped to its shape.
     pub clip_behavior: Option<bool>,
 }
 
@@ -111,40 +130,48 @@ impl Default for DrawerHeader {
 }
 
 impl DrawerHeader {
+    /// A header with the default size and the theme's colors.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Sets the background color of the header.
     pub fn decoration_color(mut self, color: Color32) -> Self {
         self.decoration_color = Some(color);
         self
     }
 
+    /// Sets the space below the header, in points.
     pub fn margin(mut self, margin: f32) -> Self {
         self.margin = margin;
         self
     }
 
+    /// Sets the padding around the header's text.
     pub fn padding(mut self, padding: Vec2) -> Self {
         self.padding = padding;
         self
     }
 
+    /// Sets the height of the header, in points.
     pub fn height(mut self, height: f32) -> Self {
         self.height = height;
         self
     }
 
+    /// Sets the title text.
     pub fn title(mut self, title: impl Into<String>) -> Self {
         self.title = Some(title.into());
         self
     }
 
+    /// Sets the subtitle text, shown below the title.
     pub fn subtitle(mut self, subtitle: impl Into<String>) -> Self {
         self.subtitle = Some(subtitle.into());
         self
     }
 
+    /// Draws the header across the available width.
     pub fn show(self, ui: &mut Ui) -> Response {
         let rect = ui
             .allocate_space(Vec2::new(ui.available_width(), self.height + self.margin))
@@ -241,21 +268,30 @@ pub struct MaterialDrawer<'a> {
 
 /// A section in the navigation drawer with a label and items.
 pub struct DrawerSection {
+    /// Heading shown above the section's items, if any.
     pub label: Option<String>,
+    /// The navigation items in the section.
     pub items: Vec<DrawerItem>,
 }
 
 /// A navigation item in a drawer.
 pub struct DrawerItem {
+    /// Label of the item.
     pub text: String,
+    /// Name of the icon shown before the label, if any.
     pub icon: Option<String>,
+    /// Whether the item is the current destination, which highlights it.
     pub active: bool,
+    /// Whether the item can be clicked.
     pub enabled: bool,
+    /// Text of a badge shown at the end of the item, if any.
     pub badge: Option<String>,
+    /// Called when the item is clicked.
     pub on_click: Option<Box<dyn Fn() + Send + Sync>>,
 }
 
 impl DrawerItem {
+    /// An enabled, inactive item with the given label.
     pub fn new(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
@@ -267,26 +303,31 @@ impl DrawerItem {
         }
     }
 
+    /// Sets the icon shown before the label.
     pub fn icon(mut self, icon: impl Into<String>) -> Self {
         self.icon = Some(icon.into());
         self
     }
 
+    /// Marks the item as the current destination.
     pub fn active(mut self, active: bool) -> Self {
         self.active = active;
         self
     }
 
+    /// Sets whether the item can be clicked.
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
     }
 
+    /// Shows a badge with this text at the end of the item.
     pub fn badge(mut self, badge: impl Into<String>) -> Self {
         self.badge = Some(badge.into());
         self
     }
 
+    /// Sets the closure called when the item is clicked.
     pub fn on_click<F>(mut self, callback: F) -> Self
     where
         F: Fn() + Send + Sync + 'static,
@@ -869,6 +910,7 @@ pub fn modal_drawer(open: &mut bool) -> MaterialDrawer<'_> {
 }
 
 // Legacy support - these will be deprecated
+/// Creates a permanent drawer; same as `permanent_drawer`.
 pub fn standard_drawer(open: &mut bool) -> MaterialDrawer<'_> {
     permanent_drawer(open)
 }

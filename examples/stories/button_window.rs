@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::button_window (example)
+// Description:  Story window demonstrating the button component.
+//
+// Dependencies: eframe, egui; crate::svg_emoji, crate::MaterialButton
+// ============================================================================
+
+//! Story window demonstrating the button component.
+
 #![doc(hidden)]
 
 #[cfg(feature = "svg_emoji")]

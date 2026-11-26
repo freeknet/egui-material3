@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list_icon_label_test (integration test)
+// Description:  Tests for list item icon label rendering.
+//
+// Dependencies: egui_material3, egui
+// ============================================================================
+
 //! Tests for list item icon label rendering
 
 use egui_material3::{ListItem, MaterialList};

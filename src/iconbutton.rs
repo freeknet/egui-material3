@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       iconbutton
+// Description:  Material Design 3 Icon Button Components.
+//
+// Dependencies: egui, resvg; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Icon Button Components
 //!
 //! This module implements icon button controls following Material Design 3 color system.

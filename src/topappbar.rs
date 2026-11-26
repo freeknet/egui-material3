@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       topappbar
+// Description:  Material Design 3 Top App Bar Components.
+//
+// Dependencies: egui; crate::material_symbol, crate::theme
+// ============================================================================
+
 //! Material Design 3 Top App Bar Components
 //!
 //! # M3 Color Role Usage
@@ -34,9 +41,13 @@ use egui::{
 /// Material Design top app bar variants.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TopAppBarVariant {
+    /// A small bar with the title at the start.
     Regular,
+    /// A medium bar with the title on a second, larger line.
     Medium,
+    /// A large bar with a larger title on its own line.
     Large,
+    /// A small bar with the title centered.
     CenterAligned,
 }
 

@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       button::rendering
+// Description:  Rendering implementation for MaterialButton.
+//
+// Dependencies: egui; super
+// ============================================================================
+
 //! Rendering implementation for MaterialButton
 
 use super::{types::*, MaterialButton};

@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::tooltip_window (example)
+// Description:  Story window demonstrating the tooltip component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the tooltip component.
+
 #![doc(hidden)]
 
 use crate::{

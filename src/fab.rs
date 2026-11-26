@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       fab
+// Description:  Material Design 3 Floating Action Button (FAB) Components.
+//
+// Dependencies: egui, resvg; crate::get_global_color, crate::icon, crate::material_symbol
+// ============================================================================
+
 //! Material Design 3 Floating Action Button (FAB) Components
 //!
 //! This module implements FAB controls following Material Design 3 color system.
@@ -635,22 +642,27 @@ fn render_svg_to_texture(
     Ok(ctx.load_texture(key, color_image, egui::TextureOptions::LINEAR))
 }
 
+/// Creates a floating action button in the surface color.
 pub fn fab_surface() -> MaterialFab<'static> {
     MaterialFab::surface()
 }
 
+/// Creates a floating action button in the primary color.
 pub fn fab_primary() -> MaterialFab<'static> {
     MaterialFab::primary()
 }
 
+/// Creates a floating action button in the secondary color.
 pub fn fab_secondary() -> MaterialFab<'static> {
     MaterialFab::secondary()
 }
 
+/// Creates a floating action button in the tertiary color.
 pub fn fab_tertiary() -> MaterialFab<'static> {
     MaterialFab::tertiary()
 }
 
+/// Creates a branded floating action button.
 pub fn fab_branded() -> MaterialFab<'static> {
     MaterialFab::branded()
 }

@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::iconbutton_window (example)
+// Description:  Story window demonstrating the iconbutton component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the iconbutton component.
+
 #![doc(hidden)]
 
 use crate::{

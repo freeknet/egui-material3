@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       chips
+// Description:  Material Design 3 Chip Components.
+//
+// Dependencies: egui
+// ============================================================================
+
 //! Material Design 3 Chip Components
 //!
 //! This module implements chip controls following Material Design 3 color system.
@@ -656,18 +663,22 @@ impl<'a> Widget for MaterialChip<'a> {
     }
 }
 
+/// Creates an assist chip with the given text.
 pub fn assist_chip(text: impl Into<String>) -> MaterialChip<'static> {
     MaterialChip::assist(text)
 }
 
+/// Creates a filter chip with the given text, bound to `selected`.
 pub fn filter_chip(text: impl Into<String>, selected: &mut bool) -> MaterialChip<'_> {
     MaterialChip::filter(text, selected)
 }
 
+/// Creates an input chip with the given text.
 pub fn input_chip(text: impl Into<String>) -> MaterialChip<'static> {
     MaterialChip::input(text)
 }
 
+/// Creates a suggestion chip with the given text.
 pub fn suggestion_chip(text: impl Into<String>) -> MaterialChip<'static> {
     MaterialChip::suggestion(text)
 }

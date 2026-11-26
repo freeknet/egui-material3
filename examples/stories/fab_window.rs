@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::fab_window (example)
+// Description:  Story window demonstrating the fab component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the fab component.
+
 #![doc(hidden)]
 
 use crate::{

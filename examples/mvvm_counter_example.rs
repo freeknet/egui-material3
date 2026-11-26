@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       mvvm_counter_example (example)
+// Description:  MVVM Counter Example.
+//
+// Dependencies: eframe, egui_material3, egui
+// ============================================================================
+
 //! MVVM Counter Example
 //!
 //! Demonstrates using egui-material3 with MVVM pattern:

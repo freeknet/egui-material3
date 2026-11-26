@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       dashcounter
+// Description:  Material Design 3 Dashboard Counter Components.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Dashboard Counter Components
 //!
 //! # M3 Color Role Usage

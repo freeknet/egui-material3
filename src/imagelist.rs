@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       imagelist
+// Description:  Material Design Image Lists.
+//
+// Dependencies: egui, image, ureq; crate::theme
+// ============================================================================
+
 //! # Material Design Image Lists
 //!
 //! This module provides Material Design 3 image list components with comprehensive
@@ -93,8 +100,11 @@ use std::env;
 /// Material Design image list variants.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ImageListVariant {
+    /// Square tiles in a regular grid.
     Standard,
+    /// Tiles slightly taller than they are wide.
     Masonry,
+    /// Tiles slightly wider than they are tall.
     Woven,
 }
 
@@ -127,16 +137,23 @@ pub struct MaterialImageList<'a> {
     tmppath: String,
 }
 
+/// An image in a `MaterialImageList`.
 pub struct ImageListItem<'a> {
+    /// Caption of the image.
     pub label: String,
+    /// Path or URL of the image, if any.
     pub image_source: Option<String>,
+    /// Secondary text shown below the caption, if any.
     pub supporting_text: Option<String>,
+    /// Called when the image is clicked.
     pub on_click: Option<Box<dyn Fn() + Send + Sync>>,
+    /// The decoded image, once it has been loaded.
     pub loaded_image: Option<egui::ColorImage>,
     _phantom: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a> ImageListItem<'a> {
+    /// An item showing the image at `image_source` with the given caption.
     pub fn new(label: impl Into<String>, image_source: impl Into<String>) -> Self {
         Self {
             label: label.into(),
@@ -148,11 +165,13 @@ impl<'a> ImageListItem<'a> {
         }
     }
 
+    /// Sets the secondary text shown below the caption.
     pub fn supporting_text(mut self, text: impl Into<String>) -> Self {
         self.supporting_text = Some(text.into());
         self
     }
 
+    /// Sets the closure called when the image is clicked.
     pub fn on_click<F>(mut self, callback: F) -> Self
     where
         F: Fn() + Send + Sync + 'static,

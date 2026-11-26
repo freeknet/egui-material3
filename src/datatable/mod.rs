@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       datatable
+// Description:  Material Design 3 Data Table Components.
+//
+// Dependencies: egui; self::types
+// ============================================================================
+
 //! Material Design 3 Data Table Components
 //!
 //! # Performance Optimizations

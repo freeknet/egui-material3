@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       tooltip
+// Description:  Material Design 3 Tooltip Components.
+//
+// Dependencies: egui; crate::theme
+// ============================================================================
+
 //! Material Design 3 Tooltip Components
 //!
 //! # M3 Color Role Usage

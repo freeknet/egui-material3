@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::toolbar_window (example)
+// Description:  Story window demonstrating the toolbar component.
+//
+// Dependencies: eframe, egui_material3, egui
+// ============================================================================
+
+//! Story window demonstrating the toolbar component.
+
 #![doc(hidden)]
 
 use crate::{icon_button_filled, icon_button_standard, toolbar, MaterialButton};

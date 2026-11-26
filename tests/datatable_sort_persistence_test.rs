@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       datatable_sort_persistence_test (integration test)
+// Description:  Integration tests: datatable sort persistence test.
+//
+// Dependencies: egui, egui_material3
+// ============================================================================
+
+//! Integration tests: datatable sort persistence test.
+
 /// Test: DataTable sorting state persists across redraws and scrolling
 ///
 /// Verifies that when a user clicks a column header to sort, the sort state

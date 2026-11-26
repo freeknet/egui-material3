@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::dialog_window (example)
+// Description:  Story window demonstrating the dialog component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the dialog component.
+
 #![doc(hidden)]
 
 use crate::{dialog, MaterialButton};

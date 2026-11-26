@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::switch_window (example)
+// Description:  Story window demonstrating the switch component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the switch component.
+
 #![doc(hidden)]
 
 use crate::{

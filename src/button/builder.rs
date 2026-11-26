@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       button::builder
+// Description:  Builder methods for MaterialButton.
+//
+// Dependencies: egui; super
+// ============================================================================
+
 //! Builder methods for MaterialButton
 
 use super::{types::*, MaterialButton};
@@ -88,6 +95,7 @@ impl<'a> MaterialButton<'a> {
         Self::opt_image_and_text_with_variant(variant, None, Some(text.into()))
     }
 
+    /// Creates a filled button with the given text; same as `filled`.
     pub fn new(text: impl Into<WidgetText>) -> Self {
         Self::filled(text)
     }
@@ -240,6 +248,7 @@ impl<'a> MaterialButton<'a> {
         self
     }
 
+    /// Sets the corner radius; renamed to `corner_radius`.
     #[inline]
     #[deprecated = "Renamed to `corner_radius`"]
     pub fn rounding(self, corner_radius: impl Into<CornerRadius>) -> Self {

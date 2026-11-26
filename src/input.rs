@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       input
+// Description:  Material Design 3 Text Input Components.
+//
+// Dependencies: egui; crate::get_global_color, super
+// ============================================================================
+
 //! Material Design 3 Text Input Components
 //!
 //! This module implements text input fields following Material Design 3 specifications.

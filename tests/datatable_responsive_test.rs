@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       datatable_responsive_test (integration test)
+// Description:  Integration tests: datatable responsive test.
+//
+// Dependencies: egui, egui_material3
+// ============================================================================
+
+//! Integration tests: datatable responsive test.
+
 /// Test: DataTable responsive design for small screens
 ///
 /// Verifies that tables automatically scale fonts and padding based on width:

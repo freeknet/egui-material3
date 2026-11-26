@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       checkbox
+// Description:  Material Design 3 Checkbox Components.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Checkbox Components
 //!
 //! This module implements checkbox controls following Material Design 3 color system.
@@ -380,6 +387,7 @@ impl<'a> Widget for MaterialCheckbox<'a> {
     }
 }
 
+/// Creates a checkbox bound to `checked`, with a text label.
 pub fn checkbox(checked: &mut bool, text: impl Into<String>) -> MaterialCheckbox<'_> {
     MaterialCheckbox::new(checked, text)
 }

@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::dashcounter_window (example)
+// Description:  Story window demonstrating the dashcounter component.
+//
+// Dependencies: eframe, egui_material3, egui; crate::MaterialButton
+// ============================================================================
+
+//! Story window demonstrating the dashcounter component.
+
 #![doc(hidden)]
 
 use crate::MaterialButton;

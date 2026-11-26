@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       theme
+// Description:  Material Design 3 theming system.
+//
+// Dependencies: egui, serde, serde_json, ureq, eframe
+// ============================================================================
+
 //! Material Design 3 theming system
 //!
 //! This module provides a comprehensive theming system for Material Design 3 components,
@@ -89,8 +96,11 @@ use std::io::Read;
 /// Global collection of prepared fonts before loading to context
 #[derive(Debug, Clone)]
 pub struct PreparedFont {
+    /// Name the font is registered under in egui.
     pub name: String,
+    /// The font file's bytes.
     pub data: Arc<FontData>,
+    /// Font families the font is added to.
     pub families: Vec<FontFamily>,
 }
 
@@ -113,7 +123,9 @@ static PREPARED_FONTS: Mutex<Vec<PreparedFont>> = Mutex::new(Vec::new());
 /// then activated by `load_themes()`.
 #[derive(Debug, Clone)]
 pub struct PreparedTheme {
+    /// Human-readable name of the theme.
     pub name: String,
+    /// The parsed theme file.
     pub theme_data: MaterialThemeFile,
 }
 
@@ -122,113 +134,173 @@ static PREPARED_THEMES: Mutex<Vec<PreparedTheme>> = Mutex::new(Vec::new());
 /// Material Design color scheme structure from JSON
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MaterialScheme {
+    /// The `primary` color role, as a hex string.
     pub primary: String,
+    /// The `surfaceTint` color role, as a hex string.
     #[serde(rename = "surfaceTint")]
     pub surface_tint: String,
+    /// The `onPrimary` color role: content drawn on `primary`.
     #[serde(rename = "onPrimary")]
     pub on_primary: String,
+    /// The `primaryContainer` color role, as a hex string.
     #[serde(rename = "primaryContainer")]
     pub primary_container: String,
+    /// The `onPrimaryContainer` color role: content drawn on `primaryContainer`.
     #[serde(rename = "onPrimaryContainer")]
     pub on_primary_container: String,
+    /// The `secondary` color role, as a hex string.
     pub secondary: String,
+    /// The `onSecondary` color role: content drawn on `secondary`.
     #[serde(rename = "onSecondary")]
     pub on_secondary: String,
+    /// The `secondaryContainer` color role, as a hex string.
     #[serde(rename = "secondaryContainer")]
     pub secondary_container: String,
+    /// The `onSecondaryContainer` color role: content drawn on `secondaryContainer`.
     #[serde(rename = "onSecondaryContainer")]
     pub on_secondary_container: String,
+    /// The `tertiary` color role, as a hex string.
     pub tertiary: String,
+    /// The `onTertiary` color role: content drawn on `tertiary`.
     #[serde(rename = "onTertiary")]
     pub on_tertiary: String,
+    /// The `tertiaryContainer` color role, as a hex string.
     #[serde(rename = "tertiaryContainer")]
     pub tertiary_container: String,
+    /// The `onTertiaryContainer` color role: content drawn on `tertiaryContainer`.
     #[serde(rename = "onTertiaryContainer")]
     pub on_tertiary_container: String,
+    /// The `error` color role, as a hex string.
     pub error: String,
+    /// The `onError` color role: content drawn on `error`.
     #[serde(rename = "onError")]
     pub on_error: String,
+    /// The `errorContainer` color role, as a hex string.
     #[serde(rename = "errorContainer")]
     pub error_container: String,
+    /// The `onErrorContainer` color role: content drawn on `errorContainer`.
     #[serde(rename = "onErrorContainer")]
     pub on_error_container: String,
+    /// The `background` color role, as a hex string.
     pub background: String,
+    /// The `onBackground` color role: content drawn on `background`.
     #[serde(rename = "onBackground")]
     pub on_background: String,
+    /// The `surface` color role, as a hex string.
     pub surface: String,
+    /// The `onSurface` color role: content drawn on `surface`.
     #[serde(rename = "onSurface")]
     pub on_surface: String,
+    /// The `surfaceVariant` color role, as a hex string.
     #[serde(rename = "surfaceVariant")]
     pub surface_variant: String,
+    /// The `onSurfaceVariant` color role: content drawn on `surfaceVariant`.
     #[serde(rename = "onSurfaceVariant")]
     pub on_surface_variant: String,
+    /// The `outline` color role, used for borders, as a hex string.
     pub outline: String,
+    /// The `outlineVariant` color role, used for subtle borders, as a hex string.
     #[serde(rename = "outlineVariant")]
     pub outline_variant: String,
+    /// The `shadow` color role, as a hex string.
     pub shadow: String,
+    /// The `scrim` color role, used behind modal surfaces, as a hex string.
     pub scrim: String,
+    /// The `inverseSurface` color role, as a hex string.
     #[serde(rename = "inverseSurface")]
     pub inverse_surface: String,
+    /// The `inverseOnSurface` color role: content drawn on `inverseSurface`.
     #[serde(rename = "inverseOnSurface")]
     pub inverse_on_surface: String,
+    /// The `inversePrimary` color role, as a hex string.
     #[serde(rename = "inversePrimary")]
     pub inverse_primary: String,
+    /// The `primaryFixed` color role, as a hex string.
     #[serde(rename = "primaryFixed")]
     pub primary_fixed: String,
+    /// The `onPrimaryFixed` color role: content drawn on `primaryFixed`.
     #[serde(rename = "onPrimaryFixed")]
     pub on_primary_fixed: String,
+    /// The `primaryFixedDim` color role, as a hex string.
     #[serde(rename = "primaryFixedDim")]
     pub primary_fixed_dim: String,
+    /// The `onPrimaryFixedVariant` color role, as a hex string.
     #[serde(rename = "onPrimaryFixedVariant")]
     pub on_primary_fixed_variant: String,
+    /// The `secondaryFixed` color role, as a hex string.
     #[serde(rename = "secondaryFixed")]
     pub secondary_fixed: String,
+    /// The `onSecondaryFixed` color role: content drawn on `secondaryFixed`.
     #[serde(rename = "onSecondaryFixed")]
     pub on_secondary_fixed: String,
+    /// The `secondaryFixedDim` color role, as a hex string.
     #[serde(rename = "secondaryFixedDim")]
     pub secondary_fixed_dim: String,
+    /// The `onSecondaryFixedVariant` color role, as a hex string.
     #[serde(rename = "onSecondaryFixedVariant")]
     pub on_secondary_fixed_variant: String,
+    /// The `tertiaryFixed` color role, as a hex string.
     #[serde(rename = "tertiaryFixed")]
     pub tertiary_fixed: String,
+    /// The `onTertiaryFixed` color role: content drawn on `tertiaryFixed`.
     #[serde(rename = "onTertiaryFixed")]
     pub on_tertiary_fixed: String,
+    /// The `tertiaryFixedDim` color role, as a hex string.
     #[serde(rename = "tertiaryFixedDim")]
     pub tertiary_fixed_dim: String,
+    /// The `onTertiaryFixedVariant` color role, as a hex string.
     #[serde(rename = "onTertiaryFixedVariant")]
     pub on_tertiary_fixed_variant: String,
+    /// The `surfaceDim` color role, as a hex string.
     #[serde(rename = "surfaceDim")]
     pub surface_dim: String,
+    /// The `surfaceBright` color role, as a hex string.
     #[serde(rename = "surfaceBright")]
     pub surface_bright: String,
+    /// The `surfaceContainerLowest` color role, as a hex string.
     #[serde(rename = "surfaceContainerLowest")]
     pub surface_container_lowest: String,
+    /// The `surfaceContainerLow` color role, as a hex string.
     #[serde(rename = "surfaceContainerLow")]
     pub surface_container_low: String,
+    /// The `surfaceContainer` color role, as a hex string.
     #[serde(rename = "surfaceContainer")]
     pub surface_container: String,
+    /// The `surfaceContainerHigh` color role, as a hex string.
     #[serde(rename = "surfaceContainerHigh")]
     pub surface_container_high: String,
+    /// The `surfaceContainerHighest` color role, as a hex string.
     #[serde(rename = "surfaceContainerHighest")]
     pub surface_container_highest: String,
 }
 
+/// A Material Design theme file, as exported in JSON by the Material Theme Builder.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct MaterialThemeFile {
+    /// Free-text description of the theme.
     pub description: String,
+    /// The seed color the theme was generated from, as a hex string.
     pub seed: String,
+    /// The core colors of the theme, by name, as hex strings.
     #[serde(rename = "coreColors")]
     pub core_colors: HashMap<String, String>,
+    /// Extra custom colors defined in the theme, kept as raw JSON.
     #[serde(rename = "extendedColors")]
     pub extended_colors: Vec<serde_json::Value>,
+    /// The color schemes, keyed by name such as `light` or `dark-high-contrast`.
     pub schemes: HashMap<String, MaterialScheme>,
+    /// The tonal palettes, by palette name and then tone.
     pub palettes: HashMap<String, HashMap<String, String>>,
 }
 
+/// Contrast level of the color scheme to use.
 #[derive(Clone, Debug, Copy, PartialEq)]
 pub enum ContrastLevel {
+    /// The standard contrast scheme.
     Normal,
+    /// The medium-contrast scheme.
     Medium,
+    /// The high-contrast scheme.
     High,
 }
 
@@ -255,10 +327,14 @@ impl std::str::FromStr for ContrastLevel {
     }
 }
 
+/// Whether the light or dark color scheme is used.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum ThemeMode {
+    /// Always use the light scheme.
     Light,
+    /// Always use the dark scheme.
     Dark,
+    /// Follow the system or egui dark-mode setting.
     #[default]
     Auto,
 }
@@ -289,10 +365,15 @@ impl std::str::FromStr for ThemeMode {
 /// Global theme context that can be shared across all Material components
 #[derive(Clone, Debug)]
 pub struct MaterialThemeContext {
+    /// The requested light, dark or automatic mode.
     pub theme_mode: ThemeMode,
+    /// The contrast level of the scheme in use.
     pub contrast_level: ContrastLevel,
+    /// The loaded theme file, if any; `None` falls back to the built-in colors.
     pub material_theme: Option<MaterialThemeFile>,
+    /// Colors that override the scheme, by color role name.
     pub selected_colors: HashMap<String, Color32>,
+    /// Whether the dark scheme is currently in use.
     pub dark_mode: bool,
 }
 
@@ -653,6 +734,7 @@ fn get_default_material_theme() -> MaterialThemeFile {
 }
 
 impl MaterialThemeContext {
+    /// Prepares a text font by name, from `resources/` or, with `ondemand`, Google Fonts.
     pub fn setup_fonts(font_name: Option<&str>) {
         let font_name = font_name.unwrap_or("Google Sans Code");
 
@@ -783,6 +865,7 @@ impl MaterialThemeContext {
         None
     }
 
+    /// Prepares a custom text font from a font file on disk, named after the file.
     pub fn setup_local_fonts(font_path: Option<&str>) {
         // let default_material_symbols_path =
         //     "resources/MaterialSymbolsOutlined[FILL,GRAD,opsz,wght].ttf";
@@ -844,6 +927,7 @@ impl MaterialThemeContext {
         // }
     }
 
+    /// Prepares a font from bytes under the given name, replacing one of the same name.
     pub fn setup_local_fonts_from_bytes(font_name: &str, font_data: &[u8]) {
         let prepared_font = PreparedFont {
             name: font_name.to_owned(),
@@ -1029,6 +1113,7 @@ impl MaterialThemeContext {
         }
     }
 
+    /// Parses a `#RRGGBB` hex string into a color, or `None` if it is malformed.
     pub fn hex_to_color32(hex: &str) -> Option<Color32> {
         let digits = hex.strip_prefix('#').filter(|d| d.len() == 6)?;
         let channel =
@@ -1040,10 +1125,12 @@ impl MaterialThemeContext {
         ))
     }
 
+    /// Formats a color as a `#RRGGBB` hex string, ignoring alpha.
     pub fn color32_to_hex(color: Color32) -> String {
         format!("#{:02X}{:02X}{:02X}", color.r(), color.g(), color.b())
     }
 
+    /// The color for a Material color role name such as `primary` or `onSurface`.
     pub fn get_color_by_name(&self, name: &str) -> Color32 {
         if let Some(color) = self.selected_colors.get(name) {
             return *color;
@@ -1233,22 +1320,27 @@ impl MaterialThemeContext {
         }
     }
 
+    /// The `primary` color of the current scheme.
     pub fn get_primary_color(&self) -> Color32 {
         self.get_color_by_name("primary")
     }
 
+    /// The `secondary` color of the current scheme.
     pub fn get_secondary_color(&self) -> Color32 {
         self.get_color_by_name("secondary")
     }
 
+    /// The `tertiary` color of the current scheme.
     pub fn get_tertiary_color(&self) -> Color32 {
         self.get_color_by_name("tertiary")
     }
 
+    /// The `surface` color of the current scheme; the argument is ignored.
     pub fn get_surface_color(&self, _dark_mode: bool) -> Color32 {
         self.get_color_by_name("surface")
     }
 
+    /// The `onPrimary` color of the current scheme.
     pub fn get_on_primary_color(&self) -> Color32 {
         self.get_color_by_name("onPrimary")
     }
@@ -1258,6 +1350,7 @@ impl MaterialThemeContext {
 static GLOBAL_THEME: std::sync::LazyLock<Arc<Mutex<MaterialThemeContext>>> =
     std::sync::LazyLock::new(|| Arc::new(Mutex::new(MaterialThemeContext::default())));
 
+/// The shared global theme context used by all components.
 pub fn get_global_theme() -> Arc<Mutex<MaterialThemeContext>> {
     GLOBAL_THEME.clone()
 }
@@ -1422,6 +1515,7 @@ pub fn load_theme_from_json_str(json_data: &str) -> Result<(), String> {
 
 /// Trait to provide a unified interface for accessing egui Context
 pub trait ContextRef {
+    /// The `egui::Context` this value refers to.
     fn context_ref(&self) -> &egui::Context;
 }
 

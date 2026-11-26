@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       widget_gallery_example (example)
+// Description:  Example application: widget gallery example.
+//
+// Dependencies: eframe, egui_material3, egui
+// ============================================================================
+
+//! Example application: widget gallery example.
+
 use eframe::egui;
 use egui_material3::{
     theme::{

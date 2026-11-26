@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::egui_window (example)
+// Description:  Story window demonstrating the egui component.
+//
+// Dependencies: eframe, egui; super
+// ============================================================================
+
+//! Story window demonstrating the egui component.
+
 #![doc(hidden)]
 
 use eframe::egui::{self, Color32, Ui, Window};

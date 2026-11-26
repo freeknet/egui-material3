@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       button_text_color (integration test)
+// Description:  Integration tests: button text color.
+//
+// Dependencies: egui_material3
+// ============================================================================
+
+//! Integration tests: button text color.
+
 // Tests for Filled button text color in light and dark modes
 // Verifies Material Design 3 spec compliance
 

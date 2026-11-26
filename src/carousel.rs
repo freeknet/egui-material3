@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       carousel
+// Description:  Material Design 3 Carousel Components.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Carousel Components
 //!
 //! # M3 Color Role Usage

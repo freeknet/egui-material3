@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       egui-material3 (library crate root)
+// Description:  Crate root: module tree and the public re-exports of every component.
+//
+// Dependencies: eframe, egui; self::spreadsheet
+// ============================================================================
+
 //! # egui-material3
 //!
 //! A comprehensive Material Design 3 component library for [egui](https://github.com/emilk/egui),

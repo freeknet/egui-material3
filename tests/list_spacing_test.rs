@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list_spacing_test (integration test)
+// Description:  Integration tests for list item spacing and padding.
+//
+// Dependencies: egui_material3, egui
+// ============================================================================
+
 //! Integration tests for list item spacing and padding
 
 use egui_material3::{ListItem, MaterialList};

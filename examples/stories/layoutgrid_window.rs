@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::layoutgrid_window (example)
+// Description:  Story window demonstrating the layoutgrid component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the layoutgrid component.
+
 #![doc(hidden)]
 
 use crate::{layout_grid, GridTile, GridTileBar, MaterialButton, MaterialCard2, MaterialCheckbox};

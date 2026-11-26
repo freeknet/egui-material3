@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       mvvm::viewmodel
+// Description:  ViewModel trait and helpers for MVVM pattern.
+//
+// Dependencies: std only
+// ============================================================================
+
 //! ViewModel trait and helpers for MVVM pattern
 
 /// ViewModel trait for managing View state and logic

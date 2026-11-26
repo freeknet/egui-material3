@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       datatable_header_font_test (integration test)
+// Description:  Integration tests: datatable header font test.
+//
+// Dependencies: egui_material3
+// ============================================================================
+
+//! Integration tests: datatable header font test.
+
 use egui_material3::DataTableTheme;
 
 #[test]

@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       nobel_prizes_example (example)
+// Description:  Example application: nobel prizes example.
+//
+// Dependencies: eframe, egui_material3, serde, egui, ureq
+// ============================================================================
+
+//! Example application: nobel prizes example.
+
 use eframe::egui;
 use egui_material3::{
     theme::{load_fonts, load_themes, setup_google_fonts, setup_local_theme},

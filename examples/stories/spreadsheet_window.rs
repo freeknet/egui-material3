@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::spreadsheet_window (example)
+// Description:  Story window demonstrating the spreadsheet component.
+//
+// Dependencies: eframe, egui_material3, egui
+// ============================================================================
+
+//! Story window demonstrating the spreadsheet component.
+
 #![doc(hidden)]
 
 use eframe::egui::{self, Window};

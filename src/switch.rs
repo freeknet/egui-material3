@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       switch
+// Description:  Material Design 3 Switch Components.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
 //! Material Design 3 Switch Components
 //!
 //! This module implements switch toggle controls following Material Design 3 color system.
@@ -391,6 +398,7 @@ impl<'a> Widget for MaterialSwitch<'a> {
     }
 }
 
+/// Creates a switch bound to `selected`.
 pub fn switch(selected: &mut bool) -> MaterialSwitch<'_> {
     MaterialSwitch::new(selected)
 }

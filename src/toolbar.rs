@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       toolbar
+// Description:  The toolbar module.
+//
+// Dependencies: egui; crate::get_global_color
+// ============================================================================
+
+//! The toolbar module.
+
 use crate::get_global_color;
 use egui::{Align, Color32, CornerRadius, Layout, Response, Shadow, Stroke, Ui, Vec2, Widget};
 
@@ -49,6 +58,7 @@ pub enum ToolbarElevation {
     Level3,
 }
 
+/// A Material Design toolbar of buttons and other items.
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct MaterialToolbar<'a> {
     /// Items to display in the toolbar (buttons, icon buttons, etc.)

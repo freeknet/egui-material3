@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       breadcrumbs
+// Description:  Material Design 3 Breadcrumbs Components.
+//
+// Dependencies: egui
+// ============================================================================
+
 //! Material Design 3 Breadcrumbs Components
 //!
 //! # M3 Color Role Usage

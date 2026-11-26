@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       button::types
+// Description:  Type definitions for Material Design 3 Button Components.
+//
+// Dependencies: egui
+// ============================================================================
+
 //! Type definitions for Material Design 3 Button Components
 
 use egui::{

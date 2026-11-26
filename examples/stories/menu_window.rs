@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::menu_window (example)
+// Description:  Story window demonstrating the menu component.
+//
+// Dependencies: eframe, egui; crate::menu
+// ============================================================================
+
+//! Story window demonstrating the menu component.
+
 #![doc(hidden)]
 
 use crate::menu::{Corner, FocusState, MenuButtonThemeData, MenuStyle, Positioning};

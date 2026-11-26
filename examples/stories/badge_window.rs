@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::badge_window (example)
+// Description:  Story window demonstrating the badge component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the badge component.
+
 #![doc(hidden)]
 
 use crate::{

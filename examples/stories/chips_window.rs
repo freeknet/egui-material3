@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::chips_window (example)
+// Description:  Story window demonstrating the chips component.
+//
+// Dependencies: eframe, egui; crate::svg_emoji
+// ============================================================================
+
+//! Story window demonstrating the chips component.
+
 #![doc(hidden)]
 
 #[cfg(feature = "svg_emoji")]

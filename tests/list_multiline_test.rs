@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list_multiline_test (integration test)
+// Description:  Integration tests for multi-line secondary text support.
+//
+// Dependencies: egui_material3, egui
+// ============================================================================
+
 //! Integration tests for multi-line secondary text support
 
 use egui_material3::{ListItem, MaterialList};

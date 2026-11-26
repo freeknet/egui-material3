@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::card2_window (example)
+// Description:  Story window demonstrating the card2 component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the card2 component.
+
 #![doc(hidden)]
 
 use crate::{elevated_card2, filled_card2, outlined_card2, MaterialButton, MaterialCheckbox};

@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::treeview_window (example)
+// Description:  Story window demonstrating the treeview component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the treeview component.
+
 #![doc(hidden)]
 
 use crate::{MaterialButton, MaterialTreeView, TreeViewItem, TreeViewState};

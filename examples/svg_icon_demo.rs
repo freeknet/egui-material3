@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       svg_icon_demo (example)
+// Description:  Example application: svg icon demo.
+//
+// Dependencies: eframe, egui_material3, egui
+// ============================================================================
+
+//! Example application: svg icon demo.
+
 /// Example demonstrating SVG icon usage with Material Design components
 ///
 /// This example shows how to use SVG icons from the svg_emoji module

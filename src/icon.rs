@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       icon
+// Description:  Material Design 3 Icon Component.
+//
+// Dependencies: egui
+// ============================================================================
+
 //! Material Design 3 Icon Component
 //!
 //! Icon rendering utility. Color should be set based on context:
@@ -7,6 +14,7 @@
 
 use egui::{self, Color32, Response, Sense, Ui, Vec2, Widget};
 
+/// A Material Symbols icon, drawn as a glyph of the icon font.
 pub struct MaterialIcon {
     name: String,
     size: f32,
@@ -15,6 +23,7 @@ pub struct MaterialIcon {
 }
 
 impl MaterialIcon {
+    /// An icon showing the given glyph, 24 points and in the default color.
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -24,16 +33,19 @@ impl MaterialIcon {
         }
     }
 
+    /// Sets the size of the icon, in points.
     pub fn size(mut self, size: f32) -> Self {
         self.size = size;
         self
     }
 
+    /// Sets the color of the icon.
     pub fn color(mut self, color: Color32) -> Self {
         self.color = Some(color);
         self
     }
 
+    /// Sets whether the filled style of the icon is requested.
     pub fn filled(mut self, filled: bool) -> Self {
         self.filled = filled;
         self
@@ -62,6 +74,7 @@ impl Widget for MaterialIcon {
     }
 }
 
+/// Creates an icon showing the given glyph.
 pub fn icon(name: impl Into<String>) -> MaterialIcon {
     MaterialIcon::new(name)
 }

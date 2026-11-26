@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::drawer_window (example)
+// Description:  Story window demonstrating the drawer component.
+//
+// Dependencies: eframe, egui; crate::theme
+// ============================================================================
+
+//! Story window demonstrating the drawer component.
+
 #![doc(hidden)]
 
 use crate::theme::get_global_color;

@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       component_m3_colors (integration test)
+// Description:  Tests for Material Design 3 color role compliance across components.
+//
+// Dependencies: egui_material3
+// ============================================================================
+
 //! Tests for Material Design 3 color role compliance across components
 
 use egui_material3::theme::get_global_color;

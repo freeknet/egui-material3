@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       card2
+// Description:  Material Design 3 Card Components (Enhanced).
+//
+// Dependencies: egui; crate::theme
+// ============================================================================
+
 //! Material Design 3 Card Components (Enhanced)
 //!
 //! # M3 Color Role Usage
@@ -34,8 +41,11 @@ use egui::{
 /// Material Design card component variants (enhanced version).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Card2Variant {
+    /// A card raised above the background by a shadow.
     Elevated,
+    /// A card with a filled background and no shadow.
     Filled,
+    /// A card with an outline and no shadow.
     Outlined,
 }
 

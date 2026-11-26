@@ -1,7 +1,15 @@
+// ============================================================================
+// Module:       list::types
+// Description:  Type definitions for Material Design 3 List Components.
+//
+// Dependencies: egui
+// ============================================================================
+
 //! Type definitions for Material Design 3 List Components
 
 use egui::{ecolor::Color32, Vec2};
 
+/// Which title font a list tile uses.
 pub enum ListTileStyle {
     /// Use a title font appropriate for a list tile in a list.
     List,

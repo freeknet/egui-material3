@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::theme_test (example)
+// Description:  Tests of theme colour choices (dark-mode contrast, selection colours).
+//
+// Dependencies: egui, egui_material3
+// ============================================================================
+
+//! Tests of theme colour choices (dark-mode contrast, selection colours).
+
 #![cfg(test)]
 
 use egui::Color32;

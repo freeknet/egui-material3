@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::snackbar_window (example)
+// Description:  Story window demonstrating the snackbar component.
+//
+// Dependencies: eframe, egui
+// ============================================================================
+
+//! Story window demonstrating the snackbar component.
+
 #![doc(hidden)]
 
 use crate::{

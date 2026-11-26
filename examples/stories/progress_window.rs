@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       stories::progress_window (example)
+// Description:  Story window demonstrating the progress component.
+//
+// Dependencies: eframe, egui_material3, egui
+// ============================================================================
+
+//! Story window demonstrating the progress component.
+
 #![doc(hidden)]
 
 use crate::{circular_progress, icon_button_standard, linear_progress, MaterialButton};

@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       list::rendering
+// Description:  Rendering implementation for MaterialList.
+//
+// Dependencies: egui; super
+// ============================================================================
+
 //! Rendering implementation for MaterialList
 
 use super::{types::*, MaterialList};

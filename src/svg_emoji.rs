@@ -1,3 +1,10 @@
+// ============================================================================
+// Module:       svg_emoji
+// Description:  SVG Emoji and Icon Collections.
+//
+// Dependencies: std only
+// ============================================================================
+
 //! SVG Emoji and Icon Collections
 //!
 //! This module provides three comprehensive SVG collections available as optional features:

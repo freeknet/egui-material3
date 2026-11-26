@@ -1,3 +1,12 @@
+// ============================================================================
+// Module:       build (build script)
+// Description:  Generates the embedded SVG icon/emoji tables for the svg_* features.
+//
+// Dependencies: serde_json, ureq
+// ============================================================================
+
+//! Generates the embedded SVG icon/emoji tables for the svg_* features.
+
 use std::env;
 use std::error::Error;
 use std::fs;
