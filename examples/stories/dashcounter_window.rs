@@ -5,7 +5,7 @@ use eframe::egui::{self, Window};
 use egui_material3::dashcounter;
 
 #[doc(hidden)]
-pub struct DashCounterWindow {
+pub(crate) struct DashCounterWindow {
     pub open: bool,
     scroll_offset_1: f32,
     scroll_offset_2: f32,
@@ -34,7 +34,7 @@ impl Default for DashCounterWindow {
 }
 
 impl DashCounterWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Dashboard Counter Stories")
             .open(&mut open)
@@ -118,8 +118,8 @@ impl DashCounterWindow {
                     .on_click({
                         let categories = ["Installed", "System", "Bloat", "Updates", "Disabled"];
                         move |index| {
-                            if index < categories.len() {
-                                println!("Clicked on card: {}", categories[index]);
+                            if let Some(category) = categories.get(index) {
+                                println!("Clicked on card: {}", category);
                             }
                         }
                     })

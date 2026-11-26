@@ -4,7 +4,7 @@ use crate::{range_slider, slider, MaterialButton, RangeValues, SliderInteraction
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
-pub struct SliderWindow {
+pub(crate) struct SliderWindow {
     pub open: bool,
     disabled: bool,
 
@@ -81,7 +81,7 @@ impl Default for SliderWindow {
 }
 
 impl SliderWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Slider Stories")
             .open(&mut open)

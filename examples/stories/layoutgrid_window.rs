@@ -4,7 +4,7 @@ use crate::{layout_grid, GridTile, GridTileBar, MaterialButton, MaterialCard2, M
 use eframe::egui::{self, Color32, Ui, Window};
 
 #[doc(hidden)]
-pub struct LayoutGridWindow {
+pub(crate) struct LayoutGridWindow {
     pub open: bool,
     columns: usize,
     gutter: f32,
@@ -35,7 +35,7 @@ impl Default for LayoutGridWindow {
 }
 
 impl LayoutGridWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Layout Grid Stories")
             .open(&mut open)

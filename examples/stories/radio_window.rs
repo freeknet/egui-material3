@@ -20,7 +20,7 @@ enum MusicGenre {
 }
 
 #[doc(hidden)]
-pub struct RadioWindow {
+pub(crate) struct RadioWindow {
     pub open: bool,
     disabled: bool,
     // Radio states
@@ -57,7 +57,7 @@ impl Default for RadioWindow {
 }
 
 impl RadioWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Radio Stories")
             .open(&mut open)

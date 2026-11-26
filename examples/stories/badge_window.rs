@@ -7,7 +7,7 @@ use crate::{
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
-pub struct BadgeWindow {
+pub(crate) struct BadgeWindow {
     pub open: bool,
     // Customization options
     selected_color: BadgeColor,
@@ -36,7 +36,7 @@ impl Default for BadgeWindow {
 }
 
 impl BadgeWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Badge Stories")
             .open(&mut open)

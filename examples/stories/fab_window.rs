@@ -7,7 +7,7 @@ use crate::{
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
-pub struct FabWindow {
+pub(crate) struct FabWindow {
     pub open: bool,
     icon: String,
     label: String,
@@ -28,7 +28,7 @@ impl Default for FabWindow {
 }
 
 impl FabWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("FAB Stories")
             .open(&mut open)

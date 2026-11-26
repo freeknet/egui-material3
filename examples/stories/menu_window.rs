@@ -5,7 +5,7 @@ use crate::{menu, menu_item, MaterialButton, MaterialCheckbox};
 use eframe::egui::{self, Color32, Rect, Window};
 
 #[doc(hidden)]
-pub struct MenuWindow {
+pub(crate) struct MenuWindow {
     pub open: bool,
     // Knob options from TypeScript stories
     anchor_corner: Corner,
@@ -112,7 +112,7 @@ impl Default for MenuWindow {
 }
 
 impl MenuWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Menu Stories")
             .open(&mut open)

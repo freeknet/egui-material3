@@ -5,7 +5,7 @@ use eframe::egui::{self, Ui, Window};
 use std::time::{Duration, Instant};
 
 #[doc(hidden)]
-pub struct NotificationWindow {
+pub(crate) struct NotificationWindow {
     pub open: bool,
     // State for different notification examples
     show_basic: bool,
@@ -72,7 +72,7 @@ impl Default for NotificationWindow {
 }
 
 impl NotificationWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Notification Stories")
             .open(&mut open)

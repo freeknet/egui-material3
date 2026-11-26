@@ -152,7 +152,10 @@ impl MaterialTooltip {
                 // Auto-select best position based on available space
                 self.auto_position(target_rect, tooltip_size, screen_rect)
             }
-            pos => pos,
+            pos @ (TooltipPosition::Top
+            | TooltipPosition::Bottom
+            | TooltipPosition::Left
+            | TooltipPosition::Right) => pos,
         };
 
         match position {

@@ -13,7 +13,7 @@ use egui_material3::spreadsheet::{
 
 #[doc(hidden)]
 #[cfg_attr(not(feature = "spreadsheet"), derive(Default))]
-pub struct SpreadsheetWindow {
+pub(crate) struct SpreadsheetWindow {
     pub open: bool,
     #[cfg(feature = "spreadsheet")]
     spreadsheet: Option<MaterialSpreadsheet>,
@@ -53,72 +53,76 @@ impl Default for SpreadsheetWindow {
                 text_column("Supplier", 150.0),
             ];
 
-            let mut spreadsheet = MaterialSpreadsheet::new("demo_spreadsheet", columns)
-                .expect("Failed to create spreadsheet");
-
-            // Add sample data - initialize with pre-populated rows
-            spreadsheet.init_with_data(vec![
-                vec![
-                    "Laptop".to_string(),
-                    "Electronics".to_string(),
-                    "999.99".to_string(),
-                    "15".to_string(),
-                    "TechCorp".to_string(),
-                ],
-                vec![
-                    "Mouse".to_string(),
-                    "Electronics".to_string(),
-                    "29.99".to_string(),
-                    "150".to_string(),
-                    "TechCorp".to_string(),
-                ],
-                vec![
-                    "Keyboard".to_string(),
-                    "Electronics".to_string(),
-                    "79.99".to_string(),
-                    "85".to_string(),
-                    "KeyMaster".to_string(),
-                ],
-                vec![
-                    "Monitor".to_string(),
-                    "Electronics".to_string(),
-                    "299.99".to_string(),
-                    "42".to_string(),
-                    "ScreenPro".to_string(),
-                ],
-                vec![
-                    "Desk Chair".to_string(),
-                    "Furniture".to_string(),
-                    "199.99".to_string(),
-                    "30".to_string(),
-                    "ComfortSeats".to_string(),
-                ],
-                vec![
-                    "Desk".to_string(),
-                    "Furniture".to_string(),
-                    "349.99".to_string(),
-                    "20".to_string(),
-                    "OfficePro".to_string(),
-                ],
-                vec![
-                    "Notebook".to_string(),
-                    "Stationery".to_string(),
-                    "5.99".to_string(),
-                    "500".to_string(),
-                    "PaperGoods".to_string(),
-                ],
-                vec![
-                    "Pen Pack".to_string(),
-                    "Stationery".to_string(),
-                    "12.99".to_string(),
-                    "300".to_string(),
-                    "WriteWell".to_string(),
-                ],
-            ]);
+            // An in-memory SQLite table; if it cannot be created the story
+            // shows no spreadsheet rather than aborting the gallery.
+            let spreadsheet = MaterialSpreadsheet::new("demo_spreadsheet", columns)
+                .ok()
+                .map(|mut spreadsheet| {
+                    // Add sample data - initialize with pre-populated rows
+                    spreadsheet.init_with_data(vec![
+                        vec![
+                            "Laptop".to_string(),
+                            "Electronics".to_string(),
+                            "999.99".to_string(),
+                            "15".to_string(),
+                            "TechCorp".to_string(),
+                        ],
+                        vec![
+                            "Mouse".to_string(),
+                            "Electronics".to_string(),
+                            "29.99".to_string(),
+                            "150".to_string(),
+                            "TechCorp".to_string(),
+                        ],
+                        vec![
+                            "Keyboard".to_string(),
+                            "Electronics".to_string(),
+                            "79.99".to_string(),
+                            "85".to_string(),
+                            "KeyMaster".to_string(),
+                        ],
+                        vec![
+                            "Monitor".to_string(),
+                            "Electronics".to_string(),
+                            "299.99".to_string(),
+                            "42".to_string(),
+                            "ScreenPro".to_string(),
+                        ],
+                        vec![
+                            "Desk Chair".to_string(),
+                            "Furniture".to_string(),
+                            "199.99".to_string(),
+                            "30".to_string(),
+                            "ComfortSeats".to_string(),
+                        ],
+                        vec![
+                            "Desk".to_string(),
+                            "Furniture".to_string(),
+                            "349.99".to_string(),
+                            "20".to_string(),
+                            "OfficePro".to_string(),
+                        ],
+                        vec![
+                            "Notebook".to_string(),
+                            "Stationery".to_string(),
+                            "5.99".to_string(),
+                            "500".to_string(),
+                            "PaperGoods".to_string(),
+                        ],
+                        vec![
+                            "Pen Pack".to_string(),
+                            "Stationery".to_string(),
+                            "12.99".to_string(),
+                            "300".to_string(),
+                            "WriteWell".to_string(),
+                        ],
+                    ]);
+                    spreadsheet
+                });
 
             Self {
                 open: false,
-                spreadsheet: Some(spreadsheet),
+                spreadsheet,
                 allow_editing: true,
                 allow_selection: true,
                 striped: true,
@@ -132,7 +136,7 @@ impl Default for SpreadsheetWindow {
 }
 
 impl SpreadsheetWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         let mut should_close = false;
 

@@ -4,7 +4,7 @@ use crate::{breadcrumbs, MaterialButton};
 use eframe::egui::{self, Ui, Window};
 
 #[doc(hidden)]
-pub struct BreadcrumbsWindow {
+pub(crate) struct BreadcrumbsWindow {
     pub open: bool,
     last_clicked: String,
     separator: String,
@@ -27,7 +27,7 @@ impl Default for BreadcrumbsWindow {
 }
 
 impl BreadcrumbsWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Breadcrumbs Stories")
             .open(&mut open)

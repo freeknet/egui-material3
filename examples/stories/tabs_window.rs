@@ -4,7 +4,7 @@ use crate::{get_global_color, tabs_primary, tabs_secondary, MaterialButton};
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
-pub struct TabsWindow {
+pub(crate) struct TabsWindow {
     pub open: bool,
     active_tab_index: usize,
     auto_activate: bool,
@@ -60,7 +60,7 @@ impl Default for TabsWindow {
 }
 
 impl TabsWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Tabs Stories")
             .open(&mut open)

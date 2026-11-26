@@ -5,7 +5,7 @@ use crate::{DrawerItem, MaterialButton, MaterialCheckbox};
 use eframe::egui::{self, Ui, Window};
 
 #[doc(hidden)]
-pub struct DrawerWindow {
+pub(crate) struct DrawerWindow {
     pub open: bool,
     permanent_drawer_open: bool,
     modal_drawer_open: bool,
@@ -62,7 +62,7 @@ impl Default for DrawerWindow {
 }
 
 impl DrawerWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         // Handle ESC key to close all drawers and the window
         if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             self.modal_drawer_open = false;

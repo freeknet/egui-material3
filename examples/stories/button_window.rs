@@ -7,7 +7,7 @@ use eframe::egui::{self, epaint::Stroke, Ui, Vec2, Window};
 
 #[doc(hidden)]
 #[derive(Default)]
-pub struct ButtonWindow {
+pub(crate) struct ButtonWindow {
     pub open: bool,
     label: String,
     disabled: bool,
@@ -15,7 +15,7 @@ pub struct ButtonWindow {
 }
 
 impl ButtonWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Button Stories")
             .open(&mut open)

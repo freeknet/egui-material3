@@ -69,7 +69,9 @@ fn test_multiline_with_trailing_widgets() {
     assert_eq!(list.items.len(), 1);
 
     // Assert: Item has all components
-    let item = &list.items[0];
+    let Some(item) = list.items.first() else {
+        return;
+    };
     assert!(item.leading_icon.is_some());
     assert!(item.secondary_text.is_some());
     assert!(item.trailing_widget.is_some());
@@ -99,7 +101,9 @@ fn test_drawer_with_trailing_widgets() {
     assert!(list.allow_drawer);
 
     // Assert: Item has drawer and trailing widget
-    let item = &list.items[0];
+    let Some(item) = list.items.first() else {
+        return;
+    };
     assert!(item.drawer.is_some());
     assert!(item.trailing_widget.is_some());
     assert!(item.secondary_text.is_some());
@@ -123,7 +127,10 @@ fn test_five_line_layout() {
     assert!(item.leading_icon.is_some());
 
     // Calculate expected lines
-    let secondary_lines = item.secondary_text.as_ref().unwrap().split('\n').count();
+    let secondary_lines = item
+        .secondary_text
+        .as_ref()
+        .map_or(0, |text| text.split('\n').count());
     let total_text_lines = 1 + 1 + secondary_lines; // overline + primary + secondary
 
     assert_eq!(

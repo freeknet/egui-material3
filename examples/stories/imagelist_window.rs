@@ -4,7 +4,7 @@ use crate::{image_list, masonry_image_list, woven_image_list, MaterialButton, Ma
 use eframe::egui::{self, Ui, Window};
 
 #[doc(hidden)]
-pub struct ImageListWindow {
+pub(crate) struct ImageListWindow {
     pub open: bool,
     columns: usize,
     text_protected: bool,
@@ -63,7 +63,7 @@ impl ImageListWindow {
         }
     }
 
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Image List Stories")
             .open(&mut open)

@@ -4,7 +4,7 @@ use crate::{action_sheet, MaterialButton};
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
-pub struct ActionSheetWindow {
+pub(crate) struct ActionSheetWindow {
     pub open: bool,
     // Action sheet states
     one_group_open: bool,
@@ -35,7 +35,7 @@ impl Default for ActionSheetWindow {
 }
 
 impl ActionSheetWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Action Sheet Stories")
             .open(&mut open)

@@ -422,7 +422,7 @@ impl Widget for MaterialTopAppBar<'_> {
                     rect.center().x - title_galley.size().x / 2.0
                 }
                 TopAppBarVariant::Medium | TopAppBarVariant::Large => rect.min.x + title_spacing,
-                _ => left_x + title_spacing,
+                TopAppBarVariant::Regular => left_x + title_spacing,
             };
 
             // Draw title

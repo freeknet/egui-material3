@@ -8,7 +8,7 @@ use eframe::egui::{self, Ui, Window};
 use std::time::Instant;
 
 #[doc(hidden)]
-pub struct SnackbarWindow {
+pub(crate) struct SnackbarWindow {
     pub open: bool,
     show_basic_snackbar: bool,
     show_action_snackbar: bool,
@@ -57,7 +57,7 @@ impl Default for SnackbarWindow {
 }
 
 impl SnackbarWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Snackbar Stories")
             .open(&mut open)

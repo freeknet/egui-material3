@@ -4,7 +4,7 @@ use crate::{dialog, MaterialButton};
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
-pub struct DialogWindow {
+pub(crate) struct DialogWindow {
     pub open: bool,
     quick: bool,
     no_focus_trap: bool,
@@ -97,7 +97,7 @@ impl Default for DialogWindow {
 }
 
 impl DialogWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Dialog Stories")
             .open(&mut open)

@@ -109,15 +109,16 @@ fn test_datatable_m3_theme_constructor() {
     assert_eq!(theme.divider_color, Some(outline_variant));
 
     // Text colors
-    let heading_style = theme
-        .heading_text_style
-        .expect("heading text style should be set");
-    assert_eq!(heading_style.1, on_surface);
-
-    let data_style = theme
-        .data_text_style
-        .expect("data text style should be set");
-    assert_eq!(data_style.1, on_surface);
+    assert_eq!(
+        theme.heading_text_style.map(|style| style.1),
+        Some(on_surface),
+        "heading text uses onSurface"
+    );
+    assert_eq!(
+        theme.data_text_style.map(|style| style.1),
+        Some(on_surface),
+        "data text uses onSurface"
+    );
 
     // Sort colors
     assert_eq!(theme.sort_active_color, Some(primary));

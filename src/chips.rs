@@ -644,7 +644,7 @@ impl<'a> Widget for MaterialChip<'a> {
                         response.mark_changed();
                     }
                 }
-                _ => {
+                ChipVariant::Assist | ChipVariant::Input | ChipVariant::Suggestion => {
                     if let Some(action) = self.action {
                         action();
                     }

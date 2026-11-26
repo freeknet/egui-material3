@@ -728,7 +728,10 @@ impl<'a> MaterialDrawer<'a> {
         response
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "a flat parameter list mirrors the public builder; bundling it would only move the fields"
+    )]
     fn render_navigation_item(
         &self,
         ui: &mut Ui,

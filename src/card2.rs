@@ -64,7 +64,10 @@ pub enum Card2Variant {
 /// # });
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
-#[allow(clippy::type_complexity)]
+#[expect(
+    clippy::type_complexity,
+    reason = "a boxed UI callback; the closure signature is clearer spelled out than behind an alias"
+)]
 pub struct MaterialCard2<'a> {
     variant: Card2Variant,
     header_title: Option<String>,

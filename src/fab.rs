@@ -404,7 +404,7 @@ impl<'a> Widget for MaterialFab<'a> {
         let corner_radius = match size_enum {
             FabSize::Small => 12.0,
             FabSize::Large => 16.0,
-            _ => 14.0,
+            FabSize::Regular | FabSize::Extended => 14.0,
         };
 
         // Draw FAB background with less rounded corners
@@ -465,13 +465,13 @@ impl<'a> Widget for MaterialFab<'a> {
                     );
                 }
             }
-            _ => {
+            FabSize::Small | FabSize::Regular | FabSize::Large => {
                 // Draw centered icon
                 if let Some(ref svg_str) = svg_data {
                     let icon_size = match size_enum {
                         FabSize::Small => 18,
                         FabSize::Large => 36,
-                        _ => 24,
+                        FabSize::Regular | FabSize::Extended => 24,
                     };
 
                     // Render SVG data
@@ -489,7 +489,7 @@ impl<'a> Widget for MaterialFab<'a> {
                     let icon_size = match size_enum {
                         FabSize::Small => 18.0,
                         FabSize::Large => 36.0,
-                        _ => 24.0,
+                        FabSize::Regular | FabSize::Extended => 24.0,
                     };
 
                     // Render simplified Google logo for branded FAB
@@ -498,7 +498,7 @@ impl<'a> Widget for MaterialFab<'a> {
                     let icon_size = match size_enum {
                         FabSize::Small => 18.0,
                         FabSize::Large => 36.0,
-                        _ => 24.0,
+                        FabSize::Regular | FabSize::Extended => 24.0,
                     };
 
                     let icon_rect = Rect::from_center_size(rect.center(), Vec2::splat(icon_size));
@@ -514,7 +514,7 @@ impl<'a> Widget for MaterialFab<'a> {
                     let icon_size = match size_enum {
                         FabSize::Small => 18.0,
                         FabSize::Large => 36.0,
-                        _ => 24.0,
+                        FabSize::Regular | FabSize::Extended => 24.0,
                     };
 
                     let icon_rect = Rect::from_center_size(rect.center(), Vec2::splat(icon_size));

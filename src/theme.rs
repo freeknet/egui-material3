@@ -982,7 +982,7 @@ impl MaterialThemeContext {
                                 .or_default()
                                 .push(prepared_font.name.clone());
                         }
-                        _ => {}
+                        FontFamily::Name(_) => {}
                     }
                 }
             }
@@ -1682,7 +1682,7 @@ where
             theme.theme_mode = detected_mode; // Resolve Auto to detected OS theme
             match detected_mode {
                 ThemeMode::Dark => egui::Visuals::dark(),
-                _ => egui::Visuals::light(),
+                ThemeMode::Light | ThemeMode::Auto => egui::Visuals::light(),
             }
         }
     };

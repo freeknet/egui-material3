@@ -11,7 +11,7 @@ enum Enum {
 }
 
 #[doc(hidden)]
-pub struct EguiWindow {
+pub(crate) struct EguiWindow {
     pub open: bool,
     enabled: bool,
     visible: bool,
@@ -46,7 +46,7 @@ impl Default for EguiWindow {
 }
 
 impl EguiWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Egui Widget Gallery")
             .open(&mut open)

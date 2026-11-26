@@ -4,7 +4,7 @@ use crate::{checkbox, MaterialButton, MaterialCheckbox};
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
-pub struct CheckboxWindow {
+pub(crate) struct CheckboxWindow {
     pub open: bool,
     checked: bool,
     disabled: bool,
@@ -61,7 +61,7 @@ impl Default for CheckboxWindow {
 }
 
 impl CheckboxWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Checkbox Stories")
             .open(&mut open)

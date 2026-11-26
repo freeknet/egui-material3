@@ -51,7 +51,7 @@ impl CollectionKind {
 
 #[doc(hidden)]
 #[derive(Default)]
-pub struct SvgEmojiWindow {
+pub(crate) struct SvgEmojiWindow {
     pub open: bool,
     #[cfg(feature = "svg_emoji")]
     active_kind: CollectionKind,
@@ -75,7 +75,7 @@ pub struct SvgEmojiWindow {
 }
 
 impl SvgEmojiWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("SVG Emoji / Icon Browser")
             .open(&mut open)

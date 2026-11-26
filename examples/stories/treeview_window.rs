@@ -4,7 +4,7 @@ use crate::{MaterialButton, MaterialTreeView, TreeViewItem, TreeViewState};
 use eframe::egui::{self, Ui, Window};
 
 #[doc(hidden)]
-pub struct TreeViewWindow {
+pub(crate) struct TreeViewWindow {
     pub open: bool,
     // Tree view states for different examples
     basic_state: TreeViewState,
@@ -26,7 +26,7 @@ impl Default for TreeViewWindow {
 }
 
 impl TreeViewWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("TreeView Stories")
             .open(&mut open)

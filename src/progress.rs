@@ -717,7 +717,10 @@ impl MaterialProgress {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "a flat parameter list mirrors the public builder; bundling it would only move the fields"
+    )]
     fn draw_arc(
         &self,
         ui: &mut Ui,

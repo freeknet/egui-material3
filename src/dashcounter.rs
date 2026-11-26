@@ -201,7 +201,10 @@ impl<'a> MaterialDashCounter<'a> {
     /// * `category_color` - Color for category text
     /// * `counter_color` - Color for counter numbers
     /// * `description_color` - Color for description text
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "a flat parameter list mirrors the public builder; bundling it would only move the fields"
+    )]
     pub fn card_with_description_colored(
         mut self,
         category: impl Into<String>,

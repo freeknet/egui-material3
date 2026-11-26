@@ -7,7 +7,7 @@ use crate::{
 use eframe::egui::{self, Color32, Window};
 
 #[doc(hidden)]
-pub struct TimelineWindow {
+pub(crate) struct TimelineWindow {
     pub open: bool,
     position_selection: TimelinePosition,
     sample_textures: Vec<egui::TextureHandle>,
@@ -24,7 +24,7 @@ impl Default for TimelineWindow {
 }
 
 impl TimelineWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         // Create sample textures if not already created
         if self.sample_textures.is_empty() {
             self.sample_textures = Self::create_sample_textures(ctx);
@@ -119,7 +119,9 @@ impl TimelineWindow {
                     let r = (color1.r() as f32 * (1.0 - ratio) + color2.r() as f32 * ratio) as u8;
                     let g = (color1.g() as f32 * (1.0 - ratio) + color2.g() as f32 * ratio) as u8;
                     let b = (color1.b() as f32 * (1.0 - ratio) + color2.b() as f32 * ratio) as u8;
-                    pixels[y * size + x] = egui::Color32::from_rgb(r, g, b);
+                    if let Some(pixel) = pixels.get_mut(y * size + x) {
+                        *pixel = egui::Color32::from_rgb(r, g, b);
+                    }
                 }
             }
         }
@@ -194,7 +196,9 @@ impl TimelineWindow {
                     let r = (color1.r() as f32 * (1.0 - ratio) + color2.r() as f32 * ratio) as u8;
                     let g = (color1.g() as f32 * (1.0 - ratio) + color2.g() as f32 * ratio) as u8;
                     let b = (color1.b() as f32 * (1.0 - ratio) + color2.b() as f32 * ratio) as u8;
-                    pixels[y * size + x] = egui::Color32::from_rgb(r, g, b);
+                    if let Some(pixel) = pixels.get_mut(y * size + x) {
+                        *pixel = egui::Color32::from_rgb(r, g, b);
+                    }
                 }
             }
         }

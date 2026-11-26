@@ -8,12 +8,12 @@ use eframe::egui::{self, Ui, Window};
 
 #[doc(hidden)]
 #[derive(Default)]
-pub struct TooltipWindow {
+pub(crate) struct TooltipWindow {
     pub open: bool,
 }
 
 impl TooltipWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Tooltip Stories")
             .open(&mut open)

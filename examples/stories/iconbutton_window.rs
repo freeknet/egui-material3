@@ -7,7 +7,7 @@ use crate::{
 use eframe::egui::{self, Ui, Window};
 
 #[doc(hidden)]
-pub struct IconButtonWindow {
+pub(crate) struct IconButtonWindow {
     pub open: bool,
     icon_toggle_1: bool,
     icon_toggle_2: bool,
@@ -36,7 +36,7 @@ impl Default for IconButtonWindow {
 }
 
 impl IconButtonWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Icon Button Stories")
             .open(&mut open)

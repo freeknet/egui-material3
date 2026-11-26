@@ -4,7 +4,7 @@ use crate::{MaterialButton, MaterialInput};
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
-pub struct InputWindow {
+pub(crate) struct InputWindow {
     pub open: bool,
 
     // Basic inputs
@@ -89,7 +89,7 @@ impl Default for InputWindow {
 }
 
 impl InputWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Input Stories")
             .open(&mut open)

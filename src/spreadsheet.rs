@@ -15,7 +15,7 @@ use std::sync::Arc;
 // Native: use rusqlite for better dynamic schema support
 #[cfg(all(feature = "spreadsheet", not(target_family = "wasm")))]
 mod native_imports {
-    pub use rusqlite::Connection;
+    pub(super) use rusqlite::Connection;
 }
 
 // WASM: use diesel (only option that works on WASM)
@@ -194,7 +194,10 @@ impl SpreadsheetDataModel {
     }
 
     /// Add a new column to the table
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "kept with the spreadsheet model for schema edits; not called yet"
+    )]
     fn add_column(&mut self, col: &ColumnDef) -> Result<(), String> {
         let safe_name = col.name.replace('"', "\"\"");
         let alter_sql = format!(
@@ -939,7 +942,7 @@ impl MaterialSpreadsheet {
                 ui.ctx().request_repaint();
                 ui.label("Saving...");
             }
-            StateWithData::Finished(_) => {
+            StateWithData::Finished(()) => {
                 ui.label("✓ Save completed successfully");
             }
             StateWithData::Failed(err) => {
@@ -1106,7 +1109,7 @@ impl MaterialSpreadsheet {
                 std::thread::sleep(std::time::Duration::from_micros(10));
             };
             match model.update_cell(row_id, col_idx, new_value.clone()) {
-                Ok(_) => {
+                Ok(()) => {
                     // Refresh cached rows to show the update
                     match model.query_rows() {
                         Ok(rows) => {
@@ -1194,28 +1197,38 @@ pub fn integer_column(name: impl Into<String>, width: f32) -> ColumnDef {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_spreadsheet_init() {
-        let columns = vec![text_column("Name", 100.0), text_column("Value", 100.0)];
+    /// The cell values of `rows`, for comparing a whole table at once.
+    fn values(rows: &[RowData]) -> Vec<Vec<String>> {
+        rows.iter().map(|row| row.values.clone()).collect()
+    }
 
-        let mut spreadsheet =
-            MaterialSpreadsheet::new("test", columns).expect("Failed to create spreadsheet");
-
-        // Initialize with data
-        spreadsheet.init_with_data(vec![
-            vec!["Item1".to_string(), "Value1".to_string()],
-            vec!["Item2".to_string(), "Value2".to_string()],
-        ]);
-
-        // Verify rows
-        let rows = spreadsheet.rows();
-        assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].values[0], "Item1");
-        assert_eq!(rows[1].values[1], "Value2");
+    /// Owned rows from string literals.
+    fn table(rows: &[&[&str]]) -> Vec<Vec<String>> {
+        rows.iter()
+            .map(|row| row.iter().map(|cell| (*cell).to_string()).collect())
+            .collect()
     }
 
     #[test]
-    fn test_data_model_operations() {
+    fn test_spreadsheet_init() -> Result<(), String> {
+        let columns = vec![text_column("Name", 100.0), text_column("Value", 100.0)];
+
+        let mut spreadsheet = MaterialSpreadsheet::new("test", columns)?;
+
+        // Initialize with data
+        spreadsheet.init_with_data(table(&[&["Item1", "Value1"], &["Item2", "Value2"]]));
+
+        // Verify rows
+        assert_eq!(
+            values(&spreadsheet.rows()),
+            table(&[&["Item1", "Value1"], &["Item2", "Value2"]]),
+            "init_with_data stores the rows in order"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_data_model_operations() -> Result<(), String> {
         smol::block_on(async {
             let columns = vec![
                 ColumnDef {
@@ -1230,59 +1243,68 @@ mod tests {
                 },
             ];
 
-            let mut model = SpreadsheetDataModel::new(columns).expect("Failed to create model");
+            let mut model = SpreadsheetDataModel::new(columns)?;
 
             // Insert data
-            model
-                .insert_row(vec!["Test".to_string(), "42".to_string()])
-                .expect("Failed to insert");
+            model.insert_row(vec!["Test".to_string(), "42".to_string()])?;
 
             // Query data
-            let rows = model.query_rows().expect("Failed to query");
-            assert_eq!(rows.len(), 1);
-            assert_eq!(rows[0].values[0], "Test");
-            assert_eq!(rows[0].values[1], "42");
+            assert_eq!(
+                values(&model.query_rows()?),
+                table(&[&["Test", "42"]]),
+                "the inserted row reads back"
+            );
 
             // Update cell
-            model
-                .update_cell(0, 0, "Updated".to_string())
-                .expect("Failed to update");
-            let rows = model.query_rows().expect("Failed to query");
-            assert_eq!(rows[0].values[0], "Updated");
+            model.update_cell(0, 0, "Updated".to_string())?;
+            assert_eq!(
+                values(&model.query_rows()?),
+                table(&[&["Updated", "42"]]),
+                "update_cell changes only that cell"
+            );
+            Ok(())
         })
     }
 
     #[test]
-    fn test_csv_import_export() {
-        use std::path::Path;
+    fn test_insert_row_with_too_many_values_is_an_error() -> Result<(), String> {
+        let columns = vec![text_column("Name", 100.0)];
+        let mut model = SpreadsheetDataModel::new(columns)?;
+        let result = model.insert_row(vec!["a".to_string(), "b".to_string()]);
+        assert!(result.is_err(), "a second value has no column to go in");
+        Ok(())
+    }
 
+    #[test]
+    fn test_csv_import_export() -> Result<(), String> {
         let columns = vec![text_column("Name", 100.0), text_column("Value", 100.0)];
 
-        let mut model = SpreadsheetDataModel::new(columns).expect("Failed to create model");
+        let mut model = SpreadsheetDataModel::new(columns)?;
 
         // Add some data
-        model
-            .insert_row(vec!["Item1".to_string(), "Value1".to_string()])
-            .expect("Failed to insert");
-        model
-            .insert_row(vec!["Item2".to_string(), "Value2".to_string()])
-            .expect("Failed to insert");
+        model.insert_row(vec!["Item1".to_string(), "Value1".to_string()])?;
+        model.insert_row(vec!["Item2".to_string(), "Value2".to_string()])?;
 
         // Export to CSV
-        let export_path = Path::new("/tmp/test_export.csv");
-        model.export_csv(export_path).expect("Failed to export CSV");
+        let export_path = std::env::temp_dir().join(format!(
+            "egui_material3_test_export_{}.csv",
+            std::process::id()
+        ));
+        model.export_csv(&export_path)?;
 
         // Create new model and import
         let columns2 = vec![text_column("Col1", 100.0), text_column("Col2", 100.0)];
-        let mut model2 = SpreadsheetDataModel::new(columns2).expect("Failed to create model");
-        model2
-            .import_csv(export_path)
-            .expect("Failed to import CSV");
+        let mut model2 = SpreadsheetDataModel::new(columns2)?;
+        let imported = model2.import_csv(&export_path);
+        std::fs::remove_file(&export_path).ok();
+        imported?;
 
         // Verify data
-        let rows = model2.query_rows().expect("Failed to query");
-        assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].values[0], "Item1");
-        assert_eq!(rows[1].values[1], "Value2");
+        assert_eq!(
+            values(&model2.query_rows()?),
+            table(&[&["Item1", "Value1"], &["Item2", "Value2"]]),
+            "a CSV round trip keeps every cell"
+        );
+        Ok(())
     }
 }

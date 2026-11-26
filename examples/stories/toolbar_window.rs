@@ -5,7 +5,7 @@ use eframe::egui::{self, Ui, Window};
 use egui_material3::material_symbol::material_symbol_text;
 
 #[doc(hidden)]
-pub struct ToolbarWindow {
+pub(crate) struct ToolbarWindow {
     pub open: bool,
     show_outline: bool,
     is_top: bool,
@@ -28,7 +28,7 @@ impl Default for ToolbarWindow {
 }
 
 impl ToolbarWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Toolbar Stories")
             .open(&mut open)

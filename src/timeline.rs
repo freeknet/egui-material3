@@ -99,7 +99,10 @@ pub struct TimelineItem<'a> {
     /// Main content text
     content: Option<String>,
     /// Custom content renderer (takes precedence over content text)
-    #[allow(clippy::type_complexity)]
+    #[expect(
+        clippy::type_complexity,
+        reason = "a boxed UI callback; the closure signature is clearer spelled out than behind an alias"
+    )]
     content_custom: Option<Box<dyn Fn(&mut Ui) + 'a>>,
     /// Optional opposite side content
     opposite_content: Option<String>,

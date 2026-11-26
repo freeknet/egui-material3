@@ -51,7 +51,10 @@ pub struct MaterialCarousel<'a> {
 }
 
 /// A single item in a carousel.
-#[allow(clippy::type_complexity)]
+#[expect(
+    clippy::type_complexity,
+    reason = "a boxed UI callback; the closure signature is clearer spelled out than behind an alias"
+)]
 pub struct CarouselItem<'a> {
     content: Box<dyn FnOnce(&mut Ui, Rect) + 'a>,
 }

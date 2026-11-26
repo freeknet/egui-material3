@@ -29,7 +29,7 @@ enum ListAction {
 }
 
 #[doc(hidden)]
-pub struct ListWindow {
+pub(crate) struct ListWindow {
     pub open: bool,
     disabled: bool,
     selected: bool,
@@ -129,7 +129,7 @@ impl Default for ListWindow {
 }
 
 impl ListWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("List Stories")
             .open(&mut open)
@@ -665,9 +665,9 @@ impl ListWindow {
 
         let mut selection_list = MaterialList::new().id(egui::Id::unique("selection_list"));
 
-        for i in 0..5 {
+        for i in 0..self.selected_items.len() {
             let item_text = format!("Selectable Item {}", i + 1);
-            let is_selected = self.selected_items[i];
+            let is_selected = self.selected_items.get(i).copied().unwrap_or(false);
 
             let item = ListItem::new(&item_text)
                 .leading_icon(if is_selected {
@@ -693,7 +693,9 @@ impl ListWindow {
                 .add(MaterialButton::filled(format!("Toggle Item {}", i + 1)).small())
                 .clicked()
             {
-                self.selected_items[i] = !self.selected_items[i];
+                if let Some(selected) = self.selected_items.get_mut(i) {
+                    *selected = !*selected;
+                }
             }
         }
 

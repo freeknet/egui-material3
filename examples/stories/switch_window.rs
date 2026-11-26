@@ -9,7 +9,7 @@ use crate::{
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
-pub struct SwitchWindow {
+pub(crate) struct SwitchWindow {
     pub open: bool,
     disabled: bool,
     selected: bool,
@@ -71,7 +71,7 @@ impl Default for SwitchWindow {
 }
 
 impl SwitchWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Switch Stories")
             .open(&mut open)

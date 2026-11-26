@@ -15,14 +15,14 @@ use egui_material3::{ListItem, MaterialList};
 
 #[doc(hidden)]
 #[derive(Default)]
-pub struct SymbolWindow {
+pub(crate) struct SymbolWindow {
     pub open: bool,
     filter_selected_1: bool,
     filter_selected_3: bool,
 }
 
 impl SymbolWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Symbol Stories")
             .open(&mut open)

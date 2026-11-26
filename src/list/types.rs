@@ -150,7 +150,10 @@ pub struct ListItem<'a> {
     /// Optional text displayed at the end of the item
     pub(crate) trailing_text: Option<String>,
     /// Optional custom widget rendered in the trailing area
-    #[allow(clippy::type_complexity)]
+    #[expect(
+        clippy::type_complexity,
+        reason = "a boxed UI callback; the closure signature is clearer spelled out than behind an alias"
+    )]
     pub(crate) trailing_widget: Option<std::sync::Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
     /// Whether the item is enabled and interactive
     pub(crate) enabled: bool,
@@ -187,6 +190,9 @@ pub struct ListItem<'a> {
     /// Callback function to execute when the item is clicked
     pub(crate) action: Option<Box<dyn Fn() + 'a>>,
     /// Optional drawer content that expands below the item
-    #[allow(clippy::type_complexity)]
+    #[expect(
+        clippy::type_complexity,
+        reason = "a boxed UI callback; the closure signature is clearer spelled out than behind an alias"
+    )]
     pub(crate) drawer: Option<std::sync::Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
 }

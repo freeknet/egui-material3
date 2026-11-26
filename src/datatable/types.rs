@@ -199,7 +199,10 @@ impl DataTableCell {
 #[derive(Clone)]
 pub struct DataTableColumn {
     pub title: String,
-    #[allow(clippy::type_complexity)]
+    #[expect(
+        clippy::type_complexity,
+        reason = "a boxed UI callback; the closure signature is clearer spelled out than behind an alias"
+    )]
     pub header_widget: Option<std::sync::Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
     pub width: f32,
     pub numeric: bool,
@@ -221,7 +224,10 @@ pub struct DataTableRow<'a> {
     pub id: Option<String>,
     pub color: Option<Color32>,
     pub on_hover: bool,
-    #[allow(clippy::type_complexity)]
+    #[expect(
+        clippy::type_complexity,
+        reason = "a boxed UI callback; the closure signature is clearer spelled out than behind an alias"
+    )]
     pub drawer: Option<std::sync::Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
     pub _phantom: std::marker::PhantomData<&'a ()>,
 }

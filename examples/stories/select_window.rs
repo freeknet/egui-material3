@@ -4,7 +4,7 @@ use crate::{select, MaterialButton, SelectVariant};
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
-pub struct SelectWindow {
+pub(crate) struct SelectWindow {
     pub open: bool,
     label: String,
     typeahead_delay: f32,
@@ -91,7 +91,7 @@ impl Default for SelectWindow {
 }
 
 impl SelectWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Select Stories")
             .open(&mut open)

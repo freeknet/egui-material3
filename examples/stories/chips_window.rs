@@ -9,7 +9,7 @@ use crate::{
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
-pub struct ChipsWindow {
+pub(crate) struct ChipsWindow {
     pub open: bool,
     label: String,
     elevated: bool,
@@ -128,7 +128,7 @@ impl ChipsWindow {
         fonts
     }
 
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         // Load system fonts on first show
         if !self.system_fonts_loaded {
             self.system_fonts = Self::enumerate_system_fonts();
@@ -155,11 +155,9 @@ impl ChipsWindow {
                         "custom".to_owned(),
                         std::sync::Arc::new(egui::FontData::from_owned(font_data)),
                     );
-                    fonts
-                        .families
-                        .get_mut(&egui::FontFamily::Proportional)
-                        .unwrap()
-                        .insert(0, "custom".to_owned());
+                    if let Some(family) = fonts.families.get_mut(&egui::FontFamily::Proportional) {
+                        family.insert(0, "custom".to_owned());
+                    }
                     ctx.set_fonts(fonts);
                 }
             }

@@ -5,7 +5,7 @@ use eframe::egui::{self, Color32, Vec2, Window};
 use egui_material3::material_symbol::{ICON_PAUSE, ICON_PLAY_ARROW};
 
 #[doc(hidden)]
-pub struct ProgressWindow {
+pub(crate) struct ProgressWindow {
     pub open: bool,
     value: f32,
     max: f32,
@@ -50,7 +50,7 @@ impl Default for ProgressWindow {
 }
 
 impl ProgressWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Progress Stories")
             .open(&mut open)

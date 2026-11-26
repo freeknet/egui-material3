@@ -60,7 +60,13 @@ fn test_drawer_material2_differences() {
     assert_ne!(m3_theme.background_color, m2_theme.background_color);
 
     // M2 has higher elevation
-    assert!(m2_theme.elevation.unwrap() > m3_theme.elevation.unwrap());
+    assert!(
+        matches!(
+            (m2_theme.elevation, m3_theme.elevation),
+            (Some(m2), Some(m3)) if m2 > m3
+        ),
+        "both drawers set an elevation, and the M2 one is higher"
+    );
 
     // M2 has no corner radius
     assert_ne!(m3_theme.shape, m2_theme.shape);

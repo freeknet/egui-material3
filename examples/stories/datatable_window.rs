@@ -35,7 +35,7 @@ enum SortDirection {
 }
 
 #[doc(hidden)]
-pub struct DataTableWindow {
+pub(crate) struct DataTableWindow {
     pub open: bool,
     allow_selection: bool,
     sticky_header: bool,
@@ -130,7 +130,7 @@ impl Default for DataTableWindow {
 }
 
 impl DataTableWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         let mut should_close = false;
 
@@ -481,7 +481,7 @@ impl DataTableWindow {
 
             if ui.add(MaterialButton::text("Export to CSV")).clicked() {
                 match self.export_to_csv("exported_data.csv") {
-                    Ok(_) => self.status_message = "Saved to exported_data.csv".to_string(),
+                    Ok(()) => self.status_message = "Saved to exported_data.csv".to_string(),
                     Err(e) => self.status_message = format!("Export failed: {}", e),
                 }
             }
@@ -579,11 +579,11 @@ impl DataTableWindow {
                     if let Some(edit_data) = self.edit_data.get(row_idx) {
                         if let Some(row) = self.interactive_rows.get_mut(*row_idx) {
                             // Update the row with edited data
-                            if edit_data.len() >= 4 {
-                                row.product = edit_data[0].clone();
-                                row.category = edit_data[1].clone();
-                                row.price = edit_data[2].clone();
-                                row.stock = edit_data[3].clone();
+                            if let [product, category, price, stock, ..] = edit_data.as_slice() {
+                                row.product = product.clone();
+                                row.category = category.clone();
+                                row.price = price.clone();
+                                row.stock = stock.clone();
                             }
                         }
                     }
@@ -1104,7 +1104,7 @@ impl DataTableWindow {
                    .cell("Electronics")
                    .cell("$1299")
                    .cell("15")
-                   .selected(self.drawer_selection[0])
+                   .selected(self.drawer_selection.first().copied().unwrap_or(false))
                    .drawer(|ui| {
                        ui.add_space(8.0);
                        ui.label("High-performance laptop with 16 GB RAM, 512 GB SSD, 14\" display.");
@@ -1117,7 +1117,7 @@ impl DataTableWindow {
                    .cell("Accessories")
                    .cell("$39")
                    .cell("200")
-                   .selected(self.drawer_selection[1])
+                   .selected(self.drawer_selection.get(1).copied().unwrap_or(false))
                    .drawer(|ui| {
                        ui.add_space(8.0);
                        ui.label("Ergonomic wireless mouse with 3-year battery life.");
@@ -1130,14 +1130,14 @@ impl DataTableWindow {
                    .cell("Accessories")
                    .cell("$12")
                    .cell("500")
-                   .selected(self.drawer_selection[2])
+                   .selected(self.drawer_selection.get(2).copied().unwrap_or(false))
             })
             .row(|row| {
                 row.cell("Mechanical Keyboard")
                    .cell("Accessories")
                    .cell("$129")
                    .cell("45")
-                   .selected(self.drawer_selection[3])
+                   .selected(self.drawer_selection.get(3).copied().unwrap_or(false))
                    .drawer(|ui| {
                        ui.add_space(8.0);
                        ui.label("Tenkeyless layout, Cherry MX Brown switches, per-key RGB.");

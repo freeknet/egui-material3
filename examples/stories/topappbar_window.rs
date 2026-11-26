@@ -18,7 +18,7 @@ static SEARCH_TOGGLE: AtomicBool = AtomicBool::new(false);
 static MENU_TOGGLE: AtomicBool = AtomicBool::new(false);
 
 #[doc(hidden)]
-pub struct TopAppBarWindow {
+pub(crate) struct TopAppBarWindow {
     pub open: bool,
     title_text: String,
     show_navigation: bool,
@@ -57,7 +57,7 @@ impl Default for TopAppBarWindow {
 }
 
 impl TopAppBarWindow {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Top App Bar Stories")
             .open(&mut open)

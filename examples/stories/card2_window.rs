@@ -4,7 +4,7 @@ use crate::{elevated_card2, filled_card2, outlined_card2, MaterialButton, Materi
 use eframe::egui::{self, Ui, Window};
 
 #[doc(hidden)]
-pub struct Card2Window {
+pub(crate) struct Card2Window {
     pub open: bool,
     show_header: bool,
     show_subtitle: bool,
@@ -92,7 +92,7 @@ impl Default for Card2Window {
 }
 
 impl Card2Window {
-    pub fn show(&mut self, ctx: &egui::Context) {
+    pub(crate) fn show(&mut self, ctx: &egui::Context) {
         let mut open = self.open;
         Window::new("Enhanced Card (Card2) Stories")
             .open(&mut open)
