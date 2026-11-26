@@ -1,5 +1,5 @@
 // ============================================================================
-// Module:       tokens
+// Module:       button::tokens
 // Description:  Compose button tokens: sizes, shapes, colours.
 //
 // Dependencies: egui; crate::tokens, crate::MaterialTheme

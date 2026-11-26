@@ -42,6 +42,15 @@ fn menu_shows(harness: &Harness<'_>, option: &str) -> bool {
     harness.query_by_label(option).is_some()
 }
 
+/// Rendering tests take this lock: several wgpu renderers created at once
+/// in one process can crash the test binary on Windows.
+fn one_renderer_at_a_time() -> std::sync::MutexGuard<'static, ()> {
+    static RENDERER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    RENDERER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 #[test]
 fn arrow_and_enter_select_an_option() {
     let selected = Cell::new(None);
@@ -276,6 +285,7 @@ fn open_select_snapshot() -> TestResult {
         let options = egui_kittest::SnapshotOptions::new()
             .threshold(2.0)
             .max_failed_pixels(400);
+        let _renderer = one_renderer_at_a_time();
         match harness.try_snapshot_options(format!("select_open_{name}"), &options) {
             Ok(()) => {}
             Err(egui_kittest::SnapshotError::RenderError { err }) => {

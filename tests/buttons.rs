@@ -600,7 +600,17 @@ fn disabled_button_does_not_click() {
 // ---------------------------------------------------------------------------
 // Snapshots
 
+/// Rendering tests take this lock: several wgpu renderers created at once
+/// in one process can crash the test binary on Windows.
+fn one_renderer_at_a_time() -> std::sync::MutexGuard<'static, ()> {
+    static RENDERER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    RENDERER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 fn snapshot(harness: &mut egui_kittest::Harness<'_>, name: &str) -> TestResult {
+    let _renderer = one_renderer_at_a_time();
     // Software and hardware rasterisers differ in anti-aliasing; allow that,
     // not a missing or moved button.
     let options = egui_kittest::SnapshotOptions::new()

@@ -61,8 +61,18 @@ fn circles(harness: &Harness<'_>, radius: f32) -> Vec<(Pos2, Color32)> {
         .collect()
 }
 
+/// Rendering tests take this lock: several wgpu renderers created at once
+/// in one process can crash the test binary on Windows.
+fn one_renderer_at_a_time() -> std::sync::MutexGuard<'static, ()> {
+    static RENDERER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    RENDERER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 /// Snapshot `name`, skipping (not failing) where no GPU adapter exists.
 fn snapshot(harness: &mut Harness<'_>, name: &str) -> TestResult {
+    let _renderer = one_renderer_at_a_time();
     let options = egui_kittest::SnapshotOptions::new()
         .threshold(2.0)
         .max_failed_pixels(200);

@@ -209,6 +209,7 @@ fn outlined_focus_stroke_is_three_pixels() -> TestResult {
     });
     harness.get_by_label("Email").focus();
     harness.run();
+    let _renderer = one_renderer_at_a_time();
     let image = match harness.render() {
         Ok(image) => image,
         Err(err) => {
@@ -353,7 +354,17 @@ fn field(text: &mut String, filled: bool) -> MaterialInput<'_> {
     }
 }
 
+/// Rendering tests take this lock: several wgpu renderers created at once
+/// in one process can crash the test binary on Windows.
+fn one_renderer_at_a_time() -> std::sync::MutexGuard<'static, ()> {
+    static RENDERER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    RENDERER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 fn snapshot(harness: &mut Harness<'_>, name: &str) -> TestResult {
+    let _renderer = one_renderer_at_a_time();
     let options = egui_kittest::SnapshotOptions::new()
         .threshold(2.0)
         .max_failed_pixels(400);
