@@ -60,6 +60,12 @@ pub(crate) struct InputWindow {
     url_field: String,
     number_field: String,
 
+    // Prefix, suffix, clickable trailing icon, multi-line
+    price: String,
+    weight: String,
+    clearable_search: String,
+    notes: String,
+
     // Test field
     test_text: String,
 }
@@ -92,6 +98,10 @@ impl Default for InputWindow {
             email_field: String::new(),
             url_field: String::new(),
             number_field: String::new(),
+            price: String::new(),
+            weight: String::new(),
+            clearable_search: "Material".to_string(),
+            notes: String::new(),
             test_text: String::new(),
         }
     }
@@ -134,6 +144,11 @@ impl InputWindow {
                     ui.add_space(20.0);
 
                     self.render_icon_examples(ui);
+                    ui.add_space(20.0);
+                    ui.separator();
+                    ui.add_space(20.0);
+
+                    self.render_affix_examples(ui);
                     ui.add_space(20.0);
                     ui.separator();
                     ui.add_space(20.0);
@@ -298,6 +313,45 @@ impl InputWindow {
                 .label("Phone")
                 .leading_icon("phone")
                 .trailing_icon("clear"),
+        );
+    }
+
+    fn render_affix_examples(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Prefix, Suffix, Trailing Button and Multi-line");
+        ui.label("Prefix and suffix appear once the label floats");
+        ui.add_space(10.0);
+
+        ui.add(
+            MaterialInput::filled(&mut self.price)
+                .label("Price")
+                .prefix("$")
+                .placeholder("0.00"),
+        );
+        ui.add_space(10.0);
+
+        ui.add(
+            MaterialInput::outlined(&mut self.weight)
+                .label("Weight")
+                .suffix("kg"),
+        );
+        ui.add_space(10.0);
+
+        let search = MaterialInput::outlined(&mut self.clearable_search)
+            .label("Search")
+            .leading_icon("search")
+            .trailing_icon_button("close", "Clear search")
+            .show(ui);
+        if search.trailing_icon_clicked {
+            self.clearable_search.clear();
+        }
+        ui.add_space(10.0);
+
+        ui.add(
+            MaterialInput::filled(&mut self.notes)
+                .label("Notes")
+                .multiline(true)
+                .min_lines(3)
+                .helper_text("Enter inserts a new line"),
         );
     }
 
