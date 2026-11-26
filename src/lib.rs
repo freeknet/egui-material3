@@ -246,6 +246,7 @@ pub mod actionsheet;
 pub mod badge;
 pub mod breadcrumbs;
 pub mod button;
+pub mod button_group;
 pub mod card2;
 pub mod carousel;
 pub mod checkbox;
@@ -275,6 +276,7 @@ pub mod radio;
 pub mod select;
 pub mod slider;
 pub mod snackbar;
+pub mod split_button;
 pub mod spreadsheet;
 #[cfg(feature = "svg_emoji")]
 pub mod svg_emoji;
@@ -295,7 +297,8 @@ pub use {
     actionsheet::{action_sheet, ActionButton, ActionGroup, MaterialActionSheet},
     badge::{badge, badge_dot, BadgeColor, BadgePosition, BadgeSize, MaterialBadge},
     breadcrumbs::{breadcrumbs, MaterialBreadcrumbs},
-    button::{MaterialButton, MaterialButtonVariant},
+    button::{ButtonShape, ButtonSize, MaterialButton, MaterialButtonVariant},
+    button_group::{ButtonGroup, ButtonGroupResponse},
     card2::{elevated_card2, filled_card2, outlined_card2, Card2Variant, MaterialCard2},
     carousel::{carousel, CarouselItem, MaterialCarousel},
     checkbox::{checkbox, MaterialCheckbox},
@@ -352,6 +355,7 @@ pub use {
     snackbar::{
         snackbar, snackbar_with_action, MaterialSnackbar, SnackBarBehavior, SnackbarPosition,
     },
+    split_button::{SplitButton, SplitButtonResponse},
     switch::{switch, MaterialSwitch},
     tabs::{tabs_primary, tabs_secondary, MaterialTabs, TabVariant},
     theme::{
