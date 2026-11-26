@@ -9,6 +9,11 @@
 //! close, filtering, the combo-box AccessKit node, and an open-menu
 //! snapshot in light and dark.
 
+#![expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the tests pick one kind of painted shape out of all of them"
+)]
+
 mod support;
 
 use std::cell::Cell;
