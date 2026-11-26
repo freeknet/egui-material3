@@ -43,7 +43,6 @@ fn test_multiline_item_height_applied() {
 
 /// Test that 5-line items have proper spacing
 #[test]
-#[ignore = "three-line list items are below the M3 88dp height; nikescar/egui-material3#23, left for the list work package"]
 fn test_five_line_item_spacing() {
     let ctx = egui::Context::default();
     ctx.set_pixels_per_point(1.0);
@@ -76,7 +75,6 @@ fn test_five_line_item_spacing() {
 
 /// Test that multiple items don't accumulate spacing at bottom
 #[test]
-#[ignore = "three-line list items are below the M3 88dp height; nikescar/egui-material3#23, left for the list work package"]
 fn test_no_accumulated_bottom_spacing() {
     let ctx = egui::Context::default();
     ctx.set_pixels_per_point(1.0);
@@ -112,7 +110,6 @@ fn test_no_accumulated_bottom_spacing() {
 
 /// Test that dividers don't cause spacing issues
 #[test]
-#[ignore = "three-line list items are below the M3 88dp height; nikescar/egui-material3#23, left for the list work package"]
 fn test_dividers_with_multiline() {
     let ctx = egui::Context::default();
     ctx.set_pixels_per_point(1.0);

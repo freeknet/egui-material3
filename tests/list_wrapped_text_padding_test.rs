@@ -51,7 +51,6 @@ fn test_wrapped_text_without_overline_balanced_padding() {
 
 /// Test that wrapped text with overline works correctly (this already works)
 #[test]
-#[ignore = "three-line list items are below the M3 88dp height; nikescar/egui-material3#23, left for the list work package"]
 fn test_wrapped_text_with_overline_works() {
     let ctx = egui::Context::default();
     ctx.set_pixels_per_point(1.0);
@@ -87,7 +86,6 @@ fn test_wrapped_text_with_overline_works() {
 
 /// Test that trailing widgets still align correctly with wrapped text
 #[test]
-#[ignore = "three-line list items are below the M3 88dp height; nikescar/egui-material3#23, left for the list work package"]
 fn test_wrapped_text_with_trailing_widget() {
     let ctx = egui::Context::default();
     ctx.set_pixels_per_point(1.0);
