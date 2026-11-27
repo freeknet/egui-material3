@@ -32,6 +32,7 @@ pub(crate) struct SearchWindow {
     query: String,
     full_screen: bool,
     with_actions: bool,
+    dense: bool,
     last_event: String,
 }
 
@@ -42,6 +43,7 @@ impl Default for SearchWindow {
             query: String::new(),
             full_screen: false,
             with_actions: true,
+            dense: false,
             last_event: "Nothing yet".to_owned(),
         }
     }
@@ -61,6 +63,7 @@ impl SearchWindow {
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.full_screen, "Full-screen view");
             ui.checkbox(&mut self.with_actions, "Trailing actions");
+            ui.checkbox(&mut self.dense, "Dense (36 dp, shortcut chip)");
         });
         ui.label("Click the bar or Tab into it. Up/Down move through the suggestions, Enter picks, Escape closes.");
         ui.add_space(12.0);
@@ -80,6 +83,11 @@ impl SearchWindow {
             .placeholder("Search fruit")
             .mode(mode)
             .suggestions(suggestions.clone());
+        if self.dense {
+            search = search.height(36.0).trailing_content(|ui| {
+                ui.label(egui::RichText::new("Ctrl+K").weak());
+            });
+        }
         if self.with_actions {
             search = search
                 .trailing_icon("mic", "Voice search")

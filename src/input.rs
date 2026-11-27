@@ -26,6 +26,10 @@
 //! - **Disabled**: content in `onSurface` at 38%; the filled container at
 //!   4%, the outline at 12%.
 //! - **Caret**: `primary`, `error` in error.
+//! - **Density**: [`MaterialInput::density`] (`0` to `-3`) or
+//!   [`MaterialInput::compact`] shorten the container to as little as 32 dp
+//!   for tables and toolbars; a dense field paints no floating label (the
+//!   label becomes the placeholder) but keeps it as the accessible name.
 
 use crate::paint::paint_state_layer;
 use crate::tokens::motion::DURATION_SHORT3;
@@ -69,6 +73,20 @@ const NOTCH_PADDING: f32 = 4.0;
 const SUPPORTING_TOP_PADDING: f32 = 4.0;
 /// Space between a prefix or suffix and the text.
 const PREFIX_SUFFIX_PADDING: f32 = 2.0;
+/// The densest density step [`MaterialInput::density`] accepts.
+pub const MIN_DENSITY: i8 = -3;
+/// How much each density step below zero takes off the container height:
+/// 56 dp at 0, 48, 40, and 32 dp at -3 (the 32 dp of
+/// `MaterialSelect::compact`). Compose's text fields have no density
+/// parameter; the step is chosen so the densest field matches the compact
+/// select and the 32 dp minimum touch-free desktop control.
+pub const DENSITY_STEP: f32 = 8.0;
+
+/// The container height of a one-line field at `density` (clamped to
+/// [`MIN_DENSITY`]`..=0`).
+pub fn container_height_for_density(density: i8) -> f32 {
+    CONTAINER_HEIGHT + DENSITY_STEP * f32::from(density.clamp(MIN_DENSITY, 0))
+}
 
 /// Material Design text input field following Material Design 3 specifications
 ///
@@ -131,6 +149,8 @@ pub struct MaterialInput<'a> {
     multiline: bool,
     min_lines: usize,
     width: Option<f32>,
+    fill_width: bool,
+    density: i8,
     id_salt: Option<egui::IdSalt>,
 }
 
@@ -187,6 +207,8 @@ impl<'a> MaterialInput<'a> {
             multiline: false,
             min_lines: 1,
             width: None,
+            fill_width: false,
+            density: 0,
             id_salt: None,
         }
     }
@@ -323,6 +345,31 @@ impl<'a> MaterialInput<'a> {
         self
     }
 
+    /// Fill the available width, overriding [`Self::width`] (the default
+    /// when no width is set).
+    pub fn fill_width(mut self, fill: bool) -> Self {
+        self.fill_width = fill;
+        self
+    }
+
+    /// Density from `0` (the 56 dp default) down to `-3` (32 dp), each step
+    /// 8 dp shorter; values outside the range are clamped. Below zero the
+    /// label is not painted: it becomes the placeholder (unless one is set)
+    /// and stays the field's accessible name. Focus, error and disabled
+    /// colours are unchanged.
+    pub fn density(mut self, density: i8) -> Self {
+        self.density = density.clamp(MIN_DENSITY, 0);
+        self
+    }
+
+    /// Compact mode: a 32 dp field without a floating label, for tables and
+    /// toolbars (density `-3`, like `MaterialSelect::compact`). `false`
+    /// returns to the default density.
+    pub fn compact(mut self, compact: bool) -> Self {
+        self.density = if compact { MIN_DENSITY } else { 0 };
+        self
+    }
+
     /// Derive the field's ids from `salt` instead of its position in the
     /// layout, so its focus and animation state follow it when other
     /// widgets are added or removed before it.
@@ -355,6 +402,8 @@ impl<'a> MaterialInput<'a> {
             multiline,
             min_lines,
             width,
+            fill_width,
+            density,
             id_salt,
         } = self;
 
@@ -364,8 +413,22 @@ impl<'a> MaterialInput<'a> {
         let body = TypeRole::BodyLarge.style();
         let font = body.font_id(&ctx);
 
+        // A dense field has no room for a floating label: the label is the
+        // placeholder instead, and the accessible name either way.
+        let dense = density < 0;
+        let accessible_name = label.clone();
+        let (label, placeholder) = if dense {
+            (None, placeholder.or(label))
+        } else {
+            (label, placeholder)
+        };
+        let min_container_height = container_height_for_density(density);
+
         // Horizontal layout: icons push the text in to 52 dp.
-        let width = width.unwrap_or_else(|| ui.available_width());
+        let width = match width {
+            Some(width) if !fill_width => width,
+            Some(_) | None => ui.available_width(),
+        };
         let text_start = if leading_icon.is_some() {
             TEXT_PADDING_WITH_ICON
         } else {
@@ -394,8 +457,12 @@ impl<'a> MaterialInput<'a> {
         // the floated label (8 dp + 16 dp label line); otherwise it is
         // centred with 16 dp above and below.
         let has_label = label.is_some();
+        // A dense field centres one line in its shorter container.
         let (top_padding, bottom_padding) = if variant == InputVariant::Filled && has_label {
             (24.0, 8.0)
+        } else if dense {
+            let padding = ((min_container_height - body.line_height) / 2.0).max(0.0);
+            (padding, padding)
         } else {
             (16.0, 16.0)
         };
@@ -411,7 +478,8 @@ impl<'a> MaterialInput<'a> {
         } else {
             body.line_height
         };
-        let container_height = (top_padding + input_height + bottom_padding).max(CONTAINER_HEIGHT);
+        let container_height =
+            (top_padding + input_height + bottom_padding).max(min_container_height);
 
         let supporting = if is_error {
             error_text.or(helper_text)
@@ -656,8 +724,9 @@ impl<'a> MaterialInput<'a> {
         }
 
         // Screen readers name the text by the label painted over it, and
-        // hear that a disabled field is disabled.
-        let name = label.clone();
+        // hear that a disabled field is disabled. A dense field keeps the
+        // name although it does not paint the label.
+        let name = accessible_name;
         ctx.accesskit_node_builder(text_response.id, |node| {
             if let Some(name) = name {
                 node.set_label(name);

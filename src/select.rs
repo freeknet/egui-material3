@@ -23,7 +23,12 @@
 //! outside it. Typing jumps to the first option starting with the typed
 //! text (typeahead). With [`MaterialSelect::enable_filter`] the field is an
 //! editable text field and the menu shows only the options that contain the
-//! typed text (autocomplete). Screen readers see a combo box with its
+//! typed text (autocomplete). [`MaterialSelect::editable`] binds the field
+//! to a `String` instead: the options are suggestions and any text is
+//! kept. An option's description ([`SelectOption::description`]) is its
+//! row's tooltip and accessible description, and with
+//! [`MaterialSelect::inline_descriptions`] a second line under its text.
+//! Screen readers see a combo box with its
 //! value, its expanded state and list-box options.
 
 use crate::input::{
@@ -83,7 +88,7 @@ const MENU_SCREEN_MARGIN: f32 = 8.0;
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
 pub struct MaterialSelect<'a> {
-    selected: &'a mut Option<usize>,
+    binding: Binding<'a>,
     options: Vec<SelectOption>,
     placeholder: String,
     label: Option<String>,
@@ -103,7 +108,15 @@ pub struct MaterialSelect<'a> {
     border_radius: Option<f32>,
     menu_alignment: MenuAlignment,
     compact: bool,
+    fill_width: bool,
+    inline_descriptions: bool,
     id_salt: Option<egui::IdSalt>,
+}
+
+/// What a select edits: the chosen option's value, or (editable) free text.
+enum Binding<'a> {
+    Value(&'a mut Option<usize>),
+    Text(&'a mut String),
 }
 
 /// Visual variant of the select component.
@@ -136,10 +149,46 @@ pub enum MenuAlignment {
 }
 
 /// Individual option in a select component.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SelectOption {
     value: usize,
     text: String,
+    description: Option<String>,
+}
+
+impl SelectOption {
+    /// An option: `value` is what the select's binding is set to, `text` is
+    /// shown.
+    pub fn new(value: usize, text: impl Into<String>) -> Self {
+        Self {
+            value,
+            text: text.into(),
+            description: None,
+        }
+    }
+
+    /// A description: shown as a tooltip when the pointer rests on the
+    /// option, as a second line with [`MaterialSelect::inline_descriptions`],
+    /// and as the option's accessible description.
+    pub fn description(mut self, description: impl Into<String>) -> Self {
+        self.description = Some(description.into());
+        self
+    }
+
+    /// The value the select is set to when this option is picked.
+    pub fn value(&self) -> usize {
+        self.value
+    }
+
+    /// The text shown for this option.
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// The description, if any.
+    pub fn description_text(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
 }
 
 /// What a select remembers between frames.
@@ -166,8 +215,35 @@ impl<'a> MaterialSelect<'a> {
     /// # Arguments
     /// * `selected` - Mutable reference to the currently selected option value
     pub fn new(selected: &'a mut Option<usize>) -> Self {
+        Self::with_binding(Binding::Value(selected))
+    }
+
+    /// An editable exposed dropdown bound to free text: the field is a text
+    /// field, the menu suggests the options containing the typed text, and
+    /// picking one puts its text in `text`. Any text is allowed; it does not
+    /// have to match an option.
+    ///
+    /// ```rust
+    /// # use egui_material3::MaterialSelect;
+    /// # egui::__run_test_ui(|ui| {
+    /// let mut codec = String::from("h264");
+    /// ui.add(MaterialSelect::editable(&mut codec)
+    ///     .label("Codec")
+    ///     .option(0, "h264")
+    ///     .option(1, "hevc")
+    ///     .option(2, "prores"));
+    /// # });
+    /// ```
+    pub fn editable(text: &'a mut String) -> Self {
+        let mut select = Self::with_binding(Binding::Text(text));
+        select.enable_filter = true;
+        select.placeholder = String::new();
+        select
+    }
+
+    fn with_binding(binding: Binding<'a>) -> Self {
         Self {
-            selected,
+            binding,
             options: Vec::new(),
             placeholder: "Select an option".to_string(),
             label: None,
@@ -187,16 +263,48 @@ impl<'a> MaterialSelect<'a> {
             border_radius: None,
             menu_alignment: MenuAlignment::default(),
             compact: false,
+            fill_width: false,
+            inline_descriptions: false,
             id_salt: None,
         }
     }
 
     /// Add an option: `value` is what `selected` is set to, `text` is shown.
     pub fn option(mut self, value: usize, text: impl Into<String>) -> Self {
-        self.options.push(SelectOption {
-            value,
-            text: text.into(),
-        });
+        self.options.push(SelectOption::new(value, text));
+        self
+    }
+
+    /// Add an option with a description, shown as a tooltip on its menu row
+    /// (and as a second line with [`Self::inline_descriptions`]).
+    pub fn option_with_description(
+        mut self,
+        value: usize,
+        text: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
+        self.options
+            .push(SelectOption::new(value, text).description(description));
+        self
+    }
+
+    /// Add a prepared [`SelectOption`].
+    pub fn option_item(mut self, option: SelectOption) -> Self {
+        self.options.push(option);
+        self
+    }
+
+    /// Paint option descriptions as a second line under the option text
+    /// (rows grow from 48 dp by one BodySmall line), not only as tooltips.
+    /// Options without a description keep one-line rows.
+    pub fn inline_descriptions(mut self, inline: bool) -> Self {
+        self.inline_descriptions = inline;
+        self
+    }
+
+    /// Fill the available width instead of the fixed width (default 200).
+    pub fn fill_width(mut self, fill: bool) -> Self {
+        self.fill_width = fill;
         self
     }
 
@@ -263,7 +371,9 @@ impl<'a> MaterialSelect<'a> {
     }
 
     /// Make the field editable: the menu shows only the options containing
-    /// the typed text, and Enter picks the highlighted (first) match.
+    /// the typed text, and Enter picks the highlighted (first) match. The
+    /// text reverts to the selected option when the field loses focus; for
+    /// free text use [`Self::editable`].
     pub fn enable_filter(mut self, enable: bool) -> Self {
         self.enable_filter = enable;
         self
@@ -358,13 +468,23 @@ fn step_highlight(visible: &[usize], highlighted: Option<usize>, step: isize) ->
     visible.get(next).copied()
 }
 
+/// The height of an option's menu row: 48 dp (`MenuListItemContainerHeight`),
+/// plus a BodySmall line when its description is painted inline.
+fn item_height(option: &SelectOption, inline_descriptions: bool) -> f32 {
+    if inline_descriptions && option.description.is_some() {
+        MENU_ITEM_HEIGHT + TypeRole::BodySmall.style().line_height
+    } else {
+        MENU_ITEM_HEIGHT
+    }
+}
+
 /// The id remembering which select is open, so opening one closes others.
 fn open_select_id() -> Id {
     Id::unique("egui_material3::open_select")
 }
 
 impl Widget for MaterialSelect<'_> {
-    fn ui(self, ui: &mut Ui) -> Response {
+    fn ui(mut self, ui: &mut Ui) -> Response {
         let ctx = ui.ctx().clone();
         let theme = MaterialTheme::of(&ctx);
         let enabled = self.enabled && ui.is_enabled();
@@ -373,7 +493,23 @@ impl Widget for MaterialSelect<'_> {
         let body = TypeRole::BodyLarge.style();
         let font = body.font_id(&ctx);
 
-        let width = self.width.unwrap_or(200.0);
+        let text_mode = matches!(self.binding, Binding::Text(_));
+        let enable_filter = self.enable_filter || text_mode;
+        // The chosen option's value; editable text chooses the option it
+        // spells exactly.
+        let selected_value: Option<usize> = match &self.binding {
+            Binding::Value(selected) => **selected,
+            Binding::Text(text) => self
+                .options
+                .iter()
+                .find(|o| o.text == **text)
+                .map(|o| o.value),
+        };
+        let width = if self.fill_width {
+            ui.available_width()
+        } else {
+            self.width.unwrap_or(200.0)
+        };
         let height = if self.compact { 32.0 } else { 56.0 };
         let supporting = self.error_text.as_deref().or(self.helper_text.as_deref());
         let supporting_height = if supporting.is_some() {
@@ -394,7 +530,7 @@ impl Widget for MaterialSelect<'_> {
             id,
             crate::a11y::sense(
                 enabled,
-                if self.enable_filter {
+                if enable_filter {
                     Sense::CLICK
                 } else {
                     Sense::click()
@@ -425,7 +561,7 @@ impl Widget for MaterialSelect<'_> {
             state.open = false;
         }
 
-        let focus_id = if self.enable_filter { edit_id } else { id };
+        let focus_id = if enable_filter { edit_id } else { id };
         let focused = ctx.memory(|m| m.has_focus(focus_id));
         let open_menu = |state: &mut SelectState, selected: &Option<usize>| {
             if !state.open {
@@ -444,7 +580,7 @@ impl Widget for MaterialSelect<'_> {
             if state.open {
                 state.open = false;
             } else {
-                open_menu(&mut state, self.selected);
+                open_menu(&mut state, &selected_value);
             }
             ctx.memory_mut(|m| m.request_focus(focus_id));
         }
@@ -455,7 +591,7 @@ impl Widget for MaterialSelect<'_> {
         if focused && enabled {
             let filter = EventFilter {
                 tab: false,
-                horizontal_arrows: self.enable_filter,
+                horizontal_arrows: enable_filter,
                 vertical_arrows: true,
                 escape: true,
             };
@@ -466,7 +602,7 @@ impl Widget for MaterialSelect<'_> {
                 if state.open {
                     state.highlighted = step_highlight(&visible, state.highlighted, 1);
                 } else {
-                    open_menu(&mut state, self.selected);
+                    open_menu(&mut state, &selected_value);
                 }
                 state.scroll_to_highlight = true;
             }
@@ -474,7 +610,7 @@ impl Widget for MaterialSelect<'_> {
                 if state.open {
                     state.highlighted = step_highlight(&visible, state.highlighted, -1);
                 } else {
-                    open_menu(&mut state, self.selected);
+                    open_menu(&mut state, &selected_value);
                 }
                 state.scroll_to_highlight = true;
             }
@@ -489,18 +625,18 @@ impl Widget for MaterialSelect<'_> {
             if state.open && pressed(Key::Escape) {
                 state.open = false;
             }
-            let activate = pressed(Key::Enter) || (!self.enable_filter && pressed(Key::Space));
+            let activate = pressed(Key::Enter) || (!enable_filter && pressed(Key::Space));
             if activate {
                 if state.open {
                     picked = state.highlighted.filter(|h| visible.contains(h));
                     if picked.is_none() {
                         state.open = false;
                     }
-                } else if !self.enable_filter {
-                    open_menu(&mut state, self.selected);
+                } else if !enable_filter {
+                    open_menu(&mut state, &selected_value);
                 }
             }
-            if !self.enable_filter && self.enable_search {
+            if !enable_filter && self.enable_search {
                 #[expect(
                     clippy::wildcard_enum_match_arm,
                     reason = "typeahead reads typed text only; every other event is ignored"
@@ -522,7 +658,7 @@ impl Widget for MaterialSelect<'_> {
                     state.typeahead.push_str(&typed);
                     state.typeahead_time = now;
                     if let Some(i) = typeahead_match(&self.options, &state.typeahead) {
-                        open_menu(&mut state, self.selected);
+                        open_menu(&mut state, &selected_value);
                         state.highlighted = Some(i);
                         state.scroll_to_highlight = true;
                     }
@@ -585,10 +721,14 @@ impl Widget for MaterialSelect<'_> {
 
         // The field's text: an editable filter, or the selected option.
         let mut edit_response = None;
-        if self.enable_filter {
+        if enable_filter {
             if !(focused || state.open) {
-                state.filter = selected_text(self.selected).unwrap_or_default();
+                state.filter = selected_text(&selected_value).unwrap_or_default();
                 state.filtering = false;
+            }
+            if let Binding::Text(text) = &self.binding {
+                // Editable: the bound text is the field's text.
+                state.filter.clone_from(text);
             }
             let show_placeholder = !has_label || focused;
             let mut filter = std::mem::take(&mut state.filter);
@@ -617,19 +757,22 @@ impl Widget for MaterialSelect<'_> {
                 ui.add(edit)
             };
             state.filter = filter;
+            if let (true, Binding::Text(text)) = (edit.changed(), &mut self.binding) {
+                text.clone_from(&state.filter);
+            }
             if edit.changed() {
-                open_menu(&mut state, self.selected);
+                open_menu(&mut state, &selected_value);
                 state.filtering = true;
                 let visible = visible_options(&self.options, &state);
                 state.highlighted = visible.first().copied();
                 state.scroll_to_highlight = true;
             }
             if edit.clicked() && !state.open {
-                open_menu(&mut state, self.selected);
+                open_menu(&mut state, &selected_value);
             }
             edit_response = Some(edit);
         } else {
-            let display = selected_text(self.selected);
+            let display = selected_text(&selected_value);
             let show_placeholder = !has_label || state.open || focused;
             let (text, color) = match &display {
                 Some(text) => (Some(text.as_str()), colors.input),
@@ -650,10 +793,10 @@ impl Widget for MaterialSelect<'_> {
         }
 
         let painter = ui.painter().clone();
-        let has_content = if self.enable_filter {
+        let has_content = if enable_filter {
             !state.filter.is_empty()
         } else {
-            self.selected.is_some()
+            selected_value.is_some()
         };
         let floated = has_content || focused || state.open;
         let progress = if has_label {
@@ -697,7 +840,7 @@ impl Widget for MaterialSelect<'_> {
             rect.center().y,
         );
         // In filter mode the arrow is the way to open the full list.
-        if self.enable_filter && enabled {
+        if enable_filter && enabled {
             let arrow = ui.interact(
                 Rect::from_center_size(trailing_center, Vec2::splat(40.0)),
                 id.with("arrow"),
@@ -707,7 +850,7 @@ impl Widget for MaterialSelect<'_> {
                 if state.open {
                     state.open = false;
                 } else {
-                    open_menu(&mut state, self.selected);
+                    open_menu(&mut state, &selected_value);
                     state.filtering = false;
                 }
                 ctx.memory_mut(|m| m.request_focus(edit_id));
@@ -739,7 +882,11 @@ impl Widget for MaterialSelect<'_> {
             let menu = MenuLayout::new(
                 &ctx,
                 rect,
-                visible.len(),
+                visible
+                    .iter()
+                    .filter_map(|&i| self.options.get(i))
+                    .map(|o| item_height(o, self.inline_descriptions))
+                    .sum(),
                 self.menu_width.unwrap_or(width),
                 self.menu_max_height,
                 self.menu_alignment,
@@ -747,9 +894,11 @@ impl Widget for MaterialSelect<'_> {
             state.menu_rect = Some(menu.rect);
             let radius = self.border_radius.unwrap_or(MENU_CORNER_RADIUS);
             let label_font = TypeRole::LabelLarge.style().font_id(&ctx);
+            let description_font = TypeRole::BodySmall.style().font_id(&ctx);
+            let on_surface_variant = theme.color(ColorRole::OnSurfaceVariant);
             let on_surface = theme.color(ColorRole::OnSurface);
             let scroll_to_highlight = std::mem::take(&mut state.scroll_to_highlight);
-            let selected_now = selected_index(self.selected);
+            let selected_now = selected_index(&selected_value);
             egui::Area::new(id.with("menu"))
                 .order(egui::Order::Foreground)
                 .fixed_pos(menu.rect.min)
@@ -781,9 +930,22 @@ impl Widget for MaterialSelect<'_> {
                                         continue;
                                     };
                                     let (item_rect, item) = ui.allocate_exact_size(
-                                        Vec2::new(list_rect.width(), MENU_ITEM_HEIGHT),
+                                        Vec2::new(
+                                            list_rect.width(),
+                                            item_height(option, self.inline_descriptions),
+                                        ),
                                         Sense::CLICK,
                                     );
+                                    let item = match &option.description {
+                                        Some(description) => {
+                                            let text = description.clone();
+                                            ctx.accesskit_node_builder(item.id, |node| {
+                                                node.set_description(text);
+                                            });
+                                            item.on_hover_text(description)
+                                        }
+                                        None => item,
+                                    };
                                     let is_selected = selected_now == Some(index);
                                     let is_highlighted = state.highlighted == Some(index);
                                     crate::a11y::toggle(
@@ -826,15 +988,56 @@ impl Widget for MaterialSelect<'_> {
                                     }
                                     let text_rect = item_rect
                                         .shrink2(Vec2::new(MENU_ITEM_HORIZONTAL_PADDING, 0.0));
-                                    ui.painter()
-                                        .with_clip_rect(text_rect.intersect(ui.clip_rect()))
-                                        .text(
-                                            Pos2::new(text_rect.left(), text_rect.center().y),
-                                            Align2::LEFT_CENTER,
-                                            &option.text,
-                                            label_font.clone(),
-                                            text_color,
-                                        );
+                                    let clipped = ui
+                                        .painter()
+                                        .with_clip_rect(text_rect.intersect(ui.clip_rect()));
+                                    let inline = option
+                                        .description
+                                        .as_deref()
+                                        .filter(|_| self.inline_descriptions);
+                                    match inline {
+                                        Some(description) => {
+                                            // Two lines centred as a block:
+                                            // LabelLarge over BodySmall.
+                                            let label_line =
+                                                TypeRole::LabelLarge.style().line_height;
+                                            let small_line =
+                                                TypeRole::BodySmall.style().line_height;
+                                            let top = text_rect.center().y
+                                                - (label_line + small_line) / 2.0;
+                                            clipped.text(
+                                                Pos2::new(text_rect.left(), top + label_line / 2.0),
+                                                Align2::LEFT_CENTER,
+                                                &option.text,
+                                                label_font.clone(),
+                                                text_color,
+                                            );
+                                            let description_color = if is_selected {
+                                                text_color
+                                            } else {
+                                                on_surface_variant
+                                            };
+                                            clipped.text(
+                                                Pos2::new(
+                                                    text_rect.left(),
+                                                    top + label_line + small_line / 2.0,
+                                                ),
+                                                Align2::LEFT_CENTER,
+                                                description,
+                                                description_font.clone(),
+                                                description_color,
+                                            );
+                                        }
+                                        None => {
+                                            clipped.text(
+                                                Pos2::new(text_rect.left(), text_rect.center().y),
+                                                Align2::LEFT_CENTER,
+                                                &option.text,
+                                                label_font.clone(),
+                                                text_color,
+                                            );
+                                        }
+                                    }
                                     if is_highlighted && scroll_to_highlight {
                                         ui.scroll_to_rect(item_rect, None);
                                     }
@@ -849,10 +1052,20 @@ impl Widget for MaterialSelect<'_> {
 
         if let Some(index) = picked {
             if let Some(option) = self.options.get(index) {
-                if *self.selected != Some(option.value) {
-                    response.mark_changed();
+                match &mut self.binding {
+                    Binding::Value(selected) => {
+                        if **selected != Some(option.value) {
+                            response.mark_changed();
+                        }
+                        **selected = Some(option.value);
+                    }
+                    Binding::Text(text) => {
+                        if **text != option.text {
+                            response.mark_changed();
+                        }
+                        text.clone_from(&option.text);
+                    }
                 }
-                *self.selected = Some(option.value);
                 state.filter = option.text.clone();
                 state.filtering = false;
                 state.highlighted = Some(index);
@@ -881,7 +1094,10 @@ impl Widget for MaterialSelect<'_> {
             .label
             .clone()
             .unwrap_or_else(|| self.placeholder.clone());
-        let value = selected_text(self.selected).unwrap_or_default();
+        let value = match &self.binding {
+            Binding::Value(_) => selected_text(&selected_value).unwrap_or_default(),
+            Binding::Text(text) => (*text).clone(),
+        };
         let a11y_id = match &edit_response {
             Some(edit) => edit.id,
             None => {
@@ -923,13 +1139,13 @@ impl MenuLayout {
     fn new(
         ctx: &egui::Context,
         field: Rect,
-        items: usize,
+        content_height: f32,
         width: f32,
         max_height: Option<f32>,
         alignment: MenuAlignment,
     ) -> Self {
         let screen = ctx.content_rect().shrink(MENU_SCREEN_MARGIN);
-        let full = items as f32 * MENU_ITEM_HEIGHT + 2.0 * MENU_VERTICAL_PADDING;
+        let full = content_height + 2.0 * MENU_VERTICAL_PADDING;
         let wanted = max_height.map_or(full, |max| full.min(max.max(MENU_ITEM_HEIGHT)));
         let below = (screen.bottom() - field.bottom()).max(0.0);
         let above = (field.top() - screen.top()).max(0.0);
@@ -994,10 +1210,7 @@ mod tests {
         names
             .iter()
             .enumerate()
-            .map(|(value, text)| SelectOption {
-                value,
-                text: (*text).to_owned(),
-            })
+            .map(|(value, text)| SelectOption::new(value, *text))
             .collect()
     }
 

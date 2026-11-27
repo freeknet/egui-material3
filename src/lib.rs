@@ -302,6 +302,7 @@ pub mod navigation_bar;
 pub mod navigation_rail;
 pub mod notification;
 pub mod noto_emoji;
+pub mod number_field;
 pub mod paint;
 pub mod progress;
 pub mod radio;
@@ -426,13 +427,14 @@ pub use {
     notification::{
         notification, MaterialNotification, MaterialNotificationWithOffset, NotificationAlign,
     },
+    number_field::MaterialNumberField,
     progress::{circular_progress, linear_progress, MaterialProgress, ProgressVariant},
     radio::{
         radio, radio_group, radio_list_tile, ListTileControlAffinity, MaterialRadio,
         MaterialRadioGroup, RadioListTile,
     },
     segmented_button::{Segment, SegmentedButton, SegmentedButtonResponse},
-    select::{select, MaterialSelect, MenuAlignment, SelectVariant},
+    select::{select, MaterialSelect, MenuAlignment, SelectOption, SelectVariant},
     side_sheet::{SideSheet, SideSheetKind, SideSheetResponse},
     slider::{
         range_slider, slider, MaterialRangeSlider, MaterialSlider, RangeValues, SliderInteraction,

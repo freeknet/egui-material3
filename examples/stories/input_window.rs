@@ -9,7 +9,7 @@
 
 #![doc(hidden)]
 
-use crate::{MaterialButton, MaterialInput};
+use crate::{MaterialButton, MaterialInput, MaterialNumberField};
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
@@ -66,6 +66,11 @@ pub(crate) struct InputWindow {
     clearable_search: String,
     notes: String,
 
+    // Dense fields
+    dense_name: String,
+    dense_gain: f64,
+    dense_fps: u32,
+
     // Test field
     test_text: String,
 }
@@ -102,6 +107,9 @@ impl Default for InputWindow {
             weight: String::new(),
             clearable_search: "Material".to_string(),
             notes: String::new(),
+            dense_name: String::new(),
+            dense_gain: -3.0,
+            dense_fps: 30,
             test_text: String::new(),
         }
     }
@@ -170,6 +178,11 @@ impl InputWindow {
 
                     self.render_validation_examples(ui);
                     ui.add_space(20.0);
+                    ui.separator();
+                    ui.add_space(20.0);
+
+                    self.render_dense_examples(ui);
+                    ui.add_space(20.0);
 
                     ui.add(
                         egui::TextEdit::singleline(&mut self.test_text)
@@ -204,6 +217,44 @@ impl InputWindow {
 
         ui.add_space(10.0);
         ui.label("Material Design 3 text input fields with filled and outlined variants");
+    }
+
+    fn render_dense_examples(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Dense Fields and Number Fields");
+        ui.label("Density 0 to -3 (56 to 32 dp); dense fields paint the label as a placeholder");
+        ui.add_space(10.0);
+        for density in [0, -1, -2, -3] {
+            ui.add(
+                MaterialInput::outlined(&mut self.dense_name)
+                    .label(format!("Clip name (density {density})"))
+                    .density(density),
+            );
+            ui.add_space(8.0);
+        }
+        ui.label("Number fields: drag sideways, Up/Down, Page Up/Down, or type");
+        ui.horizontal(|ui| {
+            ui.add(
+                MaterialNumberField::new(&mut self.dense_gain)
+                    .label("Gain")
+                    .range(-60.0..=12.0)
+                    .step(0.5)
+                    .decimals(1)
+                    .suffix("dB"),
+            );
+            ui.add(
+                MaterialNumberField::filled(&mut self.dense_fps)
+                    .label("Frame rate")
+                    .range(1..=240),
+            );
+            ui.add(
+                MaterialNumberField::new(&mut self.dense_gain)
+                    .label("Gain (compact)")
+                    .range(-60.0..=12.0)
+                    .step(0.5)
+                    .decimals(1)
+                    .compact(true),
+            );
+        });
     }
 
     fn render_basic_inputs(&mut self, ui: &mut egui::Ui) {
