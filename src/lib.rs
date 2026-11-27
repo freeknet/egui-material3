@@ -244,6 +244,7 @@
 pub mod a11y;
 pub mod actionsheet;
 pub mod badge;
+pub mod bottom_sheet;
 pub mod breadcrumbs;
 pub mod button;
 pub mod button_group;
@@ -278,7 +279,9 @@ pub mod noto_emoji;
 pub mod paint;
 pub mod progress;
 pub mod radio;
+pub mod scrim;
 pub mod select;
+pub mod side_sheet;
 pub mod slider;
 pub mod snackbar;
 pub mod split_button;
@@ -301,6 +304,7 @@ pub mod mvvm;
 pub use {
     actionsheet::{action_sheet, ActionButton, ActionGroup, MaterialActionSheet},
     badge::{badge, badge_dot, BadgeColor, BadgePosition, BadgeSize, MaterialBadge},
+    bottom_sheet::{BottomSheet, BottomSheetKind, BottomSheetResponse, SheetCloseReason},
     breadcrumbs::{breadcrumbs, MaterialBreadcrumbs},
     button::{ButtonShape, ButtonSize, MaterialButton, MaterialButtonVariant},
     button_group::{ButtonGroup, ButtonGroupResponse},
@@ -314,7 +318,7 @@ pub use {
         DataTableSource, DataTableState, DataTableTheme, HAlign, MaterialDataTable, RowAction,
         SortDirection, VAlign,
     },
-    dialog::{dialog, MaterialDialog},
+    dialog::{dialog, DialogCloseReason, DialogResponse, FullScreenDialog, MaterialDialog},
     drawer::{
         dismissible_drawer, modal_drawer, permanent_drawer, standard_drawer, DrawerAlignment,
         DrawerHeader, DrawerItem, DrawerSection, DrawerThemeData, DrawerVariant, MaterialDrawer,
@@ -356,6 +360,7 @@ pub use {
         MaterialRadioGroup, RadioListTile,
     },
     select::{select, MaterialSelect, MenuAlignment, SelectVariant},
+    side_sheet::{SideSheet, SideSheetKind, SideSheetResponse},
     slider::{
         range_slider, slider, MaterialRangeSlider, MaterialSlider, RangeValues, SliderInteraction,
         ThumbShape,
