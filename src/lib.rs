@@ -275,6 +275,7 @@ pub mod imagelist;
 pub mod input;
 pub mod layoutgrid;
 pub mod list;
+pub mod loading_indicator;
 pub mod material_symbol;
 pub mod material_theme;
 pub mod menu;
@@ -290,6 +291,7 @@ pub mod scrim;
 pub mod search;
 pub mod segmented_button;
 pub mod select;
+pub mod shapes;
 pub mod side_sheet;
 pub mod slider;
 pub mod snackbar;
@@ -380,6 +382,7 @@ pub use {
         list, list_item, ListItem, ListLeading, ListTileStyle, ListTileTitleAlignment,
         MaterialList, MaterialListState, VisualDensity,
     },
+    loading_indicator::LoadingIndicator,
     material_theme::MaterialTheme,
     menu::{
         context_menu, menu, menu_item, Corner, FocusState, MaterialMenu, MenuBarThemeData,
@@ -402,7 +405,7 @@ pub use {
     side_sheet::{SideSheet, SideSheetKind, SideSheetResponse},
     slider::{
         range_slider, slider, MaterialRangeSlider, MaterialSlider, RangeValues, SliderInteraction,
-        ThumbShape,
+        SliderSize, ThumbShape,
     },
     snackbar::{
         snackbar, snackbar_with_action, MaterialSnackbar, MaterialSnackbarWithOffset,

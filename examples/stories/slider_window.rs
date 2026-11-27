@@ -1,20 +1,24 @@
 // ============================================================================
 // Module:       stories::slider_window (example)
-// Description:  Story window demonstrating the slider component.
+// Description:  Slider stories: Expressive sizes, centred, vertical, range.
 //
-// Dependencies: eframe, egui
+// Dependencies: eframe, egui_material3
 // ============================================================================
 
-//! Story window demonstrating the slider component.
+//! Slider stories.
 
 #![doc(hidden)]
 
-use crate::{range_slider, slider, MaterialButton, RangeValues, SliderInteraction, ThumbShape};
+use crate::{
+    range_slider, slider, MaterialButton, MaterialRangeSlider, MaterialSlider, RangeValues,
+    SliderInteraction, SliderSize, ThumbShape,
+};
 use eframe::egui::{self, Window};
+use egui_material3::material_symbol::ICON_VOLUME_UP;
 
 #[doc(hidden)]
 pub(crate) struct SliderWindow {
-    pub open: bool,
+    pub(crate) open: bool,
     disabled: bool,
 
     // Basic slider values
@@ -55,6 +59,12 @@ pub(crate) struct SliderWindow {
 
     // Temperature slider
     temperature_value: f32,
+
+    // M3 Expressive
+    size_values: [f32; 5],
+    centered_value: f32,
+    vertical_value: f32,
+    vertical_range: RangeValues,
 }
 
 impl Default for SliderWindow {
@@ -85,6 +95,10 @@ impl Default for SliderWindow {
             round_value: 50.0,
             handle_value: 50.0,
             temperature_value: 72.0,
+            size_values: [20.0, 35.0, 50.0, 65.0, 80.0],
+            centered_value: 15.0,
+            vertical_value: 60.0,
+            vertical_range: RangeValues::new(30.0, 70.0),
         }
     }
 }
@@ -98,6 +112,8 @@ impl SliderWindow {
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     self.render_controls(ui);
+                    ui.add_space(20.0);
+                    self.render_expressive(ui);
                     ui.add_space(20.0);
                     self.render_basic_sliders(ui);
                     ui.add_space(20.0);
@@ -117,6 +133,49 @@ impl SliderWindow {
                 });
             });
         self.open = open;
+    }
+
+    fn render_expressive(&mut self, ui: &mut egui::Ui) {
+        ui.heading("M3 Expressive");
+        let enabled = !self.disabled;
+        ui.push_id("expressive", |ui| {
+            for (size, value) in SliderSize::ALL.iter().zip(self.size_values.iter_mut()) {
+                ui.add(
+                    MaterialSlider::new(value, 0.0..=100.0)
+                        .size(*size)
+                        .width(360.0)
+                        .text(format!("{size:?}"))
+                        .inset_icon(ICON_VOLUME_UP.to_string())
+                        .show_value_indicator(true)
+                        .enabled(enabled),
+                );
+            }
+            ui.add(
+                MaterialSlider::new(&mut self.centered_value, -50.0..=50.0)
+                    .centered(true)
+                    .step(10.0)
+                    .width(360.0)
+                    .text("Centred, stepped")
+                    .enabled(enabled),
+            );
+            ui.horizontal(|ui| {
+                ui.add(
+                    MaterialSlider::new(&mut self.vertical_value, 0.0..=100.0)
+                        .vertical(true)
+                        .size(SliderSize::Medium)
+                        .width(220.0)
+                        .text("Vertical")
+                        .enabled(enabled),
+                );
+                ui.add(
+                    MaterialRangeSlider::new(&mut self.vertical_range, 0.0..=100.0)
+                        .vertical(true)
+                        .width(220.0)
+                        .text("Vertical range")
+                        .enabled(enabled),
+                );
+            });
+        });
     }
 
     fn render_controls(&mut self, ui: &mut egui::Ui) {
