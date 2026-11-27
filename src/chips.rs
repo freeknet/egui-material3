@@ -613,7 +613,7 @@ fn image_texture(ctx: &egui::Context, image: &ChipImage) -> Option<SizedTexture>
                 .map(|t| SizedTexture::from_handle(&t))
         }
         ChipImage::Icon(Icon::Texture(texture)) => Some(*texture),
-        ChipImage::Icon(Icon::Symbol(_)) => None,
+        ChipImage::Icon(Icon::Symbol(_) | Icon::Glyph { .. }) => None,
     }
 }
 
@@ -645,7 +645,7 @@ fn paint_leading(
         return;
     }
     match image {
-        ChipImage::Icon(icon @ (Icon::Symbol(_) | Icon::Svg(_))) => {
+        ChipImage::Icon(icon @ (Icon::Symbol(_) | Icon::Svg(_) | Icon::Glyph { .. })) => {
             paint_icon(painter, rect, icon, &SymbolOptions::default(), tint);
         }
         ChipImage::Icon(icon @ Icon::Texture(_)) => {

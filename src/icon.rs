@@ -13,7 +13,8 @@
 //! `onSurfaceVariant` icons).
 //!
 //! [`Icon`] is the one icon input type for widgets: a Material Symbol, an
-//! SVG document, or an already loaded texture, all drawn by [`paint_icon`]
+//! SVG document, an already loaded texture, or a glyph from the app's own
+//! icon font ([`Icon::glyph`]), all drawn by [`paint_icon`]
 //! with a tint. Monochrome SVGs take the tint; full-colour ones keep their
 //! colours.
 //!
@@ -91,12 +92,38 @@ pub enum Icon {
     Svg(Arc<[u8]>),
     /// A texture already loaded into egui, drawn multiplied by the tint.
     Texture(SizedTexture),
+    /// One character from a font the app registered itself (an icon font
+    /// of its own, say), drawn in `family` at the icon size and in the
+    /// tint. It mirrors only when the caller asks for it
+    /// ([`SymbolOptions::mirrored`], [`MaterialIcon::mirrored`]); it is
+    /// never auto-mirrored, since the crate cannot know what the glyph
+    /// depicts.
+    Glyph {
+        /// The character to draw.
+        ch: char,
+        /// The font family it is drawn in. Register it with
+        /// [`egui::Context::set_fonts`] first: egui cannot lay out text in
+        /// a family it has no fonts for.
+        family: egui::FontFamily,
+    },
 }
 
 impl Icon {
     /// An SVG icon from the document's bytes.
     pub fn svg(bytes: impl Into<Arc<[u8]>>) -> Self {
         Icon::Svg(bytes.into())
+    }
+
+    /// A glyph `ch` from the app's own font `family`.
+    ///
+    /// ```
+    /// use egui_material3::Icon;
+    ///
+    /// let icon = Icon::glyph('\u{e900}', egui::FontFamily::Name("app-icons".into()));
+    /// assert!(matches!(icon, Icon::Glyph { ch: '\u{e900}', .. }));
+    /// ```
+    pub fn glyph(ch: char, family: egui::FontFamily) -> Self {
+        Icon::Glyph { ch, family }
     }
 }
 
@@ -353,6 +380,34 @@ pub fn paint_icon(
             };
             painter.image(texture.id, fitted, FULL_UV, tint);
         }
+        Icon::Glyph { ch, family } => {
+            paint_glyph(painter, rect, *ch, family, options.mirrored, tint);
+        }
+    }
+}
+
+/// Paints the character `ch` from `family` centred in `rect`, sized to the
+/// rect's smaller side, mirrored when `mirrored`.
+fn paint_glyph(
+    painter: &Painter,
+    rect: Rect,
+    ch: char,
+    family: &egui::FontFamily,
+    mirrored: bool,
+    tint: Color32,
+) {
+    let size = rect.width().min(rect.height());
+    let format = TextFormat {
+        font_id: FontId::new(size, family.clone()),
+        color: tint,
+        ..Default::default()
+    };
+    let galley = painter.layout_job(LayoutJob::single_section(ch.to_string(), format));
+    let pos = rect.center() - galley.size() / 2.0;
+    if mirrored {
+        paint_mirrored(painter, pos, &galley, rect.center().x);
+    } else {
+        painter.galley(pos, galley, tint);
     }
 }
 
@@ -442,7 +497,7 @@ impl Widget for MaterialIcon {
             .unwrap_or_else(|| theme.color(ColorRole::OnSurface));
         let auto_mirror = self.auto_mirror.unwrap_or_else(|| match &self.icon {
             Icon::Symbol(name) => AUTO_MIRRORED.contains(&name.as_str()),
-            Icon::Svg(_) | Icon::Texture(_) => false,
+            Icon::Svg(_) | Icon::Texture(_) | Icon::Glyph { .. } => false,
         });
         let rtl = theme.layout_direction == LayoutDirection::Rtl;
         let options = SymbolOptions {

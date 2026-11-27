@@ -419,7 +419,7 @@ fn is_symbol_codepoint(text: &str) -> bool {
 pub(crate) fn icon_label(icon: &Icon) -> &str {
     match icon {
         Icon::Symbol(name) if get_material_symbol(name).is_some() => name,
-        Icon::Symbol(_) | Icon::Svg(_) | Icon::Texture(_) => "",
+        Icon::Symbol(_) | Icon::Svg(_) | Icon::Texture(_) | Icon::Glyph { .. } => "",
     }
 }
 
