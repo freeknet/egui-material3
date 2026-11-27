@@ -320,7 +320,10 @@ pub use {
         DataTableSource, DataTableState, DataTableTheme, HAlign, MaterialDataTable, RowAction,
         SortDirection, VAlign,
     },
-    dialog::{dialog, DialogCloseReason, DialogResponse, FullScreenDialog, MaterialDialog},
+    dialog::{
+        dialog, DialogCloseReason, DialogContentStyle, DialogResponse, FullScreenDialog,
+        MaterialDialog,
+    },
     divider::{divider, vertical_divider, DividerOrientation, MaterialDivider},
     drawer::{
         dismissible_drawer, modal_drawer, permanent_drawer, standard_drawer, DrawerAlignment,

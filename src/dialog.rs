@@ -42,6 +42,22 @@
 //!
 //! [`MaterialDialog::show`] returns a [`DialogResponse`]: what the content
 //! closure returned, and why the dialog closed this frame, if it did.
+//!
+//! # Content styling
+//!
+//! The headline and the actions are always styled by the dialog. The
+//! supporting text style (`BodyMedium` in `OnSurfaceVariant`) is applied
+//! in two ways:
+//!
+//! - [`MaterialDialog::supporting_text`] shows text in exactly that style,
+//!   above the content.
+//! - The content closure gets it as a *default* only
+//!   ([`DialogContentStyle::SupportingText`]): plain labels and text edits
+//!   use `BodyMedium` and the default label colour is `OnSurfaceVariant`,
+//!   but nothing is overridden, so headings, `RichText` with its own font
+//!   or colour, buttons and other widgets keep their own styles.
+//!   [`DialogContentStyle::Inherit`] (via [`MaterialDialog::content_style`])
+//!   leaves the content's style exactly as the surrounding app's.
 
 use egui::{Align, Context, Id, Layout, Response, RichText, Ui, Vec2};
 
@@ -65,6 +81,32 @@ const ACTIONS_SPACING: f32 = 8.0;
 const ICON_SIZE: f32 = 24.0;
 /// Side of the close button's touch target.
 const CLOSE_BUTTON_SIZE: f32 = 48.0;
+
+/// How a [`MaterialDialog`] styles its content closure's `Ui`. The headline
+/// and actions are styled either way. See the [module docs](self).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DialogContentStyle {
+    /// Default: the body text style is `BodyMedium` and the default label
+    /// colour `OnSurfaceVariant` (`DialogTokens.SupportingText*`), without
+    /// overriding fonts or colours that widgets set themselves.
+    #[default]
+    SupportingText,
+    /// The content keeps the surrounding app's text style and colours.
+    Inherit,
+}
+
+/// Makes `BodyMedium` in `OnSurfaceVariant` the default for plain text in
+/// `ui` without overriding widgets that pick their own font or colour.
+fn apply_supporting_default(ui: &mut Ui, theme: &MaterialTheme, font: bool) {
+    if font {
+        let font_id = TypeRole::BodyMedium.style().font_id(ui.ctx());
+        ui.style_mut()
+            .text_styles
+            .insert(egui::TextStyle::Body, font_id);
+    }
+    ui.visuals_mut().widgets.noninteractive.fg_stroke.color =
+        theme.color(ColorRole::OnSurfaceVariant);
+}
 
 /// Material Design dialog types.
 ///
@@ -175,6 +217,8 @@ pub struct MaterialDialog<'a, R = ()> {
     button_padding: Option<[f32; 2]>,
     scrollable: bool,
     actions_spacing: f32,
+    supporting_text: Option<String>,
+    content_style: DialogContentStyle,
 }
 
 /// An action button in a Material Design dialog.
@@ -222,6 +266,8 @@ impl<'a> MaterialDialog<'a, ()> {
             button_padding: None,
             scrollable: false,
             actions_spacing: ACTIONS_SPACING,
+            supporting_text: None,
+            content_style: DialogContentStyle::SupportingText,
         }
     }
 }
@@ -273,7 +319,26 @@ impl<'a, R> MaterialDialog<'a, R> {
             button_padding: self.button_padding,
             scrollable: self.scrollable,
             actions_spacing: self.actions_spacing,
+            supporting_text: self.supporting_text,
+            content_style: self.content_style,
         }
+    }
+
+    /// Supporting text under the headline, in `BodyMedium` and
+    /// `OnSurfaceVariant` (`DialogTokens.SupportingText*`) whatever the
+    /// [`content_style`](Self::content_style). Any content closure is shown
+    /// below it.
+    pub fn supporting_text(mut self, text: impl Into<String>) -> Self {
+        self.supporting_text = Some(text.into());
+        self
+    }
+
+    /// How the content closure's `Ui` is styled. Default
+    /// [`DialogContentStyle::SupportingText`]; use
+    /// [`DialogContentStyle::Inherit`] to keep the app's own text style.
+    pub fn content_style(mut self, style: DialogContentStyle) -> Self {
+        self.content_style = style;
+        self
     }
 
     /// A quick dialog appears and disappears without animation.
@@ -448,6 +513,8 @@ impl<'a, R> MaterialDialog<'a, R> {
             button_padding,
             scrollable,
             actions_spacing,
+            supporting_text,
+            content_style,
         } = self;
 
         if !no_focus_trap {
@@ -566,10 +633,21 @@ impl<'a, R> MaterialDialog<'a, R> {
                     let inner = egui::Frame::NONE
                         .inner_margin(scrim::margin([left, right, top, bottom]))
                         .show(ui, |ui| {
-                            ui.style_mut().override_font_id = Some(body_style.font_id(ui.ctx()));
-                            ui.visuals_mut().override_text_color =
-                                Some(theme.color(ColorRole::OnSurfaceVariant));
                             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+                            if let Some(text) = &supporting_text {
+                                ui.label(
+                                    RichText::new(text)
+                                        .font(body_style.font_id(ui.ctx()))
+                                        .line_height(Some(body_style.line_height))
+                                        .color(theme.color(ColorRole::OnSurfaceVariant)),
+                                );
+                            }
+                            match content_style {
+                                DialogContentStyle::SupportingText => {
+                                    apply_supporting_default(ui, &theme, true);
+                                }
+                                DialogContentStyle::Inherit => {}
+                            }
                             if scrollable {
                                 egui::ScrollArea::vertical()
                                     .id_salt("dialog_content_scroll")
@@ -858,8 +936,9 @@ impl<'a> FullScreenDialog<'a> {
                     egui::Frame::NONE
                         .inner_margin(scrim::margin([DIALOG_PADDING, DIALOG_PADDING, 0.0, 0.0]))
                         .show(ui, |ui| {
-                            ui.visuals_mut().override_text_color =
-                                Some(theme.color(ColorRole::OnSurfaceVariant));
+                            // A default label colour, not an override, so
+                            // widgets keep their own colours.
+                            apply_supporting_default(ui, &theme, false);
                             content(ui, &mut local_open)
                         })
                         .inner
