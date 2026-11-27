@@ -351,7 +351,10 @@ pub use {
         DataTableSource, DataTableState, DataTableTheme, HAlign, MaterialDataTable, RowAction,
         SortDirection, VAlign,
     },
-    dialog::{dialog, DialogCloseReason, DialogResponse, FullScreenDialog, MaterialDialog},
+    dialog::{
+        dialog, DialogCloseReason, DialogContentStyle, DialogResponse, FullScreenDialog,
+        MaterialDialog,
+    },
     divider::{divider, vertical_divider, DividerOrientation, MaterialDivider},
     drawer::{
         dismissible_drawer, modal_drawer, permanent_drawer, standard_drawer, DrawerAlignment,
@@ -388,8 +391,8 @@ pub use {
     material_theme::MaterialTheme,
     menu::{
         context_menu, menu, menu_item, Corner, FocusState, MaterialMenu, MenuBarThemeData,
-        MenuButtonThemeData, MenuEntry, MenuItem, MenuStyle, MenuThemeData, MenuVariant,
-        Positioning,
+        MenuButtonThemeData, MenuEntry, MenuItem, MenuResponse, MenuStyle, MenuThemeData,
+        MenuVariant, Positioning,
     },
     navigation::{NavigationBadge, NavigationItem},
     navigation_bar::{NavigationBar, NavigationBarVariant},
@@ -402,7 +405,7 @@ pub use {
         radio, radio_group, radio_list_tile, ListTileControlAffinity, MaterialRadio,
         MaterialRadioGroup, RadioListTile,
     },
-    segmented_button::{Segment, SegmentedButton},
+    segmented_button::{Segment, SegmentedButton, SegmentedButtonResponse},
     select::{select, MaterialSelect, MenuAlignment, SelectVariant},
     side_sheet::{SideSheet, SideSheetKind, SideSheetResponse},
     slider::{

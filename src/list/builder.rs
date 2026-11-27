@@ -182,6 +182,8 @@ impl<'a> ListItem<'a> {
             leading: None,
             dragged: false,
             drawer: None,
+            leading_ui: None,
+            content_ui: None,
         }
     }
 
@@ -222,6 +224,64 @@ impl<'a> ListItem<'a> {
     /// [`ListItem::on_click`].
     pub fn leading_radio(mut self, selected: bool) -> Self {
         self.leading = Some(ListLeading::Radio(selected));
+        self
+    }
+
+    /// Custom UI in the leading slot, `size` points large. It replaces any
+    /// other leading element. The callback gets a `Ui` whose `max_rect` is
+    /// the slot (placed and mirrored like the built-in leading elements)
+    /// and the item's [`ListItemState`]. The item keeps its container,
+    /// state layer, selection, focus ring, keyboard handling and AccessKit
+    /// node (labelled with the primary text).
+    ///
+    /// ```rust
+    /// # use egui_material3::*;
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.add(MaterialList::new().item(
+    ///     ListItem::new("Clip 3").leading_ui(egui::vec2(48.0, 27.0), |ui, state| {
+    ///         ui.painter().rect_filled(ui.max_rect(), 4.0, state.icon_color);
+    ///     }),
+    /// ));
+    /// # });
+    /// ```
+    pub fn leading_ui(
+        mut self,
+        size: egui::Vec2,
+        add_contents: impl FnOnce(&mut egui::Ui, &ListItemState) + 'a,
+    ) -> Self {
+        let size = egui::Vec2::new(
+            if size.x.is_finite() {
+                size.x.max(0.0)
+            } else {
+                0.0
+            },
+            if size.y.is_finite() {
+                size.y.max(0.0)
+            } else {
+                0.0
+            },
+        );
+        self.leading_ui = Some((size, Box::new(add_contents)));
+        self
+    }
+
+    /// Custom UI for the whole row: it replaces the leading element, the
+    /// text and the trailing elements, while the item keeps its container,
+    /// state layer, selection, focus ring, click handling, keyboard roving
+    /// and AccessKit node (still labelled with the primary text, which is
+    /// not painted). The callback gets a left-to-right `Ui` over the item
+    /// inset by the 16 dp leading and trailing space, and the item's
+    /// [`ListItemState`] (whose `rect` is the whole item).
+    ///
+    /// The row is as tall as the built-in one would be for the primary
+    /// text (56 dp for one line); set [`min_tile_height`](Self::min_tile_height)
+    /// for taller content. Widgets added by the callback sit above the item
+    /// and take their own clicks.
+    pub fn content_ui(
+        mut self,
+        add_contents: impl FnOnce(&mut egui::Ui, &ListItemState) + 'a,
+    ) -> Self {
+        self.content_ui = Some(Box::new(add_contents));
         self
     }
 

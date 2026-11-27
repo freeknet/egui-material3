@@ -133,6 +133,9 @@ fn layout(ui: &Ui, style: &TypeStyle, text: &str, wrap_width: f32) -> Arc<Galley
 
 /// Size of the leading element (width and height), if any.
 fn leading_size(item: &ListItem<'_>) -> Option<Vec2> {
+    if let Some((size, _)) = &item.leading_ui {
+        return Some(*size);
+    }
     let icon_width = item.min_leading_width.unwrap_or(ICON_SIZE);
     match &item.leading {
         Some(ListLeading::Avatar(_)) => Some(Vec2::splat(AVATAR_SIZE)),
@@ -567,7 +570,8 @@ impl<'a> Widget for MaterialList<'a> {
 
             let colors = item_colors(&theme, &item, segmented);
             let corners = item_corners(item.selected, segmented, index, count);
-            let painter = ui.painter();
+            let owned_painter = ui.painter().clone();
+            let painter = &owned_painter;
 
             if item.dragged && item.enabled {
                 crate::paint::paint_elevation(
@@ -639,202 +643,257 @@ impl<'a> Widget for MaterialList<'a> {
                 }
             };
 
-            // Leading.
-            let mut content_x = item_rect.min.x + LEADING_SPACE;
-            if let Some(size) = leading_size(&item) {
-                let lead_rect = mirror(
-                    Rect::from_min_size(Pos2::new(content_x, place_v(size.y)), size),
-                    item_rect,
-                    direction,
+            let custom_state = ListItemState {
+                rect: item_rect,
+                enabled: item.enabled,
+                selected: item.selected,
+                hovered: interaction.hovered,
+                pressed: interaction.pressed,
+                focused: item_response.has_focus(),
+                label_color: colors.label,
+                supporting_color: colors.supporting,
+                icon_color: colors.icon,
+            };
+            if let Some(content_ui) = item.content_ui.take() {
+                let content_rect = Rect::from_min_max(
+                    Pos2::new(item_rect.min.x + LEADING_SPACE, item_rect.min.y),
+                    Pos2::new(item_rect.max.x - TRAILING_SPACE, item_rect.max.y),
                 );
-                match &item.leading {
-                    Some(ListLeading::Avatar(text)) => {
-                        // ListTokens.ItemLeadingAvatar*.
-                        painter.circle_filled(
-                            lead_rect.center(),
-                            AVATAR_SIZE / 2.0,
-                            theme.color(ColorRole::PrimaryContainer),
-                        );
-                        let galley = layout_text_ctx(ui, &TypeRole::TitleMedium.style(), text);
-                        let at = lead_rect.center() - galley.size() / 2.0;
-                        painter.galley(at, galley, theme.color(ColorRole::OnPrimaryContainer));
+                let layout_dir = match direction {
+                    LayoutDirection::Ltr => egui::Layout::left_to_right(egui::Align::Center),
+                    LayoutDirection::Rtl => egui::Layout::right_to_left(egui::Align::Center),
+                };
+                let mut child = ui.new_child(
+                    egui::UiBuilder::new()
+                        .id_salt(("list_item_content", index))
+                        .max_rect(content_rect)
+                        .layout(layout_dir),
+                );
+                child.set_clip_rect(item_rect.intersect(ui.clip_rect()));
+                if !item.enabled {
+                    child.disable();
+                }
+                content_ui(&mut child, &custom_state);
+            } else {
+                // Leading.
+                let mut content_x = item_rect.min.x + LEADING_SPACE;
+                let leading_ui = item.leading_ui.take();
+                if let Some((size, add_contents)) = leading_ui {
+                    let lead_rect = mirror(
+                        Rect::from_min_size(Pos2::new(content_x, place_v(size.y)), size),
+                        item_rect,
+                        direction,
+                    );
+                    let mut child = ui.new_child(
+                        egui::UiBuilder::new()
+                            .id_salt(("list_item_leading", index))
+                            .max_rect(lead_rect)
+                            .layout(egui::Layout::top_down(egui::Align::Center)),
+                    );
+                    child.set_clip_rect(lead_rect.intersect(ui.clip_rect()));
+                    if !item.enabled {
+                        child.disable();
                     }
-                    Some(ListLeading::Image(source)) => {
-                        egui::Image::new(source.clone())
-                            .corner_radius(0)
-                            .paint_at(ui, lead_rect);
-                    }
-                    Some(ListLeading::Video { source, .. }) => {
-                        egui::Image::new(source.clone())
-                            .corner_radius(CORNER_SMALL)
-                            .paint_at(ui, lead_rect);
-                    }
-                    Some(ListLeading::Checkbox(checked)) => {
-                        paint_checkbox(painter, lead_rect, *checked, &theme, item.enabled);
-                    }
-                    Some(ListLeading::Radio(selected)) => {
-                        paint_radio(painter, lead_rect, *selected, &theme, item.enabled);
-                    }
-                    None => {
-                        if let Some(icon_name) = &item.leading_icon {
-                            let (icon_center, label) = match &item.leading_icon_label {
-                                Some(label) => {
-                                    (lead_rect.center() - Vec2::new(0.0, 12.0), Some(label))
-                                }
-                                None => (lead_rect.center(), None),
-                            };
-                            painter.text(
-                                icon_center,
-                                egui::Align2::CENTER_CENTER,
-                                material_symbol_text(icon_name),
-                                egui::FontId::proportional(ICON_SIZE),
-                                colors.icon,
+                    add_contents(&mut child, &custom_state);
+                    content_x += size.x + title_gap(&item);
+                } else if let Some(size) = leading_size(&item) {
+                    let lead_rect = mirror(
+                        Rect::from_min_size(Pos2::new(content_x, place_v(size.y)), size),
+                        item_rect,
+                        direction,
+                    );
+                    match &item.leading {
+                        Some(ListLeading::Avatar(text)) => {
+                            // ListTokens.ItemLeadingAvatar*.
+                            painter.circle_filled(
+                                lead_rect.center(),
+                                AVATAR_SIZE / 2.0,
+                                theme.color(ColorRole::PrimaryContainer),
                             );
-                            if let Some(label) = label {
-                                let galley =
-                                    layout_text_ctx(ui, &TypeRole::LabelSmall.style(), label);
-                                let at = Pos2::new(
-                                    lead_rect.center().x - galley.size().x / 2.0,
-                                    lead_rect.center().y + 4.0,
+                            let galley = layout_text_ctx(ui, &TypeRole::TitleMedium.style(), text);
+                            let at = lead_rect.center() - galley.size() / 2.0;
+                            painter.galley(at, galley, theme.color(ColorRole::OnPrimaryContainer));
+                        }
+                        Some(ListLeading::Image(source)) => {
+                            egui::Image::new(source.clone())
+                                .corner_radius(0)
+                                .paint_at(ui, lead_rect);
+                        }
+                        Some(ListLeading::Video { source, .. }) => {
+                            egui::Image::new(source.clone())
+                                .corner_radius(CORNER_SMALL)
+                                .paint_at(ui, lead_rect);
+                        }
+                        Some(ListLeading::Checkbox(checked)) => {
+                            paint_checkbox(painter, lead_rect, *checked, &theme, item.enabled);
+                        }
+                        Some(ListLeading::Radio(selected)) => {
+                            paint_radio(painter, lead_rect, *selected, &theme, item.enabled);
+                        }
+                        None => {
+                            if let Some(icon_name) = &item.leading_icon {
+                                let (icon_center, label) = match &item.leading_icon_label {
+                                    Some(label) => {
+                                        (lead_rect.center() - Vec2::new(0.0, 12.0), Some(label))
+                                    }
+                                    None => (lead_rect.center(), None),
+                                };
+                                painter.text(
+                                    icon_center,
+                                    egui::Align2::CENTER_CENTER,
+                                    material_symbol_text(icon_name),
+                                    egui::FontId::proportional(ICON_SIZE),
+                                    colors.icon,
                                 );
-                                painter.galley(at, galley, colors.supporting);
+                                if let Some(label) = label {
+                                    let galley =
+                                        layout_text_ctx(ui, &TypeRole::LabelSmall.style(), label);
+                                    let at = Pos2::new(
+                                        lead_rect.center().x - galley.size().x / 2.0,
+                                        lead_rect.center().y + 4.0,
+                                    );
+                                    painter.galley(at, galley, colors.supporting);
+                                }
                             }
                         }
                     }
+                    content_x += size.x + title_gap(&item);
                 }
-                content_x += size.x + title_gap(&item);
-            }
 
-            // Text block, centred vertically.
-            let block = layout.overline.as_ref().map_or(0.0, |g| g.size().y)
-                + layout.primary.size().y
-                + layout.secondary.as_ref().map_or(0.0, |g| g.size().y);
-            let mut text_y = (item_rect.center().y - block / 2.0).max(item_rect.min.y);
-            let text_clip = mirror(
-                Rect::from_min_size(
-                    Pos2::new(content_x, item_rect.min.y),
-                    Vec2::new(layout.text_width, item_rect.height()),
-                ),
-                item_rect,
-                direction,
-            );
-            let text_painter = painter.with_clip_rect(text_clip.intersect(painter.clip_rect()));
-            let paint_galley = |galley: Arc<Galley>, color: Color32, y: &mut f32| {
-                let size = galley.size();
-                let at = mirror(
-                    Rect::from_min_size(Pos2::new(content_x, *y), size),
-                    item_rect,
-                    direction,
-                );
-                text_painter.galley(at.min, galley, color);
-                *y += size.y;
-            };
-            if let Some(overline) = layout.overline {
-                paint_galley(overline, colors.supporting, &mut text_y);
-            }
-            paint_galley(layout.primary, colors.label, &mut text_y);
-            if let Some(secondary) = layout.secondary {
-                paint_galley(secondary, colors.supporting, &mut text_y);
-            }
-
-            // Trailing elements, from the end inwards.
-            let mut end_x = item_rect.max.x - TRAILING_SPACE;
-            if let Some(icon_name) = &item.trailing_icon {
-                let slot = mirror(
+                // Text block, centred vertically.
+                let block = layout.overline.as_ref().map_or(0.0, |g| g.size().y)
+                    + layout.primary.size().y
+                    + layout.secondary.as_ref().map_or(0.0, |g| g.size().y);
+                let mut text_y = (item_rect.center().y - block / 2.0).max(item_rect.min.y);
+                let text_clip = mirror(
                     Rect::from_min_size(
-                        Pos2::new(end_x - ICON_SIZE, place_v(ICON_SIZE)),
-                        Vec2::splat(ICON_SIZE),
+                        Pos2::new(content_x, item_rect.min.y),
+                        Vec2::new(layout.text_width, item_rect.height()),
                     ),
                     item_rect,
                     direction,
                 );
-                painter.text(
-                    slot.center(),
-                    egui::Align2::CENTER_CENTER,
-                    material_symbol_text(icon_name),
-                    egui::FontId::proportional(ICON_SIZE),
-                    colors.icon,
-                );
-                end_x -= ICON_SIZE + BETWEEN_SPACE;
-            } else if has_drawer && item.trailing_text.is_none() && item.trailing_widget.is_none() {
-                let is_open = state.drawer_open_items.contains(&index);
-                let slot = mirror(
-                    Rect::from_min_size(
-                        Pos2::new(end_x - EXPAND_CONTAINER, place_v(EXPAND_CONTAINER)),
-                        Vec2::splat(EXPAND_CONTAINER),
-                    ),
-                    item_rect,
-                    direction,
-                );
-                let chevron_response =
-                    ui.interact(slot, item_id(index).with("drawer_chevron"), Sense::click());
-                crate::a11y::toggle(
-                    &chevron_response,
-                    egui::Role::Button,
-                    true,
-                    "Expand",
-                    is_open,
-                );
-                if chevron_response.clicked() && !state.drawer_open_items.remove(&index) {
-                    state.drawer_open_items.insert(index);
+                let text_painter = painter.with_clip_rect(text_clip.intersect(painter.clip_rect()));
+                let paint_galley = |galley: Arc<Galley>, color: Color32, y: &mut f32| {
+                    let size = galley.size();
+                    let at = mirror(
+                        Rect::from_min_size(Pos2::new(content_x, *y), size),
+                        item_rect,
+                        direction,
+                    );
+                    text_painter.galley(at.min, galley, color);
+                    *y += size.y;
+                };
+                if let Some(overline) = layout.overline {
+                    paint_galley(overline, colors.supporting, &mut text_y);
                 }
-                let is_open = state.drawer_open_items.contains(&index);
-                // ExpandedListTokens.*ItemTrailingIconContainerColor / IconColor.
-                let container = if is_open {
-                    theme.color(ColorRole::SurfaceContainer)
-                } else {
-                    theme.color(ColorRole::Surface)
-                };
-                let painter = ui.painter();
-                painter.circle_filled(slot.center(), EXPAND_CONTAINER / 2.0, container);
-                painter.text(
-                    slot.center(),
-                    egui::Align2::CENTER_CENTER,
-                    material_symbol_text(if is_open {
-                        "expand_less"
+                paint_galley(layout.primary, colors.label, &mut text_y);
+                if let Some(secondary) = layout.secondary {
+                    paint_galley(secondary, colors.supporting, &mut text_y);
+                }
+
+                // Trailing elements, from the end inwards.
+                let mut end_x = item_rect.max.x - TRAILING_SPACE;
+                if let Some(icon_name) = &item.trailing_icon {
+                    let slot = mirror(
+                        Rect::from_min_size(
+                            Pos2::new(end_x - ICON_SIZE, place_v(ICON_SIZE)),
+                            Vec2::splat(ICON_SIZE),
+                        ),
+                        item_rect,
+                        direction,
+                    );
+                    painter.text(
+                        slot.center(),
+                        egui::Align2::CENTER_CENTER,
+                        material_symbol_text(icon_name),
+                        egui::FontId::proportional(ICON_SIZE),
+                        colors.icon,
+                    );
+                    end_x -= ICON_SIZE + BETWEEN_SPACE;
+                } else if has_drawer
+                    && item.trailing_text.is_none()
+                    && item.trailing_widget.is_none()
+                {
+                    let is_open = state.drawer_open_items.contains(&index);
+                    let slot = mirror(
+                        Rect::from_min_size(
+                            Pos2::new(end_x - EXPAND_CONTAINER, place_v(EXPAND_CONTAINER)),
+                            Vec2::splat(EXPAND_CONTAINER),
+                        ),
+                        item_rect,
+                        direction,
+                    );
+                    let chevron_response =
+                        ui.interact(slot, item_id(index).with("drawer_chevron"), Sense::click());
+                    crate::a11y::toggle(
+                        &chevron_response,
+                        egui::Role::Button,
+                        true,
+                        "Expand",
+                        is_open,
+                    );
+                    if chevron_response.clicked() && !state.drawer_open_items.remove(&index) {
+                        state.drawer_open_items.insert(index);
+                    }
+                    let is_open = state.drawer_open_items.contains(&index);
+                    // ExpandedListTokens.*ItemTrailingIconContainerColor / IconColor.
+                    let container = if is_open {
+                        theme.color(ColorRole::SurfaceContainer)
                     } else {
-                        "expand_more"
-                    }),
-                    egui::FontId::proportional(ICON_SIZE),
-                    if item.enabled {
-                        theme.color(ColorRole::OnSurface)
-                    } else {
-                        colors.icon
-                    },
-                );
-                end_x -= EXPAND_CONTAINER + BETWEEN_SPACE;
-            }
-            if let Some(widget_fn) = &item.trailing_widget {
-                let widget_height = 32.0;
-                let widget_rect = mirror(
-                    Rect::from_min_size(
-                        Pos2::new(end_x - TRAILING_WIDGET_WIDTH, place_v(widget_height)),
-                        Vec2::new(TRAILING_WIDGET_WIDTH, widget_height),
-                    ),
-                    item_rect,
-                    direction,
-                );
-                let layout_dir = match direction {
-                    LayoutDirection::Ltr => egui::Layout::right_to_left(egui::Align::Center),
-                    LayoutDirection::Rtl => egui::Layout::left_to_right(egui::Align::Center),
-                };
-                ui.scope_builder(egui::UiBuilder::new().max_rect(widget_rect), |ui| {
-                    ui.with_layout(layout_dir, |ui| {
-                        widget_fn(ui);
+                        theme.color(ColorRole::Surface)
+                    };
+                    let painter = ui.painter();
+                    painter.circle_filled(slot.center(), EXPAND_CONTAINER / 2.0, container);
+                    painter.text(
+                        slot.center(),
+                        egui::Align2::CENTER_CENTER,
+                        material_symbol_text(if is_open {
+                            "expand_less"
+                        } else {
+                            "expand_more"
+                        }),
+                        egui::FontId::proportional(ICON_SIZE),
+                        if item.enabled {
+                            theme.color(ColorRole::OnSurface)
+                        } else {
+                            colors.icon
+                        },
+                    );
+                    end_x -= EXPAND_CONTAINER + BETWEEN_SPACE;
+                }
+                if let Some(widget_fn) = &item.trailing_widget {
+                    let widget_height = 32.0;
+                    let widget_rect = mirror(
+                        Rect::from_min_size(
+                            Pos2::new(end_x - TRAILING_WIDGET_WIDTH, place_v(widget_height)),
+                            Vec2::new(TRAILING_WIDGET_WIDTH, widget_height),
+                        ),
+                        item_rect,
+                        direction,
+                    );
+                    let layout_dir = match direction {
+                        LayoutDirection::Ltr => egui::Layout::right_to_left(egui::Align::Center),
+                        LayoutDirection::Rtl => egui::Layout::left_to_right(egui::Align::Center),
+                    };
+                    ui.scope_builder(egui::UiBuilder::new().max_rect(widget_rect), |ui| {
+                        ui.with_layout(layout_dir, |ui| {
+                            widget_fn(ui);
+                        });
                     });
-                });
-                end_x -= TRAILING_WIDGET_WIDTH + BETWEEN_SPACE;
-            }
-            if let Some(trailing_text) = &item.trailing_text {
-                // ListTokens.ItemTrailingSupportingTextFont / Color.
-                let galley = layout_text_ctx(ui, &TypeRole::LabelSmall.style(), trailing_text);
-                let size = galley.size();
-                let at = mirror(
-                    Rect::from_min_size(Pos2::new(end_x - size.x, place_v(size.y)), size),
-                    item_rect,
-                    direction,
-                );
-                ui.painter().galley(at.min, galley, colors.supporting);
+                    end_x -= TRAILING_WIDGET_WIDTH + BETWEEN_SPACE;
+                }
+                if let Some(trailing_text) = &item.trailing_text {
+                    // ListTokens.ItemTrailingSupportingTextFont / Color.
+                    let galley = layout_text_ctx(ui, &TypeRole::LabelSmall.style(), trailing_text);
+                    let size = galley.size();
+                    let at = mirror(
+                        Rect::from_min_size(Pos2::new(end_x - size.x, place_v(size.y)), size),
+                        item_rect,
+                        direction,
+                    );
+                    ui.painter().galley(at.min, galley, colors.supporting);
+                }
             }
 
             current_y += layout.height;

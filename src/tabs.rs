@@ -215,7 +215,8 @@ pub enum TabLayout {
     #[default]
     Fixed,
     /// Each tab is as wide as its content plus 16 dp each side, from the
-    /// start edge.
+    /// start edge. The bar allocates only the tabs' total width, not the
+    /// whole available width, so the container and divider span the tabs.
     Content,
     /// Like `Content`, with a minimum tab width and a start inset, in a
     /// horizontal scroll area that keeps the selected tab in view.
@@ -560,7 +561,16 @@ impl MaterialTabs<'_> {
     ) -> Response {
         let rtl = theme.layout_direction == LayoutDirection::Rtl;
         let tabs_width: f32 = widths.iter().sum();
-        let row_width = (tabs_width + edge * 2.0).max(ui.available_width());
+        let row_width = match self.layout {
+            // Content tabs take only what they need, so they can sit in a
+            // horizontal layout next to other widgets.
+            TabLayout::Content => tabs_width + edge * 2.0,
+            // Fixed tabs already split the available width; scrollable ones
+            // fill the scroll area so the container and divider span it.
+            TabLayout::Fixed | TabLayout::Scrollable => {
+                (tabs_width + edge * 2.0).max(ui.available_width())
+            }
+        };
         let (rect, mut response) =
             ui.allocate_exact_size(Vec2::new(row_width, tab_height), Sense::hover());
         let painter = ui.painter_at(rect);

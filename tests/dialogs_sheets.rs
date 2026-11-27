@@ -323,6 +323,110 @@ fn dialog_container_follows_the_dialog_tokens() -> TestResult {
     Ok(())
 }
 
+/// What a dialog's content closure saw of its `Ui` style.
+#[derive(Clone, Copy, Debug, Default)]
+struct SeenStyle {
+    overrides: bool,
+    label_color: Color32,
+    body_size: f32,
+}
+
+/// One dialog frame's observations.
+struct Seen {
+    style: SeenStyle,
+    outside: Color32,
+    supporting: Option<Rect>,
+    body: Option<Rect>,
+}
+
+fn content_style_seen(
+    configure: fn(MaterialDialog<'_>) -> MaterialDialog<'_>,
+) -> Result<Seen, Box<dyn std::error::Error>> {
+    let seen = Cell::new(None);
+    let outside = Cell::new(Color32::TRANSPARENT);
+    let harness = support::harness_for(theme(), SIZE, |ui| {
+        outside.set(ui.visuals().text_color());
+        let mut open = true;
+        configure(MaterialDialog::new(
+            egui::Id::unique("content_style"),
+            "Title",
+            &mut open,
+        ))
+        .quick(true)
+        .content(|ui, _| {
+            let style = ui.style();
+            seen.set(Some(SeenStyle {
+                overrides: style.override_font_id.is_some()
+                    || style.override_text_style.is_some()
+                    || style.visuals.override_text_color.is_some(),
+                label_color: style.visuals.text_color(),
+                body_size: style
+                    .text_styles
+                    .get(&egui::TextStyle::Body)
+                    .map_or(0.0, |f| f.size),
+            }));
+            ui.label("Body content");
+        })
+        .show(ui.ctx());
+    });
+    let supporting = harness
+        .query_by_label("Supporting words")
+        .map(|node| node.rect());
+    let body = harness
+        .query_by_label("Body content")
+        .map(|node| node.rect());
+    let style = seen.get().ok_or("the content closure ran")?;
+    Ok(Seen {
+        style,
+        outside: outside.get(),
+        supporting,
+        body,
+    })
+}
+
+#[test]
+fn dialog_content_gets_supporting_text_as_a_default_not_an_override() -> TestResult {
+    let seen = content_style_seen(|d| d)?.style;
+    assert!(
+        !seen.overrides,
+        "no font or colour override reaches the content: {seen:?}"
+    );
+    assert_eq!(
+        seen.label_color,
+        theme().color(ColorRole::OnSurfaceVariant),
+        "the default label colour is onSurfaceVariant"
+    );
+    assert_eq!(
+        seen.body_size, 14.0,
+        "the body text style is BodyMedium (14)"
+    );
+
+    let inherited =
+        content_style_seen(|d| d.content_style(egui_material3::DialogContentStyle::Inherit))?;
+    let (seen, outside) = (inherited.style, inherited.outside);
+    assert!(!seen.overrides, "Inherit overrides nothing: {seen:?}");
+    assert_eq!(
+        seen.label_color, outside,
+        "Inherit keeps the app's label colour"
+    );
+    Ok(())
+}
+
+#[test]
+fn dialog_supporting_text_sits_above_the_content() -> TestResult {
+    let shown = content_style_seen(|d| {
+        d.supporting_text("Supporting words")
+            .content_style(egui_material3::DialogContentStyle::Inherit)
+    })?;
+    let supporting = shown.supporting.ok_or("the supporting text is shown")?;
+    let body = shown.body.ok_or("the content is shown")?;
+    assert!(
+        supporting.max.y <= body.min.y,
+        "supporting text above the content: {supporting:?} {body:?}"
+    );
+    Ok(())
+}
+
 #[test]
 fn dialog_width_stays_within_280_and_560() -> TestResult {
     let narrow = dialog_frame("Hi", |d| d)?;

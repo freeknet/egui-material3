@@ -52,6 +52,18 @@
 //!   `MenuItemRadio` nodes with their checked state; disabled items are
 //!   reported disabled and cannot be clicked.
 //! - Ids derive from the id you give the menu, never from its position.
+//!
+//! # Responses and custom content
+//!
+//! [`MaterialMenu::show`] and [`MaterialMenu::show_context`] return a
+//! [`MenuResponse`] with the menu surface's response, each top-level item's
+//! response and the item activated this frame, so an app can attach hover
+//! text or read which item was picked without an `on_click` closure.
+//!
+//! [`MaterialMenu::show_with`] and [`MaterialMenu::show_context_with`]
+//! show arbitrary UI on the menu surface instead of items: the same
+//! container, anchoring, flipping, outside-click and Escape closing, with
+//! the content's own widgets. Content closes the menu with `ui.close()`.
 
 use std::sync::Arc;
 
@@ -409,6 +421,30 @@ pub enum MenuEntry<'a> {
     Group(String),
 }
 
+/// What showing a [`MaterialMenu`] reports.
+#[derive(Debug, Default)]
+pub struct MenuResponse {
+    /// The menu surface, while the menu is open.
+    pub response: Option<Response>,
+    /// One slot per top-level entry, index-aligned with the entries added:
+    /// the item's response, or `None` for dividers, group labels and every
+    /// entry while the menu is closed. Submenu items are not included.
+    pub items: Vec<Option<Response>>,
+    /// The top-level item activated this frame (clicked, or Enter/Space
+    /// while highlighted). An item that opens a submenu is not activated.
+    pub activated: Option<usize>,
+    /// Whether the menu closed this frame.
+    pub closed: bool,
+}
+
+impl MenuResponse {
+    /// The response of top-level entry `index`, if it is an item and the
+    /// menu is open.
+    pub fn item(&self, index: usize) -> Option<&Response> {
+        self.items.get(index).and_then(Option::as_ref)
+    }
+}
+
 impl<'a> From<MenuItem<'a>> for MenuEntry<'a> {
     fn from(item: MenuItem<'a>) -> Self {
         MenuEntry::Item(item)
@@ -671,22 +707,99 @@ impl<'a> MaterialMenu<'a> {
         self
     }
 
-    /// Shows the menu, if open.
-    pub fn show(mut self, ctx: &Context) {
+    /// Shows the menu, if open, and reports its item responses and the
+    /// item activated this frame.
+    pub fn show(mut self, ctx: &Context) -> MenuResponse {
         let Some(open) = self.open.take() else {
-            return;
+            return MenuResponse::default();
         };
         if !*open {
             reset_state(ctx, self.id);
-            return;
+            return MenuResponse::default();
         }
-        self.show_open(ctx, open);
+        self.show_open(ctx, open)
+    }
+
+    /// Shows `add_contents` on the menu surface, if open, instead of the
+    /// menu's items (any added items are ignored). The surface keeps the
+    /// menu's container colour, shape, elevation, vertical padding and
+    /// width limits, adds 12 dp (`DropdownMenuItemHorizontalPadding`) at
+    /// each side, and closes on an outside click, on Escape, or when the
+    /// content calls `ui.close()`. Clicks inside the content do not close
+    /// it on their own. Returns `None` while the menu is closed.
+    ///
+    /// The content applies no text style of its own: it inherits the
+    /// surrounding `Ui` style, so use Material widgets or set one.
+    ///
+    /// ```rust
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::MaterialMenu;
+    ///
+    /// let mut open = true;
+    /// let shown = MaterialMenu::new(egui::Id::new("zoom_menu"), &mut open)
+    ///     .show_with(ui.ctx(), |ui| {
+    ///         ui.label("Zoom");
+    ///         if ui.button("Fit").clicked() {
+    ///             ui.close();
+    ///         }
+    ///     });
+    /// let _surface = shown.map(|inner| inner.response);
+    /// # });
+    /// ```
+    pub fn show_with<R>(
+        mut self,
+        ctx: &Context,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<egui::InnerResponse<R>> {
+        let open = self.open.take()?;
+        if !*open {
+            reset_state(ctx, self.id);
+            return None;
+        }
+        self.show_open_with(ctx, open, add_contents)
+    }
+
+    /// Shows this menu as the context menu of `response`, with custom
+    /// content as in [`show_with`](Self::show_with).
+    pub fn show_context_with<R>(
+        mut self,
+        response: &Response,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<egui::InnerResponse<R>> {
+        let ctx = response.ctx.clone();
+        let key = self.open_context(response)?;
+        let mut open = true;
+        let id = self.id;
+        let shown = self.show_open_with(&ctx, &mut open, add_contents);
+        if !open {
+            ctx.data_mut(|d| d.remove::<Pos2>(key));
+            reset_state(&ctx, id);
+        }
+        shown
     }
 
     /// Shows this menu as the context menu of `response`: it opens at the
     /// pointer on a secondary click (or on the context-menu key while the
     /// widget has focus) and closes like any menu.
-    pub fn show_context(mut self, response: &Response) {
+    pub fn show_context(mut self, response: &Response) -> MenuResponse {
+        let ctx = response.ctx.clone();
+        let Some(key) = self.open_context(response) else {
+            return MenuResponse::default();
+        };
+        let mut open = true;
+        let id = self.id;
+        let shown = self.show_open(&ctx, &mut open);
+        if !open {
+            ctx.data_mut(|d| d.remove::<Pos2>(key));
+            reset_state(&ctx, id);
+        }
+        shown
+    }
+
+    /// Opens the context menu on a secondary click or the menu key, and
+    /// anchors it at the remembered position. Returns the memory key of
+    /// that position while the context menu is open.
+    fn open_context(&mut self, response: &Response) -> Option<Id> {
         let ctx = response.ctx.clone();
         let key = self.id.with("context_menu_at");
         let menu_key = response.has_focus()
@@ -701,23 +814,164 @@ impl<'a> MaterialMenu<'a> {
             ctx.data_mut(|d| d.insert_temp(key, pos));
             reset_state(&ctx, self.id);
         }
-        let Some(pos) = ctx.data(|d| d.get_temp::<Pos2>(key)) else {
-            return;
-        };
-        let mut open = true;
+        let pos = ctx.data(|d| d.get_temp::<Pos2>(key))?;
         self.anchor_rect = Some(Rect::from_min_size(pos, Vec2::ZERO));
         self.anchor_corner = Corner::TopLeft;
         self.menu_corner = Corner::TopLeft;
         self.open = None;
-        let id = self.id;
-        self.show_open(&ctx, &mut open);
-        if !open {
-            ctx.data_mut(|d| d.remove::<Pos2>(key));
-            reset_state(&ctx, id);
+        Some(key)
+    }
+
+    /// Frames-since-open bookkeeping shared by both content modes.
+    fn open_top_state(&self, ctx: &Context, root: Id) -> TopState {
+        let mut top: TopState = ctx
+            .data(|d| d.get_temp(root.with("top")))
+            .unwrap_or_default();
+        if top.frames_open == 0 {
+            top.restore_focus = ctx.memory(|m| m.focused());
+            let mut level = LevelState::default();
+            if self.default_focus == FocusState::FirstItem {
+                level.active = next_enabled(&self.entries, None, 1);
+            }
+            ctx.data_mut(|d| d.insert_temp(level_id(root, &[]), level));
+        }
+        top.frames_open = top.frames_open.saturating_add(1);
+        top
+    }
+
+    /// Where a menu of `size` goes: at the anchor, or centred.
+    fn placement(&self, ctx: &Context, size: Vec2) -> Rect {
+        let screen = ctx.content_rect();
+        match self.anchor_rect {
+            Some(anchor) => place_at_anchor(
+                anchor,
+                size,
+                AnchorSpec {
+                    anchor_corner: self.anchor_corner,
+                    menu_corner: self.menu_corner,
+                    offset: Vec2::new(self.x_offset, self.y_offset),
+                    no_horizontal_flip: self.no_horizontal_flip,
+                    no_vertical_flip: self.no_vertical_flip,
+                },
+                screen,
+            ),
+            None => Rect::from_center_size(screen.center(), size),
         }
     }
 
-    fn show_open(mut self, ctx: &Context, open: &mut bool) {
+    /// Whether a press landed outside every menu rect and the anchor.
+    fn clicked_outside(&self, ctx: &Context, top: &TopState, rects: &[Rect]) -> bool {
+        if self.stay_open_on_outside_click || top.frames_open <= 2 {
+            return false;
+        }
+        let clicked_at = ctx.input(|i| {
+            if i.pointer.any_pressed() {
+                i.pointer.interact_pos()
+            } else {
+                None
+            }
+        });
+        clicked_at.is_some_and(|pos| {
+            !rects.iter().any(|r| r.contains(pos))
+                && !self.anchor_rect.is_some_and(|a| a.contains(pos))
+        })
+    }
+
+    /// Closes (restoring focus) or keeps the frame count for next frame.
+    fn finish(&self, ctx: &Context, root: Id, top: TopState, close: bool, open: &mut bool) {
+        if close {
+            *open = false;
+            if !self.skip_restore_focus {
+                if let Some(previous) = top.restore_focus {
+                    ctx.memory_mut(|m| m.request_focus(previous));
+                }
+            }
+            reset_state(ctx, self.id);
+        } else {
+            ctx.data_mut(|d| d.insert_temp(root.with("top"), top));
+        }
+    }
+
+    fn show_open_with<R>(
+        self,
+        ctx: &Context,
+        open: &mut bool,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<egui::InnerResponse<R>> {
+        let theme = MaterialTheme::of(ctx);
+        let style = self
+            .menu_style
+            .clone()
+            .unwrap_or_default()
+            .resolve(&theme, self.variant);
+        let root = root_id(self.id);
+        let top = self.open_top_state(ctx, root);
+        let area_id = root.with("custom");
+        // The content's size is known only after it is laid out, so place
+        // it with last frame's size (egui hides an area's first frame).
+        let size = ctx
+            .memory(|m| m.area_rect(area_id))
+            .map_or(Vec2::new(style.min_width, 0.0), |r| r.size());
+        let placement = self.placement(ctx, size);
+        let escape = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape));
+
+        let shown = egui::Area::new(area_id)
+            .order(egui::Order::Foreground)
+            .fixed_pos(placement.min)
+            .constrain(false)
+            .interactable(true)
+            .show(ctx, |ui| {
+                let corner =
+                    CornerRadius::same(style.corner_radius.round().clamp(0.0, 255.0) as u8);
+                let painter = ui.painter().clone();
+                let shadow_slots = style
+                    .elevation
+                    .shadows(style.shadow_color)
+                    .map(|_| painter.add(egui::Shape::Noop));
+                let background_slot = painter.add(egui::Shape::Noop);
+                let margin = egui::Margin::symmetric(
+                    ITEM_HORIZONTAL_PADDING.round().clamp(0.0, 127.0) as i8,
+                    style.padding.round().clamp(0.0, 127.0) as i8,
+                );
+                let mut content = ui.new_child(
+                    egui::UiBuilder::new()
+                        .max_rect(Rect::from_min_size(
+                            ui.max_rect().min + margin.left_top(),
+                            Vec2::new((style.max_width - margin.sum().x).max(0.0), f32::INFINITY),
+                        ))
+                        .layout(egui::Layout::top_down(egui::Align::Min))
+                        .closable(),
+                );
+                content.set_min_width((style.min_width - margin.sum().x).max(0.0));
+                let inner = add_contents(&mut content);
+                let should_close = content.should_close();
+                let surface = Rect::from_min_max(
+                    content.min_rect().min - margin.left_top(),
+                    content.min_rect().max + margin.right_bottom(),
+                );
+                let response = ui.allocate_rect(surface, Sense::hover());
+                crate::a11y::describe(&response, Role::Menu, true, "", None);
+                for (slot, shadow) in shadow_slots
+                    .into_iter()
+                    .zip(style.elevation.shadows(style.shadow_color))
+                {
+                    if shadow.color != Color32::TRANSPARENT {
+                        painter.set(slot, shadow.as_shape(surface, corner));
+                    }
+                }
+                painter.set(
+                    background_slot,
+                    egui::epaint::RectShape::filled(surface, corner, style.background_color),
+                );
+                (inner, response, should_close)
+            });
+        let (inner, response, should_close) = shown.inner;
+        let close = escape || should_close || self.clicked_outside(ctx, &top, &[response.rect]);
+        self.finish(ctx, root, top, close, open);
+        Some(egui::InnerResponse::new(inner, response))
+    }
+
+    fn show_open(mut self, ctx: &Context, open: &mut bool) -> MenuResponse {
         let theme = MaterialTheme::of(ctx);
         let style = self
             .menu_style
@@ -734,19 +988,7 @@ impl<'a> MaterialMenu<'a> {
         // Frames since opening: a click spans two frames, so outside-click
         // detection waits until the opening click is over.
         let now = ctx.input(|i| i.time);
-        let mut top: TopState = ctx
-            .data(|d| d.get_temp(root.with("top")))
-            .unwrap_or_default();
-        let just_opened = top.frames_open == 0;
-        if just_opened {
-            top.restore_focus = ctx.memory(|m| m.focused());
-            let mut level = LevelState::default();
-            if self.default_focus == FocusState::FirstItem {
-                level.active = next_enabled(&self.entries, None, 1);
-            }
-            ctx.data_mut(|d| d.insert_temp(level_id(root, &[]), level));
-        }
-        top.frames_open = top.frames_open.saturating_add(1);
+        let top = self.open_top_state(ctx, root);
 
         let config = LevelConfig {
             style: &style,
@@ -756,24 +998,12 @@ impl<'a> MaterialMenu<'a> {
             typeahead_delay: f64::from(self.typeahead_delay) / 1000.0,
             now,
         };
-        let screen = ctx.content_rect();
         let size = level_size(ctx, &self.entries, &config);
-        let placement = match self.anchor_rect {
-            Some(anchor) => place_at_anchor(
-                anchor,
-                size,
-                AnchorSpec {
-                    anchor_corner: self.anchor_corner,
-                    menu_corner: self.menu_corner,
-                    offset: Vec2::new(self.x_offset, self.y_offset),
-                    no_horizontal_flip: self.no_horizontal_flip,
-                    no_vertical_flip: self.no_vertical_flip,
-                },
-                screen,
-            ),
-            None => Rect::from_center_size(screen.center(), size),
+        let placement = self.placement(ctx, size);
+        let mut outcome = Outcome {
+            items: vec![None; self.entries.len()],
+            ..Outcome::default()
         };
-        let mut outcome = Outcome::default();
         let close_self = show_level(
             ctx,
             root,
@@ -784,34 +1014,14 @@ impl<'a> MaterialMenu<'a> {
             &mut outcome,
         );
 
-        let mut close = outcome.close_all || close_self;
-        if !close && !self.stay_open_on_outside_click && top.frames_open > 2 {
-            let clicked_at = ctx.input(|i| {
-                if i.pointer.any_pressed() {
-                    i.pointer.interact_pos()
-                } else {
-                    None
-                }
-            });
-            if let Some(pos) = clicked_at {
-                let inside = outcome.rects.iter().any(|r| r.contains(pos))
-                    || self.anchor_rect.is_some_and(|a| a.contains(pos));
-                if !inside {
-                    close = true;
-                }
-            }
-        }
-
-        if close {
-            *open = false;
-            if !self.skip_restore_focus {
-                if let Some(previous) = top.restore_focus {
-                    ctx.memory_mut(|m| m.request_focus(previous));
-                }
-            }
-            reset_state(ctx, self.id);
-        } else {
-            ctx.data_mut(|d| d.insert_temp(root.with("top"), top));
+        let close =
+            outcome.close_all || close_self || self.clicked_outside(ctx, &top, &outcome.rects);
+        self.finish(ctx, root, top, close, open);
+        MenuResponse {
+            response: outcome.surface,
+            items: outcome.items,
+            activated: outcome.activated,
+            closed: close,
         }
     }
 }
@@ -855,6 +1065,12 @@ struct LevelState {
 struct Outcome {
     rects: Vec<Rect>,
     close_all: bool,
+    /// The top-level surface's response.
+    surface: Option<Response>,
+    /// The top-level items' responses, index-aligned with the entries.
+    items: Vec<Option<Response>>,
+    /// The top-level item activated this frame.
+    activated: Option<usize>,
 }
 
 struct LevelConfig<'t> {
@@ -1297,6 +1513,9 @@ fn show_level(
             let (menu_rect, menu_response) =
                 ui.allocate_exact_size(container.size(), Sense::hover());
             crate::a11y::describe(&menu_response, Role::Menu, true, "", None);
+            if path.is_empty() {
+                outcome.surface = Some(menu_response.clone());
+            }
 
             if config.segmented {
                 paint_segment_groups(&painter, entries, &heights, menu_rect, config);
@@ -1376,6 +1595,11 @@ fn show_level(
                             }
                             if response.clicked() {
                                 clicked = Some(index);
+                            }
+                            if path.is_empty() {
+                                if let Some(slot) = outcome.items.get_mut(index) {
+                                    *slot = Some(response.clone());
+                                }
                             }
                             let active = state.active == Some(index);
                             if active && scroll && is_deepest {
@@ -1510,6 +1734,9 @@ fn show_level(
         }
         if let Some(action) = item.action.as_mut() {
             action();
+        }
+        if path.is_empty() {
+            outcome.activated = Some(index);
         }
         if !item.keep_open {
             outcome.close_all = true;
@@ -1996,8 +2223,8 @@ pub fn menu_item<'a>(text: impl Into<String>) -> MenuItem<'a> {
 /// );
 /// # });
 /// ```
-pub fn context_menu(response: &Response, menu: MaterialMenu<'_>) {
-    menu.show_context(response);
+pub fn context_menu(response: &Response, menu: MaterialMenu<'_>) -> MenuResponse {
+    menu.show_context(response)
 }
 
 #[cfg(test)]

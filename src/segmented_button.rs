@@ -28,6 +28,12 @@
 //! the selected segment is a Tab stop, like a radio group. AccessKit sees a
 //! radio group of radio buttons (single) or a group of checkboxes (multi).
 //!
+//! Compact layouts use [`SegmentedButton::density`] (or an explicit
+//! [`SegmentedButton::height`]); [`SegmentedButton::show_check`]`(false)`
+//! drops the check mark and the width it would take. [`Segment::hover_text`]
+//! explains a segment, including why a disabled one is off, and
+//! [`SegmentedButton::show`] returns every segment's [`Response`].
+//!
 //! ```rust
 //! # egui::__run_test_ui(|ui| {
 //! use egui_material3::{Segment, SegmentedButton};
@@ -73,6 +79,13 @@ const CONTENT_PADDING: f32 = 12.0;
 const MIN_SEGMENT_WIDTH: f32 = 58.0;
 /// `OutlinedSegmentedButtonTokens.DisabledOutlineOpacity`.
 const DISABLED_OUTLINE_OPACITY: f32 = 0.12;
+/// Height lost per density step. Compose has no density token for
+/// segmented buttons (an app shrinks one with `Modifier.height`); the 4 dp
+/// step and the -3 floor are the Material 3 density scale, so density -3
+/// gives a 28 dp group.
+const DENSITY_STEP: f32 = 4.0;
+/// The most compact density, -3 (28 dp).
+pub const SEGMENTED_BUTTON_MIN_DENSITY: i8 = -3;
 
 /// One segment of a [`SegmentedButton`].
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -81,6 +94,7 @@ pub struct Segment {
     icon: Option<String>,
     enabled: bool,
     accessible_label: Option<String>,
+    hover_text: Option<String>,
 }
 
 impl Segment {
@@ -91,6 +105,7 @@ impl Segment {
             icon: None,
             enabled: true,
             accessible_label: None,
+            hover_text: None,
         }
     }
 
@@ -102,6 +117,7 @@ impl Segment {
             icon: Some(icon.into()),
             enabled: true,
             accessible_label: Some(accessible_label.into()),
+            hover_text: None,
         }
     }
 
@@ -122,6 +138,13 @@ impl Segment {
     /// visible label.
     pub fn accessible_label(mut self, label: impl Into<String>) -> Self {
         self.accessible_label = Some(label.into());
+        self
+    }
+
+    /// Text shown while the pointer rests on this segment. It is shown on
+    /// a disabled segment too, so it can say why the option is off.
+    pub fn hover_text(mut self, text: impl Into<String>) -> Self {
+        self.hover_text = Some(text.into());
         self
     }
 
@@ -212,8 +235,19 @@ pub struct SegmentedButton<'a> {
     enabled: bool,
     show_check: bool,
     full_width: bool,
+    height: f32,
     label: Option<String>,
     id_salt: Option<egui::IdSalt>,
+}
+
+/// What [`SegmentedButton::show`] returns: the group's response and one
+/// response per segment, in the order the segments were added.
+pub struct SegmentedButtonResponse {
+    /// The whole group. `changed()` is set when the selection changed.
+    pub response: Response,
+    /// Each segment's response, index-aligned with the segments. A disabled
+    /// segment's response senses hover only, so hover text still works.
+    pub segments: Vec<Response>,
 }
 
 impl<'a> SegmentedButton<'a> {
@@ -242,6 +276,7 @@ impl<'a> SegmentedButton<'a> {
             enabled: true,
             show_check: true,
             full_width: false,
+            height: SEGMENTED_BUTTON_HEIGHT,
             label: None,
             id_salt: None,
         }
@@ -270,6 +305,9 @@ impl<'a> SegmentedButton<'a> {
     }
 
     /// Whether a selected segment shows the check mark. Default `true`.
+    ///
+    /// With `false` no segment reserves room for the mark: a segment
+    /// without an icon is sized and centred on its label alone.
     pub fn show_check(mut self, show: bool) -> Self {
         self.show_check = show;
         self
@@ -279,6 +317,27 @@ impl<'a> SegmentedButton<'a> {
     /// Otherwise every segment is as wide as the widest one needs.
     pub fn full_width(mut self, full_width: bool) -> Self {
         self.full_width = full_width;
+        self
+    }
+
+    /// Material 3 density: `0` is the 40 dp default, and each step down
+    /// takes 4 dp off, to 28 dp at `-3`. Values outside `-3..=0` are
+    /// clamped. Overrides an earlier [`height`](Self::height).
+    pub fn density(mut self, density: i8) -> Self {
+        let density = density.clamp(SEGMENTED_BUTTON_MIN_DENSITY, 0);
+        self.height = SEGMENTED_BUTTON_HEIGHT + DENSITY_STEP * f32::from(density);
+        self
+    }
+
+    /// An explicit group height in points (default 40). Non-finite or
+    /// non-positive values keep the default. Overrides an earlier
+    /// [`density`](Self::density).
+    pub fn height(mut self, height: f32) -> Self {
+        self.height = if height.is_finite() && height > 0.0 {
+            height
+        } else {
+            SEGMENTED_BUTTON_HEIGHT
+        };
         self
     }
 
@@ -359,7 +418,17 @@ pub(crate) fn paint_check(painter: &egui::Painter, rect: Rect, color: Color32) {
 }
 
 impl Widget for SegmentedButton<'_> {
-    fn ui(mut self, ui: &mut Ui) -> Response {
+    fn ui(self, ui: &mut Ui) -> Response {
+        self.show(ui).response
+    }
+}
+
+impl SegmentedButton<'_> {
+    /// Adds the group to `ui`, returning the group's response and each
+    /// segment's. Use this instead of `ui.add` to attach a context menu or
+    /// read a segment's hover state.
+    pub fn show(mut self, ui: &mut Ui) -> SegmentedButtonResponse {
+        let height = self.height;
         let theme = MaterialTheme::of(ui.ctx());
         let ctx = ui.ctx().clone();
         let count = self.segments.len();
@@ -470,10 +539,8 @@ impl Widget for SegmentedButton<'_> {
         };
         let segment_width = (total_width + overlap * (n - 1.0)) / n;
 
-        let (rect, mut response) = ui.allocate_exact_size(
-            Vec2::new(total_width, SEGMENTED_BUTTON_HEIGHT),
-            Sense::hover(),
-        );
+        let (rect, mut response) =
+            ui.allocate_exact_size(Vec2::new(total_width, height), Sense::hover());
         let group_role = if self.selection.is_single() {
             Role::RadioGroup
         } else {
@@ -485,6 +552,7 @@ impl Widget for SegmentedButton<'_> {
         let selected_index = self.selection.selected_index();
         let mut clicked_segment = None;
         let mut focused_rect = None;
+        let mut segment_responses = Vec::with_capacity(count);
         for (index, (segment, galley)) in self.segments.iter().zip(galleys).enumerate() {
             let visual_index = match theme.layout_direction {
                 LayoutDirection::Ltr => index,
@@ -495,7 +563,7 @@ impl Widget for SegmentedButton<'_> {
                     rect.min.x + visual_index as f32 * (segment_width - overlap),
                     rect.min.y,
                 ),
-                Vec2::new(segment_width, SEGMENTED_BUTTON_HEIGHT),
+                Vec2::new(segment_width, height),
             );
             let enabled = segment_enabled(&self.segments, index, self.enabled)
                 && self.selection.can_hold(index);
@@ -528,7 +596,7 @@ impl Widget for SegmentedButton<'_> {
                 ctx.memory_mut(|m| m.request_focus(segment_id(index)));
             }
 
-            let corners = segment_corners(visual_index, count, SEGMENTED_BUTTON_HEIGHT);
+            let corners = segment_corners(visual_index, count, height);
             let colors = segment_colors(&theme, selected, enabled);
             let painter = ui.painter();
             if colors.container != Color32::TRANSPARENT {
@@ -609,6 +677,17 @@ impl Widget for SegmentedButton<'_> {
                 }
                 None => paint_lead(center.x - SEGMENTED_BUTTON_ICON_SIZE / 2.0),
             }
+
+            let seg_response = match &segment.hover_text {
+                // A disabled segment senses hover only, so its response is
+                // still enabled in egui's sense and `on_hover_text` shows;
+                // inside a disabled `Ui` the disabled variant does.
+                Some(text) => seg_response
+                    .on_hover_text(text.as_str())
+                    .on_disabled_hover_text(text.as_str()),
+                None => seg_response,
+            };
+            segment_responses.push(seg_response);
         }
         if let Some((focus_rect, corners)) = focused_rect {
             crate::paint::paint_focus_ring(
@@ -625,7 +704,10 @@ impl Widget for SegmentedButton<'_> {
         if changed {
             response.mark_changed();
         }
-        response
+        SegmentedButtonResponse {
+            response,
+            segments: segment_responses,
+        }
     }
 }
 
