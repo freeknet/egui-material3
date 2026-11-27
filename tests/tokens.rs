@@ -62,10 +62,23 @@ fn every_role_name_round_trips() {
     assert_eq!(ColorRole::from_name("onInverseSurface"), None, "not a role");
 }
 
-/// Every `get_global_color("...")` literal in `src/` names a real role: an
-/// unknown name renders grey at run time, so catch it here (#21).
+/// No widget reads the process-wide theme: outside `theme.rs`, which keeps
+/// the deprecated shims, nothing in `src/` calls them. A widget reads
+/// `MaterialTheme::of(ctx)`, so two contexts with different themes cannot
+/// see each other's colours.
 #[test]
-fn every_color_literal_in_src_is_a_role() -> TestResult {
+fn no_widget_reads_the_global_theme() -> TestResult {
+    const SHIMS: [&str; 9] = [
+        "get_global_color(",
+        "get_global_color_role(",
+        "get_global_theme(",
+        "update_global_theme(",
+        "get_theme_mode(",
+        "set_theme_mode(",
+        "get_contrast_level(",
+        "set_contrast_level(",
+        "material2_defaults()",
+    ];
     let mut bad = Vec::new();
     let mut stack = vec![std::path::PathBuf::from("src")];
     while let Some(dir) = stack.pop() {
@@ -73,25 +86,21 @@ fn every_color_literal_in_src_is_a_role() -> TestResult {
             let path = entry?.path();
             if path.is_dir() {
                 stack.push(path);
-            } else if path.extension().is_some_and(|e| e == "rs") {
+            } else if path.extension().is_some_and(|e| e == "rs") && !path.ends_with("theme.rs") {
                 let text = std::fs::read_to_string(&path)?;
-                for (_, rest) in text
-                    .match_indices("get_global_color(\"")
-                    .map(|(i, _)| text.split_at(i))
-                {
-                    let name = rest
-                        .trim_start_matches("get_global_color(\"")
-                        .split('"')
-                        .next()
-                        .unwrap_or_default();
-                    if ColorRole::from_name(name).is_none() {
-                        bad.push(format!("{}: {name}", path.display()));
+                for (number, line) in text.lines().enumerate() {
+                    let code = line.trim_start();
+                    if code.starts_with("//") || code.starts_with("pub fn") {
+                        continue;
+                    }
+                    if SHIMS.iter().any(|shim| code.contains(shim)) {
+                        bad.push(format!("{}:{}", path.display(), number + 1));
                     }
                 }
             }
         }
     }
-    assert!(bad.is_empty(), "unknown colour roles: {bad:?}");
+    assert!(bad.is_empty(), "global theme reads in src/: {bad:?}");
     Ok(())
 }
 

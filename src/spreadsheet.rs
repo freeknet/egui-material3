@@ -2,7 +2,8 @@
 // Module:       spreadsheet
 // Description:  Material Design Spreadsheet Component.
 //
-// Dependencies: futures, rusqlite, diesel, egui, egui_extras, smol; crate::theme,
+// Dependencies: futures, rusqlite, diesel, egui, egui_extras, smol;
+//               crate::MaterialTheme, crate::tokens,
 //               self::native_imports, crate::egui_smol, self::wasm_imports, super
 // ============================================================================
 
@@ -12,7 +13,9 @@
 //! Supports importing/exporting CSV and Excel formats.
 
 #[cfg(feature = "spreadsheet")]
-use crate::theme::{get_global_color, set_theme_mode, ThemeMode};
+use crate::tokens::ColorRole;
+#[cfg(feature = "spreadsheet")]
+use crate::MaterialTheme;
 #[cfg(feature = "spreadsheet")]
 use futures::lock::Mutex;
 #[cfg(feature = "spreadsheet")]
@@ -780,9 +783,6 @@ impl MaterialSpreadsheet {
     pub fn new(id: &str, columns: Vec<ColumnDef>) -> Result<Self, String> {
         let data_model = SpreadsheetDataModel::new(columns).map_err(|e| e.to_string())?;
 
-        // Set light theme on first load
-        set_theme_mode(ThemeMode::Light);
-
         Ok(Self {
             id: Id::unique(id),
             data_model: Arc::new(Mutex::new(data_model)),
@@ -989,8 +989,9 @@ impl MaterialSpreadsheet {
         };
 
         // Get theme colors
-        let primary = get_global_color("primary");
-        let on_primary = get_global_color("onPrimary");
+        let theme = MaterialTheme::of(ui.ctx());
+        let primary = theme.color(ColorRole::Primary);
+        let on_primary = theme.color(ColorRole::OnPrimary);
 
         // Build table
         let available_height = ui.available_height();
@@ -1174,7 +1175,7 @@ impl MaterialSpreadsheet {
                 egui::Align2::CENTER_TOP,
                 &error_msg,
                 egui::FontId::proportional(14.0),
-                get_global_color("error"),
+                MaterialTheme::of(ui.ctx()).color(ColorRole::Error),
             );
 
             // Keep showing the error for a bit

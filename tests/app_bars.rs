@@ -235,6 +235,32 @@ fn docked_toolbar_is_64_in_surface_container() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn docked_toolbar_items_are_min_spacing_apart() -> TestResult {
+    let mut first = Rect::NOTHING;
+    let mut second = Rect::NOTHING;
+    shapes_of(light(), egui::vec2(400.0, 200.0), 2, vec![], &mut |ui| {
+        ui.add(
+            MaterialToolbar::new()
+                .item_fn(|ui| {
+                    let r = ui.add(egui::Button::new("One"));
+                    first = r.rect;
+                    r
+                })
+                .item_fn(|ui| {
+                    let r = ui.add(egui::Button::new("Two"));
+                    second = r.rect;
+                    r
+                }),
+        );
+    });
+    assert!(
+        (second.min.x - first.max.x - 4.0).abs() < 0.5,
+        "DockedToolbarTokens.ContainerMinSpacing: 4 dp between items, got {first:?} {second:?}"
+    );
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Scrolling
 

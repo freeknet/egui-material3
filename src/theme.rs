@@ -1186,7 +1186,7 @@ impl MaterialThemeContext {
                     material_theme: Some(theme.theme_data.clone()),
                     ..Default::default()
                 };
-                update_global_theme(theme_context);
+                set_process_default(theme_context);
             }
         }
     }
@@ -1380,45 +1380,66 @@ impl MaterialThemeContext {
     }
 }
 
-// Global theme context accessible by all components
+// The process-wide default theme: what a context uses until a theme is set
+// on it (see `MaterialTheme::of`). The `Arc` is only for the deprecated
+// `get_global_theme`, which hands out the mutex itself.
 static GLOBAL_THEME: std::sync::LazyLock<Arc<Mutex<MaterialThemeContext>>> =
     std::sync::LazyLock::new(|| Arc::new(Mutex::new(MaterialThemeContext::default())));
 
-/// The shared global theme context used by all components.
+/// Locks the process-wide default, recovering from a poisoned lock (a
+/// panic elsewhere must not take the theme down with it).
+fn lock_process_default() -> std::sync::MutexGuard<'static, MaterialThemeContext> {
+    GLOBAL_THEME
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// A copy of the process-wide default theme settings.
+pub(crate) fn process_default() -> MaterialThemeContext {
+    lock_process_default().clone()
+}
+
+/// Replaces the process-wide default theme settings.
+pub(crate) fn set_process_default(theme: MaterialThemeContext) {
+    *lock_process_default() = theme;
+}
+
+/// The process-wide default theme context.
+///
+/// Deprecated: the mutex is shared by every context in the process, so two
+/// viewports or two parallel tests that change it race. Read a context's
+/// theme with [`MaterialTheme::of`](crate::MaterialTheme::of) and its
+/// settings with [`theme_context_of`]; set one with [`apply_theme_context`].
+/// Changes made through the mutex still reach every context that has no
+/// theme of its own.
+#[deprecated(
+    note = "process-wide state; use MaterialTheme::of(ctx), theme_context_of(ctx) or apply_theme_context(ctx, ..)"
+)]
 pub fn get_global_theme() -> Arc<Mutex<MaterialThemeContext>> {
     GLOBAL_THEME.clone()
 }
 
-/// Update the global theme context with a new theme configuration
+/// Replaces the process-wide default theme settings.
 ///
-/// This function replaces the current global theme context with a new one.
-/// It's used internally by the theme system and can be used by applications
-/// to programmatically change theme settings at runtime.
-///
-/// # Arguments
-/// * `theme` - The new MaterialThemeContext to set as the global theme
-///
-/// # Usage
-/// This function is typically called by:
-/// - `load_themes()` - To apply a loaded theme as the global theme
-/// - Application code - To change theme mode, contrast level, or selected colors at runtime
-///
-/// # Thread Safety
-/// This function is thread-safe and uses a mutex to ensure exclusive access
-/// to the global theme state.
+/// Deprecated: every context without its own theme follows the default, so
+/// this changes them all at once. Set a context's theme with
+/// [`apply_theme_context`] instead.
 ///
 /// # Example
 /// ```rust
-/// # use egui_material3::*;
-/// let mut theme_context = MaterialThemeContext::default();
-/// theme_context.theme_mode = ThemeMode::Dark;
-/// theme_context.contrast_level = ContrastLevel::High;
-/// update_global_theme(theme_context);
+/// # use egui_material3::theme::{apply_theme_context, ContrastLevel, MaterialThemeContext, ThemeMode};
+/// # egui::__run_test_ctx(|ctx| {
+/// let settings = MaterialThemeContext {
+///     theme_mode: ThemeMode::Dark,
+///     contrast_level: ContrastLevel::High,
+///     ..Default::default()
+/// };
+/// apply_theme_context(ctx, &settings, None::<fn() -> ThemeMode>);
+/// # });
 /// ```
+#[deprecated(note = "process-wide state; use apply_theme_context(ctx, &settings, ..)")]
 pub fn update_global_theme(theme: MaterialThemeContext) {
-    if let Ok(mut global_theme) = GLOBAL_THEME.lock() {
-        *global_theme = theme;
-    }
+    set_process_default(theme);
 }
 
 /// Helper function to prepare Material Design fonts for the application.
@@ -1508,14 +1529,16 @@ pub fn setup_local_theme(theme_path: Option<&str>) {
 /// # Behavior
 /// - If multiple themes were prepared, only the first one becomes active
 /// - If no themes were prepared, the default built-in theme is used
-/// - The active theme becomes available via `get_global_color()` and other theme functions
+/// - The active theme becomes the process-wide default: every context without a
+///   theme of its own draws with it (see [`MaterialTheme::of`](crate::MaterialTheme::of))
 pub fn load_themes() {
     MaterialThemeContext::load_themes();
 }
 
 /// Load a Material Design theme directly from a JSON string
 ///
-/// This function parses a Material Design theme JSON string and applies it to the global theme context.
+/// This function parses a Material Design theme JSON string and makes it the process-wide default (the theme of
+/// every context that has none of its own).
 /// This is useful for loading embedded theme data or dynamically generated themes.
 ///
 /// # Parameters
@@ -1540,13 +1563,10 @@ pub fn load_theme_from_json_str(json_data: &str) -> Result<(), String> {
     let theme_file = serde_json::from_str::<MaterialThemeFile>(json_data)
         .map_err(|e| format!("Failed to parse theme JSON: {}", e))?;
 
-    if let Ok(mut global_theme) = get_global_theme().lock() {
-        global_theme.material_theme = Some(theme_file);
-        global_theme.selected_colors.clear();
-        Ok(())
-    } else {
-        Err("Failed to acquire theme lock".to_string())
-    }
+    let mut default = lock_process_default();
+    default.material_theme = Some(theme_file);
+    default.selected_colors.clear();
+    Ok(())
 }
 
 /// Trait to provide a unified interface for accessing egui Context
@@ -1629,74 +1649,70 @@ pub fn load_fonts<C: ContextRef>(ctx: C) {
 /// - `extreme_bg_color` - Background color for extreme contrast areas
 pub fn update_window_background<C: ContextRef>(ctx: C) {
     let ctx = ctx.context_ref();
-    if let Ok(theme) = GLOBAL_THEME.lock() {
-        // Resolve Auto mode to actual mode based on context
-        let mut resolved_theme = theme.clone();
-        if resolved_theme.theme_mode == ThemeMode::Auto {
-            if ctx.global_style().visuals.dark_mode {
-                resolved_theme.theme_mode = ThemeMode::Dark;
-            } else {
-                resolved_theme.theme_mode = ThemeMode::Light;
-            }
+    // Resolve Auto mode to actual mode based on context
+    let mut resolved_theme = theme_context_of(ctx);
+    if resolved_theme.theme_mode == ThemeMode::Auto {
+        if ctx.global_style().visuals.dark_mode {
+            resolved_theme.theme_mode = ThemeMode::Dark;
+        } else {
+            resolved_theme.theme_mode = ThemeMode::Light;
         }
-        resolved_theme.dark_mode = resolved_theme.theme_mode == ThemeMode::Dark;
-
-        // Get the appropriate background color from the material theme
-        let background_color = match (resolved_theme.theme_mode, resolved_theme.contrast_level) {
-            (ThemeMode::Dark, ContrastLevel::High) => {
-                resolved_theme.get_color_by_name("surfaceContainerHighest")
-            }
-            (ThemeMode::Dark, ContrastLevel::Medium) => {
-                resolved_theme.get_color_by_name("surfaceContainerHigh")
-            }
-            (ThemeMode::Dark, _) => resolved_theme.get_color_by_name("surface"),
-            (ThemeMode::Light, ContrastLevel::High) => {
-                resolved_theme.get_color_by_name("surfaceContainerLowest")
-            }
-            (ThemeMode::Light, ContrastLevel::Medium) => {
-                resolved_theme.get_color_by_name("surfaceContainerLow")
-            }
-            (ThemeMode::Light, _) => resolved_theme.get_color_by_name("surface"),
-            (ThemeMode::Auto, _) => resolved_theme.get_color_by_name("surface"), // Should be unreachable
-        };
-
-        // Apply the background color to the context
-        let mut visuals = ctx.global_style().visuals.clone();
-        visuals.window_fill = background_color;
-        visuals.panel_fill = background_color;
-        visuals.extreme_bg_color = background_color;
-
-        let mut style = (*ctx.global_style()).clone();
-        style.visuals = visuals;
-        ctx.set_global_style(style);
     }
+    resolved_theme.dark_mode = resolved_theme.theme_mode == ThemeMode::Dark;
+
+    // Get the appropriate background color from the material theme
+    let background_color = match (resolved_theme.theme_mode, resolved_theme.contrast_level) {
+        (ThemeMode::Dark, ContrastLevel::High) => {
+            resolved_theme.get_color_by_name("surfaceContainerHighest")
+        }
+        (ThemeMode::Dark, ContrastLevel::Medium) => {
+            resolved_theme.get_color_by_name("surfaceContainerHigh")
+        }
+        (ThemeMode::Dark, _) => resolved_theme.get_color_by_name("surface"),
+        (ThemeMode::Light, ContrastLevel::High) => {
+            resolved_theme.get_color_by_name("surfaceContainerLowest")
+        }
+        (ThemeMode::Light, ContrastLevel::Medium) => {
+            resolved_theme.get_color_by_name("surfaceContainerLow")
+        }
+        (ThemeMode::Light, _) => resolved_theme.get_color_by_name("surface"),
+        (ThemeMode::Auto, _) => resolved_theme.get_color_by_name("surface"), // Should be unreachable
+    };
+
+    // Apply the background color to the context
+    let mut visuals = ctx.global_style().visuals.clone();
+    visuals.window_fill = background_color;
+    visuals.panel_fill = background_color;
+    visuals.extreme_bg_color = background_color;
+
+    let mut style = (*ctx.global_style()).clone();
+    style.visuals = visuals;
+    ctx.set_global_style(style);
 }
 
-/// Helper function to get a color by name from the global theme
-/// Automatically selects the correct scheme (light/dark) based on dark_mode
+/// The colour named `name` in the process-wide default theme, for its
+/// current light/dark state.
 ///
-/// Uses MaterialThemeContext.get_color_by_name_for_mode() to load the appropriate
-/// scheme colors directly, following Material Design 3 spec without token swapping.
+/// Deprecated: it ignores the theme set on a context, so a widget drawn in
+/// a context with its own theme gets another context's colours. Use
+/// `MaterialTheme::of(ctx).color(ColorRole::..)`. The shim still reads the
+/// default that every context without its own theme follows.
+#[deprecated(
+    note = "reads the process-wide theme; use MaterialTheme::of(ctx).color(ColorRole::..)"
+)]
 pub fn get_global_color(name: &str) -> Color32 {
-    match GLOBAL_THEME.lock() {
-        Ok(theme) => theme.get_color_by_name_for_mode(name, theme.dark_mode),
-        Err(poisoned) => {
-            let theme = poisoned.into_inner();
-            theme.get_color_by_name_for_mode(name, theme.dark_mode)
-        }
-    }
+    let theme = lock_process_default();
+    theme.get_color_by_name_for_mode(name, theme.dark_mode)
 }
 
-/// The colour of a typed role from the global theme, for its current
-/// light/dark state. The typed counterpart of [`get_global_color`]: a
-/// misspelt role does not compile. Inside a widget prefer
-/// [`MaterialTheme::of`](crate::MaterialTheme::of), which honours a theme
-/// set on the context.
+/// The colour of a typed role in the process-wide default theme, for its
+/// current light/dark state.
+///
+/// Deprecated for the same reason as [`get_global_color`]: use
+/// `MaterialTheme::of(ctx).color(role)`.
+#[deprecated(note = "reads the process-wide theme; use MaterialTheme::of(ctx).color(role)")]
 pub fn get_global_color_role(role: ColorRole) -> Color32 {
-    match GLOBAL_THEME.lock() {
-        Ok(theme) => theme.color(role),
-        Err(poisoned) => poisoned.into_inner().color(role),
-    }
+    lock_process_default().color(role)
 }
 
 /// Detect OS theme preference using the dark-light crate (desktop platforms only)
@@ -1790,18 +1806,87 @@ where
     F: FnOnce() -> ThemeMode,
 {
     let ctx = ctx.context_ref();
+    let theme = resolve_mode(process_default(), os_theme_detector);
+    // Keep the default's resolved dark state in sync, so contexts that follow
+    // the default (and the deprecated `get_global_color`) pick the same
+    // light/dark scheme as the visuals, including in Auto mode.
+    lock_process_default().dark_mode = theme.dark_mode;
+    install_visuals(ctx, &theme);
+}
 
-    let mut theme = if let Ok(theme) = GLOBAL_THEME.lock() {
-        theme.clone()
-    } else {
-        return;
+/// Applies `settings` to `ctx` alone: egui's visuals, the Material type
+/// scale, and the [`MaterialTheme`](crate::MaterialTheme) every widget in
+/// `ctx` draws with. Other contexts, and the process-wide default, are not
+/// touched, so two viewports (or two parallel tests) can use different
+/// themes. `os_theme_detector` resolves [`ThemeMode::Auto`] as in
+/// [`apply_theme`].
+///
+/// Read the settings back with [`theme_context_of`]; undo with
+/// [`MaterialTheme::clear`](crate::MaterialTheme::clear).
+///
+/// # Example
+/// ```rust
+/// use egui_material3::theme::{apply_theme_context, MaterialThemeContext, ThemeMode};
+/// use egui_material3::{ColorRole, MaterialTheme};
+///
+/// let ctx = egui::Context::default();
+/// let settings = MaterialThemeContext {
+///     theme_mode: ThemeMode::Dark,
+///     ..Default::default()
+/// };
+/// apply_theme_context(&ctx, &settings, None::<fn() -> ThemeMode>);
+/// assert!(MaterialTheme::of(&ctx).is_dark, "the context is dark");
+/// let _surface = MaterialTheme::of(&ctx).color(ColorRole::Surface);
+/// ```
+pub fn apply_theme_context<F>(
+    ctx: &egui::Context,
+    settings: &MaterialThemeContext,
+    os_theme_detector: Option<F>,
+) where
+    F: FnOnce() -> ThemeMode,
+{
+    let resolved = resolve_mode(settings.clone(), os_theme_detector);
+    install_visuals(ctx, &resolved);
+    crate::MaterialTheme::set(ctx, crate::MaterialTheme::from_context(&resolved));
+    // Keep the requested mode (Auto stays Auto) with its resolved dark state.
+    let stored = MaterialThemeContext {
+        dark_mode: resolved.dark_mode,
+        ..settings.clone()
     };
+    ctx.data_mut(|d| d.insert_temp(settings_id(), Arc::new(stored)));
+}
 
-    let mut visuals = match theme.theme_mode {
-        ThemeMode::Light => egui::Visuals::light(),
-        ThemeMode::Dark => egui::Visuals::dark(),
+fn settings_id() -> egui::Id {
+    egui::Id::unique("egui_material3::MaterialThemeContext")
+}
+
+/// The theme settings of `ctx`: the ones last given to
+/// [`apply_theme_context`] for it, or else a copy of the process-wide
+/// default. The per-context replacement for [`get_theme_mode`],
+/// [`get_contrast_level`] and reading [`get_global_theme`].
+pub fn theme_context_of(ctx: &egui::Context) -> MaterialThemeContext {
+    ctx.data(|d| d.get_temp::<Arc<MaterialThemeContext>>(settings_id()))
+        .map_or_else(process_default, |settings| (*settings).clone())
+}
+
+/// Forgets the settings [`apply_theme_context`] stored for `ctx`.
+pub(crate) fn clear_context_settings(ctx: &egui::Context) {
+    ctx.data_mut(|d| d.remove::<Arc<MaterialThemeContext>>(settings_id()));
+}
+
+/// `theme` with Auto resolved through `os_theme_detector` (or
+/// [`detect_os_theme`]) and `dark_mode` set to match.
+fn resolve_mode<F>(
+    mut theme: MaterialThemeContext,
+    os_theme_detector: Option<F>,
+) -> MaterialThemeContext
+where
+    F: FnOnce() -> ThemeMode,
+{
+    let dark = match theme.theme_mode {
+        ThemeMode::Light => false,
+        ThemeMode::Dark => true,
         ThemeMode::Auto => {
-            // Detect OS theme preference
             let detected_mode = if let Some(detector) = os_theme_detector {
                 detector()
             } else {
@@ -1809,18 +1894,23 @@ where
             };
             theme.theme_mode = detected_mode; // Resolve Auto to detected OS theme
             match detected_mode {
-                ThemeMode::Dark => egui::Visuals::dark(),
-                ThemeMode::Light | ThemeMode::Auto => egui::Visuals::light(),
+                ThemeMode::Dark => true,
+                ThemeMode::Light | ThemeMode::Auto => false,
             }
         }
     };
+    theme.dark_mode = dark;
+    theme
+}
 
-    // Keep resolved dark state in sync so every color lookup (visuals and widgets) uses
-    // the same light/dark scheme, including Auto mode.
-    theme.dark_mode = visuals.dark_mode;
-    if let Ok(mut global) = GLOBAL_THEME.lock() {
-        global.dark_mode = visuals.dark_mode;
-    }
+/// Sets egui's visuals and the Material type scale on `ctx` from a theme
+/// whose mode [`resolve_mode`] has resolved.
+fn install_visuals(ctx: &egui::Context, theme: &MaterialThemeContext) {
+    let mut visuals = if theme.dark_mode {
+        egui::Visuals::dark()
+    } else {
+        egui::Visuals::light()
+    };
 
     // Extract Material Design 3 color roles
     let primary = theme.get_primary_color();
@@ -1926,76 +2016,38 @@ where
 // Theme Management Utilities
 // ============================================================================
 
-/// Get the current theme mode from the global theme
+/// The theme mode of the process-wide default.
 ///
-/// # Returns
-/// The current theme mode (Light, Dark, or Auto)
-///
-/// # Example
-/// ```rust,no_run
-/// use egui_material3::theme::get_theme_mode;
-///
-/// let mode = get_theme_mode();
-/// println!("Current theme mode: {}", mode);
-/// ```
+/// Deprecated: use `theme_context_of(ctx).theme_mode`, which honours the
+/// settings applied to that context.
+#[deprecated(note = "reads the process-wide theme; use theme_context_of(ctx).theme_mode")]
 pub fn get_theme_mode() -> ThemeMode {
-    if let Ok(theme) = get_global_theme().lock() {
-        theme.theme_mode
-    } else {
-        ThemeMode::Auto
-    }
+    lock_process_default().theme_mode
 }
 
-/// Set the theme mode in the global theme
+/// Sets the theme mode of the process-wide default. Contexts without a
+/// theme of their own follow it; call [`apply_theme`] to update their
+/// visuals too.
 ///
-/// # Parameters
-/// - `mode`: The theme mode to set (Light, Dark, or Auto)
-///
-/// # Example
-/// ```rust,no_run
-/// use egui_material3::theme::{set_theme_mode, ThemeMode};
-///
-/// set_theme_mode(ThemeMode::Dark);
-/// ```
+/// Deprecated: use [`apply_theme_context`] with the mode in its settings.
+#[deprecated(note = "changes the process-wide theme; use apply_theme_context(ctx, &settings, ..)")]
 pub fn set_theme_mode(mode: ThemeMode) {
-    if let Ok(mut theme) = get_global_theme().lock() {
-        theme.theme_mode = mode;
-    }
+    lock_process_default().theme_mode = mode;
 }
 
-/// Get the current contrast level from the global theme
+/// The contrast level of the process-wide default.
 ///
-/// # Returns
-/// The current contrast level (Normal, Medium, or High)
-///
-/// # Example
-/// ```rust,no_run
-/// use egui_material3::theme::get_contrast_level;
-///
-/// let level = get_contrast_level();
-/// println!("Current contrast level: {}", level);
-/// ```
+/// Deprecated: use `theme_context_of(ctx).contrast_level`.
+#[deprecated(note = "reads the process-wide theme; use theme_context_of(ctx).contrast_level")]
 pub fn get_contrast_level() -> ContrastLevel {
-    if let Ok(theme) = get_global_theme().lock() {
-        theme.contrast_level
-    } else {
-        ContrastLevel::Normal
-    }
+    lock_process_default().contrast_level
 }
 
-/// Set the contrast level in the global theme
+/// Sets the contrast level of the process-wide default. Contexts without a
+/// theme of their own follow it.
 ///
-/// # Parameters
-/// - `level`: The contrast level to set (Normal, Medium, or High)
-///
-/// # Example
-/// ```rust,no_run
-/// use egui_material3::theme::{set_contrast_level, ContrastLevel};
-///
-/// set_contrast_level(ContrastLevel::High);
-/// ```
+/// Deprecated: use [`apply_theme_context`] with the level in its settings.
+#[deprecated(note = "changes the process-wide theme; use apply_theme_context(ctx, &settings, ..)")]
 pub fn set_contrast_level(level: ContrastLevel) {
-    if let Ok(mut theme) = get_global_theme().lock() {
-        theme.contrast_level = level;
-    }
+    lock_process_default().contrast_level = level;
 }

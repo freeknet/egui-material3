@@ -31,7 +31,7 @@ macro_rules! color_roles {
             pub const ALL: [ColorRole; color_roles!(@count $($variant)*)] = [$(ColorRole::$variant,)*];
 
             /// The camelCase name used by Theme Builder JSON and
-            /// [`get_global_color`](crate::theme::get_global_color).
+            /// the theme file colour lookups (`MaterialThemeContext::get_color_by_name`).
             pub const fn name(self) -> &'static str {
                 match self {
                     $(ColorRole::$variant => $name,)*

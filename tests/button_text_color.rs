@@ -2,31 +2,33 @@
 // Module:       button_text_color (integration test)
 // Description:  Integration tests: button text color.
 //
-// Dependencies: egui_material3
+// Dependencies: egui_material3, egui
 // ============================================================================
 
 //! Integration tests: button text color.
+//!
+//! Filled button text colour in light and dark modes. The colours are read
+//! from a `MaterialThemeContext` value or a context's own theme, never the
+//! process-wide default, so the tests run in parallel.
 
-// Tests for Filled button text color in light and dark modes
-// Verifies Material Design 3 spec compliance
+use egui_material3::theme::{
+    apply_theme_context, theme_context_of, MaterialThemeContext, ThemeMode,
+};
 
-use egui_material3::theme::{get_global_color, get_global_theme, MaterialThemeContext};
+fn on_primary_pair(dark: bool) -> (egui::Color32, egui::Color32) {
+    let theme = MaterialThemeContext {
+        dark_mode: dark,
+        ..Default::default()
+    };
+    (
+        theme.get_color_by_name("onPrimary"),
+        theme.get_color_by_name("onPrimaryFixed"),
+    )
+}
 
 #[test]
 fn test_filled_button_text_color_light_mode() {
-    // Arrange - Set light mode
-    let theme = MaterialThemeContext {
-        dark_mode: false,
-        ..Default::default()
-    };
-    egui_material3::theme::update_global_theme(theme);
-
-    // Act - Get the color that Filled buttons should use
-    let on_primary = get_global_color("onPrimary");
-    let on_primary_fixed = get_global_color("onPrimaryFixed");
-
-    // Assert - In light mode, onPrimary and onPrimaryFixed should be different
-    // This test verifies the theme system has the colors we need
+    let (on_primary, on_primary_fixed) = on_primary_pair(false);
     assert_ne!(
         on_primary, on_primary_fixed,
         "onPrimary and onPrimaryFixed should differ in light mode"
@@ -35,19 +37,7 @@ fn test_filled_button_text_color_light_mode() {
 
 #[test]
 fn test_filled_button_text_color_dark_mode() {
-    // Arrange - Set dark mode
-    let theme = MaterialThemeContext {
-        dark_mode: true,
-        ..Default::default()
-    };
-    egui_material3::theme::update_global_theme(theme);
-
-    // Act - Get the colors
-    let on_primary = get_global_color("onPrimary");
-    let on_primary_fixed = get_global_color("onPrimaryFixed");
-
-    // Assert - In dark mode, colors should be different
-    // Filled buttons should use onPrimaryFixed (not onPrimary)
+    let (on_primary, on_primary_fixed) = on_primary_pair(true);
     assert_ne!(
         on_primary, on_primary_fixed,
         "onPrimary and onPrimaryFixed should differ in dark mode"
@@ -56,24 +46,15 @@ fn test_filled_button_text_color_dark_mode() {
 
 #[test]
 fn test_theme_dark_mode_detection() {
-    // Arrange
+    let ctx = egui::Context::default();
     let mut theme = MaterialThemeContext {
-        dark_mode: false,
+        theme_mode: ThemeMode::Light,
         ..Default::default()
     };
+    apply_theme_context(&ctx, &theme, None::<fn() -> ThemeMode>);
+    assert!(!theme_context_of(&ctx).dark_mode, "Should be in light mode");
 
-    // Act & Assert - Light mode
-    egui_material3::theme::update_global_theme(theme.clone());
-
-    if let Ok(global) = get_global_theme().lock() {
-        assert!(!global.dark_mode, "Should be in light mode");
-    }
-
-    // Act & Assert - Dark mode
-    theme.dark_mode = true;
-    egui_material3::theme::update_global_theme(theme);
-
-    if let Ok(global) = get_global_theme().lock() {
-        assert!(global.dark_mode, "Should be in dark mode");
-    }
+    theme.theme_mode = ThemeMode::Dark;
+    apply_theme_context(&ctx, &theme, None::<fn() -> ThemeMode>);
+    assert!(theme_context_of(&ctx).dark_mode, "Should be in dark mode");
 }

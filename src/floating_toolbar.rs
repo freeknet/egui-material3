@@ -11,15 +11,24 @@
 //! colour scheme, with an optional FAB beside it. It can hide while the
 //! content scrolls down.
 //!
-//! Values from Compose's `FloatingToolbarDefaults` and the Expressive
-//! `FloatingToolbarTokens`: ContainerSize 64, ContainerShape CornerFull
-//! (corner radius = height / 2), ContainerElevation Level3,
-//! ContentPadding 8, item gap 4, `ToolbarToFabGap` 8, `ScreenOffset` 16.
-//! Standard colours: container SurfaceContainer, icons OnSurfaceVariant
-//! (`StandardIconButtonTokens.IconColor`), FAB SecondaryContainer.
-//! Vibrant colours: container PrimaryContainer, icons OnPrimaryContainer,
-//! FAB TertiaryContainer. The FAB is the 56 dp
-//! `FabPrimaryContainerTokens` container at Level3.
+//! Values from the Expressive `FloatingToolbarTokens` (androidx-main),
+//! through Compose's `FloatingToolbarDefaults`: HorizontalContainerHeight
+//! and VerticalContainerWidth 64, ContainerShape CornerFull (corner radius
+//! = height / 2), ContainerElevation Level3, ContainerLeadingSpace and
+//! ContainerTrailingSpace 8 (`ContentPadding`), ContainerBetweenSpace 4
+//! between items, HorizontalContainerExternalSpace 16 (`ScreenOffset`).
+//! Standard colours (`StandardToolbarTokens`): ContainerColor
+//! SurfaceContainer, IconColor OnSurfaceVariant. Vibrant colours
+//! (`VibrantToolbarTokens`): ContainerColor PrimaryContainer, IconColor
+//! OnPrimaryContainer. The FAB follows `FloatingToolbarFabTokens`:
+//! ContainerHeight/Width 56, ContainerShape CornerLarge, ContainerElevation
+//! Level1, BetweenSpace 8 to the toolbar (`ToolbarToFabGap`),
+//! StandardContainerColor SecondaryContainer / StandardIconColor
+//! OnSecondaryContainer, VibrantContainerColor TertiaryContainer /
+//! VibrantIconColor OnTertiaryContainer. (Compose's `FloatingToolbarDefaults`
+//! code still hard-codes PrimaryContainer for the standard FAB and Level2
+//! for its elevation, with a TODO to read the tokens; this crate follows the
+//! token file.)
 
 use egui::{
     Area, CornerRadius, Id, Order, Pos2, Rect, Response, Role, Sense, Ui, Vec2, Widget, WidgetInfo,
@@ -34,17 +43,22 @@ use crate::toolbar::{
 };
 use crate::MaterialTheme;
 
-/// `FloatingToolbarDefaults.ContainerSize`: the toolbar's height
-/// (horizontal) or width (vertical), 64 dp.
+/// `FloatingToolbarTokens.HorizontalContainerHeight` and
+/// `VerticalContainerWidth`: the toolbar's height (horizontal) or width
+/// (vertical), 64 dp.
 pub const FLOATING_TOOLBAR_SIZE: f32 = 64.0;
-/// `FloatingToolbarDefaults.ContentPadding`.
+/// `FloatingToolbarTokens.ContainerLeadingSpace` / `ContainerTrailingSpace`
+/// (`Space100`), Compose's `FloatingToolbarDefaults.ContentPadding`.
 const CONTENT_PADDING: f32 = 8.0;
-/// The gap between items.
+/// `FloatingToolbarTokens.ContainerBetweenSpace` (`Space50`): the gap
+/// between items.
 const ITEM_GAP: f32 = 4.0;
+/// `FloatingToolbarFabTokens.BetweenSpace` (`Space100`), Compose's
 /// `FloatingToolbarDefaults.ToolbarToFabGap`.
 const FAB_GAP: f32 = 8.0;
-/// `FloatingToolbarDefaults.ScreenOffset`: distance from the edge it floats
-/// along.
+/// `FloatingToolbarTokens.HorizontalContainerExternalSpace` (`Space200`),
+/// Compose's `FloatingToolbarDefaults.ScreenOffset`: distance from the edge
+/// it floats along.
 const SCREEN_OFFSET: f32 = 16.0;
 
 /// Which way a floating toolbar runs.
@@ -322,6 +336,9 @@ impl<'a> MaterialFloatingToolbar<'a> {
             Rect::from_min_size(rect.min, container_size)
         };
 
+        // `StandardToolbarTokens` / `VibrantToolbarTokens` ContainerColor and
+        // IconColor; the FAB is `FloatingToolbarFabTokens` Standard/Vibrant
+        // ContainerColor and IconColor.
         let (container_role, content_role, fab_roles) = match style {
             FloatingToolbarStyle::Standard => (
                 ColorRole::SurfaceContainer,
@@ -420,7 +437,8 @@ impl<'a> MaterialFloatingToolbar<'a> {
                     container: theme.color(fab_roles.0),
                     content: theme.color(fab_roles.1),
                 },
-                Elevation::Level3,
+                // `FloatingToolbarFabTokens.ContainerElevation`.
+                Elevation::Level1,
             );
             if r.clicked() {
                 (slot.callback)();

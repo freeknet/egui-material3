@@ -58,7 +58,14 @@ pub enum FabVariant {
     /// (`FabSecondaryContainerTokens`).
     SecondaryContainer,
     /// `tertiaryContainer` / `onTertiaryContainer`, the tertiary member of
-    /// the same container family.
+    /// the same container family. androidx-main has no
+    /// `FabTertiaryContainerTokens`; the pair is the one the Compose tokens
+    /// give a tertiary-container FAB elsewhere:
+    /// `FloatingToolbarFabTokens.VibrantContainerColor` / `VibrantIconColor`
+    /// and `FabMenuTertiaryContainerTokens.ListItemContainerColor` /
+    /// `ListItemIconColor`. The elevation is the `Fab*ContainerTokens` one
+    /// (`Level3`, `Level4` hovered), as in
+    /// `FabMenuTertiaryContainerTokens.ListItem*ContainerElevation`.
     TertiaryContainer,
     /// A hard-coded brand blue (#4285F4) with white content, outside the
     /// theme.

@@ -7,7 +7,7 @@
 
 //! Tests for Material Design 3 color role compliance in Drawer
 
-use egui_material3::DrawerThemeData;
+use egui_material3::{ColorRole, DrawerThemeData, MaterialTheme};
 
 #[test]
 fn test_drawer_material3_leaves_background_to_the_variant() {
@@ -63,10 +63,15 @@ fn test_drawer_width() {
 fn test_drawer_material2_differences() {
     // Arrange & Act
     let m3_theme = DrawerThemeData::material3_defaults();
-    let m2_theme = DrawerThemeData::material2_defaults();
+    let m2_theme = DrawerThemeData::material2_defaults_with(&MaterialTheme::default());
 
     // Assert - M2 uses surface, M3 uses surfaceContainerLow
     assert_ne!(m3_theme.background_color, m2_theme.background_color);
+    assert_eq!(
+        m2_theme.background_color,
+        Some(MaterialTheme::default().color(ColorRole::Surface)),
+        "M2 drawer background is the given theme's surface"
+    );
 
     // M2 has higher elevation
     assert!(
