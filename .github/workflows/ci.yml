@@ -98,11 +98,11 @@ jobs:
       - name: Clippy, default features
         run: cargo clippy --locked --all-targets -- -D warnings
 
-      # Not --examples: the stories example's theme_test module flips the
-      # global theme from parallel tests and races (see CLAUDE.md, Known
-      # gaps). Clippy above still builds every example.
+      # --examples runs the unit tests inside the examples too (the stories
+      # gallery has some). Widgets theme per context, so tests that theme
+      # their own context run in parallel without racing.
       - name: Test
-        run: cargo test --locked --features ${{ env.FEATURES }} --lib --tests
+        run: cargo test --locked --features ${{ env.FEATURES }} --lib --tests --examples
 
       # The doctests compile one binary per snippet, which is slow on
       # Windows and does not vary by platform, so Linux runs them.
