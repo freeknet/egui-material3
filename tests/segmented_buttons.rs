@@ -273,6 +273,94 @@ fn full_width_splits_the_available_width() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn density_and_height_shrink_the_group() -> TestResult {
+    for (density, expected) in [(0_i8, 40.0), (-1, 36.0), (-3, 28.0), (-9, 28.0), (2, 40.0)] {
+        let harness = support::harness_for(MaterialTheme::baseline(false), size(), |ui| {
+            let mut s = 0_usize;
+            ui.add(
+                SegmentedButton::single(&mut s)
+                    .density(density)
+                    .segments(["A", "B"]),
+            );
+        });
+        let height = harness.get_by_label("A").rect().height();
+        assert_eq!(height, expected, "density {density} gives {expected} dp");
+    }
+    let harness = support::harness_for(MaterialTheme::baseline(false), size(), |ui| {
+        let mut s = 0_usize;
+        ui.add(SegmentedButton::single(&mut s).height(30.0).segments(["A"]));
+    });
+    assert_eq!(
+        harness.get_by_label("A").rect().height(),
+        30.0,
+        "an explicit height wins"
+    );
+    Ok(())
+}
+
+#[test]
+fn hiding_the_check_reserves_no_width_for_it() -> TestResult {
+    let width = |show: bool| {
+        let harness = support::harness_for(MaterialTheme::baseline(false), size(), |ui| {
+            let mut s = 0_usize;
+            ui.add(
+                SegmentedButton::single(&mut s)
+                    .show_check(show)
+                    .segments(["A label wide enough to pass the minimum"]),
+            );
+        });
+        harness
+            .get_by_label("A label wide enough to pass the minimum")
+            .rect()
+            .width()
+    };
+    let (with_check, without) = (width(true), width(false));
+    assert_eq!(
+        with_check - without,
+        18.0 + 8.0,
+        "the 18 dp check and its 8 dp spacing are dropped: {with_check} vs {without}"
+    );
+    Ok(())
+}
+
+#[test]
+fn segments_return_responses_and_disabled_ones_show_hover_text() -> TestResult {
+    let hovered = Cell::new(false);
+    let count = Cell::new(0_usize);
+    let mut harness = support::harness_for(MaterialTheme::baseline(false), size(), |ui| {
+        ui.ctx()
+            .global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+        let mut s = 0_usize;
+        let shown = SegmentedButton::single(&mut s)
+            .segment("Fast")
+            .segment(
+                Segment::new("Exact")
+                    .enabled(false)
+                    .hover_text("Needs a keyframe index"),
+            )
+            .show(ui);
+        count.set(shown.segments.len());
+        if let Some(exact) = shown.segments.get(1) {
+            hovered.set(exact.hovered());
+        }
+    });
+    assert_eq!(count.get(), 2, "one response per segment");
+    harness.get_by_label("Exact").hover();
+    for _ in 0..30 {
+        harness.step();
+    }
+    assert!(
+        hovered.get(),
+        "the disabled segment's response sees the hover"
+    );
+    assert!(
+        harness.query_by_label("Needs a keyframe index").is_some(),
+        "a disabled segment shows its hover text"
+    );
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Snapshots.
 

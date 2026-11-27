@@ -363,7 +363,7 @@ pub use {
         radio, radio_group, radio_list_tile, ListTileControlAffinity, MaterialRadio,
         MaterialRadioGroup, RadioListTile,
     },
-    segmented_button::{Segment, SegmentedButton},
+    segmented_button::{Segment, SegmentedButton, SegmentedButtonResponse},
     select::{select, MaterialSelect, MenuAlignment, SelectVariant},
     side_sheet::{SideSheet, SideSheetKind, SideSheetResponse},
     slider::{
