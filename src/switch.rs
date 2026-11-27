@@ -26,6 +26,30 @@
 //!   an `onSurface` icon at 38 %; unselected thumb `onSurface` at 38 %;
 //! - a 40 dp circular state layer centred on the thumb, and a focus ring
 //!   around the track.
+//!
+//! ## Dense
+//!
+//! [`MaterialSwitch::dense`] draws a smaller switch for dense layouts
+//! (settings lists, toolbars, tables). Compose has no dense switch token,
+//! so these values are derived, not cited: Material's density guidance
+//! shrinks a component by 4 dp of height per density step (-1, -2, -3),
+//! and the dense switch is two steps down (-2): the 32 dp track becomes
+//! 24 dp, and the rest of the switch is scaled by the same 3/4 so it keeps
+//! its proportions.
+//!
+//! | | Default | Dense |
+//! |---|---|---|
+//! | Track | 52 × 32 | 39 × 24 |
+//! | Touch target height | 48 | 40 |
+//! | Thumb: off / on or icon / pressed | 16 / 24 / 28 | 12 / 18 / 21 |
+//! | Thumb centre: off / on | 16 / 36 | 12 / 27 |
+//! | Icon | 16 | 12 |
+//! | State layer | 40 | 30 |
+//!
+//! The track outline stays 2 dp, like other strokes under density. The
+//! 40 dp touch target is below the 48 dp minimum Material recommends, so
+//! use dense switches where the row around them is the larger target (a
+//! clickable list item) or in pointer-driven desktop layouts.
 
 use crate::checkbox::{focus_ring, full_corner, label_color, label_galley, TOUCH_TARGET};
 use crate::tokens::state::DISABLED_CONTENT_OPACITY;
@@ -60,6 +84,73 @@ pub const THUMB_CENTER_ON: f32 = TRACK_WIDTH - TRACK_HEIGHT / 2.0;
 /// Gap between the track and the label.
 const LABEL_GAP: f32 = 8.0;
 
+/// How much the dense switch is scaled: two -4 dp density steps take the
+/// 32 dp track to 24 dp (derived from Material's density guidance; Compose
+/// has no dense switch token).
+pub const DENSE_SCALE: f32 = 0.75;
+/// Dense track width: [`TRACK_WIDTH`] × [`DENSE_SCALE`].
+pub const DENSE_TRACK_WIDTH: f32 = TRACK_WIDTH * DENSE_SCALE;
+/// Dense track height: [`TRACK_HEIGHT`] minus two 4 dp density steps.
+pub const DENSE_TRACK_HEIGHT: f32 = TRACK_HEIGHT * DENSE_SCALE;
+/// Dense touch target height: the 48 dp target minus two 4 dp density
+/// steps.
+pub const DENSE_TOUCH_TARGET: f32 = 40.0;
+
+/// The sizes one switch is drawn at.
+#[derive(Clone, Copy, Debug)]
+struct Geometry {
+    track_width: f32,
+    track_height: f32,
+    touch_target: f32,
+    unselected_handle: f32,
+    selected_handle: f32,
+    pressed_handle: f32,
+    icon: f32,
+    state_layer: f32,
+}
+
+impl Geometry {
+    const DEFAULT: Self = Self {
+        track_width: TRACK_WIDTH,
+        track_height: TRACK_HEIGHT,
+        touch_target: TOUCH_TARGET,
+        unselected_handle: UNSELECTED_HANDLE_SIZE,
+        selected_handle: SELECTED_HANDLE_SIZE,
+        pressed_handle: PRESSED_HANDLE_SIZE,
+        icon: ICON_SIZE,
+        state_layer: STATE_LAYER_SIZE,
+    };
+
+    const DENSE: Self = Self {
+        track_width: DENSE_TRACK_WIDTH,
+        track_height: DENSE_TRACK_HEIGHT,
+        touch_target: DENSE_TOUCH_TARGET,
+        unselected_handle: UNSELECTED_HANDLE_SIZE * DENSE_SCALE,
+        selected_handle: SELECTED_HANDLE_SIZE * DENSE_SCALE,
+        pressed_handle: PRESSED_HANDLE_SIZE * DENSE_SCALE,
+        icon: ICON_SIZE * DENSE_SCALE,
+        state_layer: STATE_LAYER_SIZE * DENSE_SCALE,
+    };
+
+    const fn of(dense: bool) -> Self {
+        if dense {
+            Self::DENSE
+        } else {
+            Self::DEFAULT
+        }
+    }
+
+    /// Thumb centre, from the track's start, when off.
+    fn thumb_center_off(&self) -> f32 {
+        self.track_height / 2.0
+    }
+
+    /// Thumb centre, from the track's start, when on.
+    fn thumb_center_on(&self) -> f32 {
+        self.track_width - self.track_height / 2.0
+    }
+}
+
 /// Material Design 3 switch.
 ///
 /// ```rust
@@ -70,6 +161,11 @@ const LABEL_GAP: f32 = 8.0;
 ///
 /// let mut locked = true;
 /// ui.add(MaterialSwitch::new(&mut locked).text("Locked").enabled(false));
+///
+/// // A dense switch whose label is drawn elsewhere (a list row), named
+/// // for screen readers.
+/// let mut bluetooth = true;
+/// ui.add(MaterialSwitch::new(&mut bluetooth).dense(true).accessible_label("Bluetooth"));
 /// # });
 /// ```
 #[must_use = "You should put this widget in a ui with `ui.add(widget);`"]
@@ -80,6 +176,8 @@ pub struct MaterialSwitch<'a> {
     selected_icon: Option<char>,
     unselected_icon: Option<char>,
     show_track_outline: bool,
+    dense: bool,
+    accessible_label: Option<String>,
 }
 
 impl<'a> MaterialSwitch<'a> {
@@ -92,6 +190,8 @@ impl<'a> MaterialSwitch<'a> {
             selected_icon: None,
             unselected_icon: None,
             show_track_outline: true,
+            dense: false,
+            accessible_label: None,
         }
     }
 
@@ -130,6 +230,23 @@ impl<'a> MaterialSwitch<'a> {
     /// Whether to draw the unselected track outline (default `true`).
     pub fn show_track_outline(mut self, show: bool) -> Self {
         self.show_track_outline = show;
+        self
+    }
+
+    /// Draws the dense switch (default `false`): a 39 × 24 dp track in a
+    /// 40 dp tall touch target, the rest scaled to match. See the
+    /// [module docs](self#dense) for every value and where they come from.
+    pub fn dense(mut self, dense: bool) -> Self {
+        self.dense = dense;
+        self
+    }
+
+    /// The name screen readers announce for the switch, without drawing a
+    /// label: for a switch whose visible label is somewhere else (a list
+    /// row's headline, a table column header). It takes precedence over
+    /// [`Self::text`] as the accessible name; that text is still drawn.
+    pub fn accessible_label(mut self, label: impl Into<String>) -> Self {
+        self.accessible_label = Some(label.into());
         self
     }
 }
@@ -193,8 +310,9 @@ impl Widget for MaterialSwitch<'_> {
             .text
             .as_deref()
             .and_then(|text| label_galley(ui, text, text_color));
+        let geometry = Geometry::of(self.dense);
         let label_width = galley.as_ref().map_or(0.0, |g| LABEL_GAP + g.size().x);
-        let desired_size = Vec2::new(TRACK_WIDTH + label_width, TOUCH_TARGET);
+        let desired_size = Vec2::new(geometry.track_width + label_width, geometry.touch_target);
 
         let (rect, mut response) = ui.allocate_exact_size(
             desired_size,
@@ -210,7 +328,10 @@ impl Widget for MaterialSwitch<'_> {
             &response,
             egui::Role::Switch,
             self.enabled,
-            self.text.as_deref().unwrap_or_default(),
+            self.accessible_label
+                .as_deref()
+                .or(self.text.as_deref())
+                .unwrap_or_default(),
             selected,
         );
 
@@ -232,27 +353,27 @@ impl Widget for MaterialSwitch<'_> {
             spring,
         );
         let target_size = if interaction.pressed {
-            PRESSED_HANDLE_SIZE
+            geometry.pressed_handle
         } else if selected || icon.is_some() {
-            SELECTED_HANDLE_SIZE
+            geometry.selected_handle
         } else {
-            UNSELECTED_HANDLE_SIZE
+            geometry.unselected_handle
         };
         let handle_size =
             animate_value_with_spring(&ctx, response.id.with("thumb_size"), target_size, spring);
 
         let track_rect = Rect::from_min_size(
-            Pos2::new(rect.min.x, rect.center().y - TRACK_HEIGHT / 2.0),
-            Vec2::new(TRACK_WIDTH, TRACK_HEIGHT),
+            Pos2::new(rect.min.x, rect.center().y - geometry.track_height / 2.0),
+            Vec2::new(geometry.track_width, geometry.track_height),
         );
         let (start, end) = match theme.layout_direction {
             crate::tokens::LayoutDirection::Ltr => (
-                track_rect.min.x + THUMB_CENTER_OFF,
-                track_rect.min.x + THUMB_CENTER_ON,
+                track_rect.min.x + geometry.thumb_center_off(),
+                track_rect.min.x + geometry.thumb_center_on(),
             ),
             crate::tokens::LayoutDirection::Rtl => (
-                track_rect.max.x - THUMB_CENTER_OFF,
-                track_rect.max.x - THUMB_CENTER_ON,
+                track_rect.max.x - geometry.thumb_center_off(),
+                track_rect.max.x - geometry.thumb_center_on(),
             ),
         };
         let thumb_center = Pos2::new(start + (end - start) * progress, track_rect.center().y);
@@ -267,7 +388,7 @@ impl Widget for MaterialSwitch<'_> {
         let icon_color = if selected { on.icon } else { off.icon };
 
         let painter = ui.painter();
-        let track_corner = full_corner(TRACK_HEIGHT);
+        let track_corner = full_corner(geometry.track_height);
         painter.rect_filled(track_rect, track_corner, track);
         if self.show_track_outline && outline.a() > 0 {
             painter.rect_stroke(
@@ -285,8 +406,8 @@ impl Widget for MaterialSwitch<'_> {
         };
         crate::paint::paint_state_layer(
             painter,
-            Rect::from_center_size(thumb_center, Vec2::splat(STATE_LAYER_SIZE)),
-            full_corner(STATE_LAYER_SIZE),
+            Rect::from_center_size(thumb_center, Vec2::splat(geometry.state_layer)),
+            full_corner(geometry.state_layer),
             layer_color,
             interaction,
         );
@@ -297,12 +418,18 @@ impl Widget for MaterialSwitch<'_> {
                 thumb_center,
                 egui::Align2::CENTER_CENTER,
                 icon.to_string(),
-                FontId::proportional(ICON_SIZE),
+                FontId::proportional(geometry.icon),
                 icon_color,
             );
         }
 
-        focus_ring(painter, &theme, &response, track_rect, TRACK_HEIGHT);
+        focus_ring(
+            painter,
+            &theme,
+            &response,
+            track_rect,
+            geometry.track_height,
+        );
 
         if let Some(galley) = galley {
             let pos = Pos2::new(
@@ -329,5 +456,29 @@ mod tests {
     fn thumb_centres_match_compose() {
         assert_eq!(THUMB_CENTER_OFF, 16.0, "off thumb centre");
         assert_eq!(THUMB_CENTER_ON, 36.0, "on thumb centre");
+    }
+
+    #[test]
+    fn dense_geometry_is_two_density_steps_down() {
+        let dense = Geometry::DENSE;
+        assert_eq!(dense.track_height, TRACK_HEIGHT - 2.0 * 4.0, "24 dp track");
+        assert_eq!(dense.touch_target, TOUCH_TARGET - 2.0 * 4.0, "40 dp target");
+        assert_eq!(dense.track_width, 39.0, "39 dp track width");
+        assert_eq!(
+            [
+                dense.unselected_handle,
+                dense.selected_handle,
+                dense.pressed_handle
+            ],
+            [12.0, 18.0, 21.0],
+            "dense thumb sizes"
+        );
+        assert_eq!(dense.icon, 12.0, "dense icon");
+        assert_eq!(dense.state_layer, 30.0, "dense state layer");
+        assert_eq!(dense.thumb_center_off(), 12.0, "dense off thumb centre");
+        assert_eq!(dense.thumb_center_on(), 27.0, "dense on thumb centre");
+        let default = Geometry::DEFAULT;
+        assert_eq!(default.thumb_center_off(), THUMB_CENTER_OFF, "default off");
+        assert_eq!(default.thumb_center_on(), THUMB_CENTER_ON, "default on");
     }
 }
