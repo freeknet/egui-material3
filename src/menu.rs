@@ -736,7 +736,7 @@ impl<'a> MaterialMenu<'a> {
     /// use egui_material3::MaterialMenu;
     ///
     /// let mut open = true;
-    /// let shown = MaterialMenu::new("zoom_menu", &mut open)
+    /// let shown = MaterialMenu::new(egui::Id::new("zoom_menu"), &mut open)
     ///     .show_with(ui.ctx(), |ui| {
     ///         ui.label("Zoom");
     ///         if ui.button("Fit").clicked() {
