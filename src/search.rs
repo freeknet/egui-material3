@@ -9,6 +9,9 @@
 //!
 //! A [`MaterialSearch`] draws a 56 dp, fully rounded `surfaceContainerHigh`
 //! bar with a leading icon, a placeholder and optional trailing actions.
+//! Dense layouts can shorten it to 36 dp with [`MaterialSearch::height`]
+//! and put small content such as a shortcut chip at its end with
+//! [`MaterialSearch::trailing_content`].
 //! When its text field takes focus (a click or Tab) the bar expands into a
 //! search view: [`SearchViewMode::Docked`] opens a rounded panel over the
 //! content below the bar, [`SearchViewMode::FullScreen`] covers the whole
@@ -70,6 +73,10 @@ use crate::tokens::{ColorRole, CornerSize, InteractionState, LayoutDirection, Ty
 /// `SearchBarTokens.ContainerHeight` (= `SearchBarDefaults.InputFieldHeight`):
 /// the bar, and `SearchViewTokens.DockedHeaderContainerHeight`.
 pub const BAR_HEIGHT: f32 = 56.0;
+/// The shortest bar [`MaterialSearch::height`] accepts, for dense desktop
+/// toolbars. Compose's search bar has one height; this is the fork's
+/// density floor, room for the 24 dp icons and a BodyLarge line.
+pub const MIN_BAR_HEIGHT: f32 = 36.0;
 /// `SearchViewTokens.FullScreenHeaderContainerHeight`.
 pub const FULL_SCREEN_HEADER_HEIGHT: f32 = 72.0;
 /// `SearchBar.kt` `SearchBarMaxWidth`: the widest a bar grows by default.
@@ -241,6 +248,9 @@ pub fn set_expanded(ctx: &egui::Context, id_salt: impl Hash + Debug, expanded: b
     ctx.request_repaint();
 }
 
+/// Caller content drawn at the end of the collapsed bar.
+type TrailingContent<'a> = Box<dyn FnOnce(&mut Ui) + 'a>;
+
 /// A trailing action in the bar: an icon and its accessible label.
 #[derive(Clone, Debug, PartialEq)]
 struct TrailingAction {
@@ -260,6 +270,8 @@ pub struct MaterialSearch<'a> {
     trailing: Vec<TrailingAction>,
     clear_button: bool,
     width: Option<f32>,
+    height: f32,
+    trailing_content: Option<TrailingContent<'a>>,
 }
 
 impl<'a> MaterialSearch<'a> {
@@ -276,6 +288,8 @@ impl<'a> MaterialSearch<'a> {
             trailing: Vec::new(),
             clear_button: true,
             width: None,
+            height: BAR_HEIGHT,
+            trailing_content: None,
         }
     }
 
@@ -333,6 +347,37 @@ impl<'a> MaterialSearch<'a> {
         self
     }
 
+    /// The bar's height, from [`MIN_BAR_HEIGHT`] (36 dp) to [`BAR_HEIGHT`]
+    /// (56 dp, the default); values outside are clamped. Icon targets
+    /// shrink with the bar. A docked view's header keeps the bar's height.
+    pub fn height(mut self, height: f32) -> Self {
+        self.height = height.clamp(MIN_BAR_HEIGHT, BAR_HEIGHT);
+        self
+    }
+
+    /// Small content drawn at the end of the collapsed bar, before any
+    /// trailing actions, such as a keyboard-shortcut chip. `add` gets a
+    /// right-to-left `Ui` as tall as the bar (vertically centred) and at
+    /// most a third of its width; the query text stops where the content
+    /// starts. The expanded view does not show it.
+    ///
+    /// ```rust
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::search::MaterialSearch;
+    /// let mut query = String::new();
+    /// MaterialSearch::new("command_search", &mut query)
+    ///     .height(36.0)
+    ///     .trailing_content(|ui| {
+    ///         ui.label("Ctrl+K");
+    ///     })
+    ///     .show(ui);
+    /// # });
+    /// ```
+    pub fn trailing_content(mut self, add: impl FnOnce(&mut Ui) + 'a) -> Self {
+        self.trailing_content = Some(Box::new(add));
+        self
+    }
+
     /// Draws the bar, and the view when expanded.
     pub fn show(self, ui: &mut Ui) -> SearchOutput {
         let Self {
@@ -345,6 +390,8 @@ impl<'a> MaterialSearch<'a> {
             trailing,
             clear_button,
             width,
+            height,
+            trailing_content,
         } = self;
         let ctx = ui.ctx().clone();
         let theme = MaterialTheme::of(&ctx);
@@ -359,7 +406,7 @@ impl<'a> MaterialSearch<'a> {
             .max(0.0);
         // Not focusable: Tab goes straight to the text field.
         let (bar_rect, bar_response) =
-            ui.allocate_exact_size(Vec2::new(width, BAR_HEIGHT), Sense::CLICK);
+            ui.allocate_exact_size(Vec2::new(width, height), Sense::CLICK);
         crate::a11y::describe(&bar_response, Role::Search, true, &placeholder, None);
 
         let mut out = SearchOutput {
@@ -449,7 +496,14 @@ impl<'a> MaterialSearch<'a> {
                 collapse = true;
             }
         } else {
-            let result = field.collapsed_bar(ui, bar_rect, query, &leading_icon, &trailing);
+            let result = field.collapsed_bar(
+                ui,
+                bar_rect,
+                query,
+                &leading_icon,
+                &trailing,
+                trailing_content,
+            );
             out.changed = result.changed;
             out.trailing_clicked = result.trailing_clicked;
             if bar_response.clicked() {
@@ -508,7 +562,13 @@ fn icon_target(outer: Rect, offset: f32, end: bool, dir: LayoutDirection) -> Rec
     } else {
         from_start(outer, offset, ICON_SIZE, dir)
     };
-    Rect::from_center_size(icon.center(), Vec2::splat(ICON_TARGET))
+    Rect::from_center_size(icon.center(), Vec2::splat(target_size(outer)))
+}
+
+/// The touch target of an icon in `outer`: 48 dp, or the bar's height in a
+/// shorter bar.
+fn target_size(outer: Rect) -> f32 {
+    ICON_TARGET.min(outer.height())
 }
 
 /// The start offset of the `index`th trailing icon, counting from the end:
@@ -519,11 +579,31 @@ fn trailing_offset(index: usize) -> f32 {
 
 /// The space the text gets between the start content and the trailing icons.
 fn text_rect(outer: Rect, trailing_icons: usize, dir: LayoutDirection) -> Rect {
-    let start = EDGE_SPACE + ICON_SIZE + ICON_LABEL_SPACE;
-    let end = match trailing_icons {
+    text_rect_with(outer, trailing_icons, 0.0, dir)
+}
+
+/// The end offset of the trailing icons' area: where the text (or the
+/// trailing content) must stop.
+fn trailing_icons_end(trailing_icons: usize) -> f32 {
+    match trailing_icons {
         0 => EDGE_SPACE,
         n => trailing_offset(n.saturating_sub(1)) + ICON_SIZE + ICON_LABEL_SPACE,
-    };
+    }
+}
+
+/// [`text_rect`], also leaving `content_width` (and a gap) for trailing
+/// content before the icons.
+fn text_rect_with(
+    outer: Rect,
+    trailing_icons: usize,
+    content_width: f32,
+    dir: LayoutDirection,
+) -> Rect {
+    let start = EDGE_SPACE + ICON_SIZE + ICON_LABEL_SPACE;
+    let mut end = trailing_icons_end(trailing_icons);
+    if content_width > 0.0 {
+        end += content_width + ICON_LABEL_SPACE;
+    }
     let width = (outer.width() - start - end).max(0.0);
     from_start(outer, start, width, dir)
 }
@@ -539,8 +619,10 @@ fn icon_button(
 ) -> Response {
     let response = ui.interact(target, id, Sense::click());
     crate::a11y::button(&response, true, label);
-    let layer = Rect::from_center_size(target.center(), Vec2::splat(ICON_STATE_LAYER));
-    let radius = CornerRadius::same((ICON_STATE_LAYER / 2.0) as u8);
+    // 40 dp, or 4 dp inside a target shrunk by a short bar.
+    let layer_size = ICON_STATE_LAYER.min(target.height() - 4.0).max(ICON_SIZE);
+    let layer = Rect::from_center_size(target.center(), Vec2::splat(layer_size));
+    let radius = CornerRadius::same((layer_size / 2.0) as u8);
     let painter = ui.painter();
     paint_state_layer(
         painter,
@@ -611,6 +693,7 @@ impl Field<'_> {
         query: &mut String,
         leading_icon: &Icon,
         trailing: &[TrailingAction],
+        trailing_content: Option<TrailingContent<'_>>,
     ) -> BarResult {
         let theme = self.theme;
         let dir = theme.layout_direction;
@@ -641,8 +724,39 @@ impl Field<'_> {
                 theme.color(ColorRole::OnSurface),
             );
         }
+        // Trailing content first, so the text knows where to stop.
+        let content_width = match trailing_content {
+            Some(add) => {
+                let end = trailing_icons_end(trailing.len());
+                let max_width = (rect.width() / 3.0).max(0.0);
+                let slot = from_end(rect, end, max_width, dir);
+                let layout = match dir {
+                    LayoutDirection::Ltr => Layout::right_to_left(Align::Center),
+                    LayoutDirection::Rtl => Layout::left_to_right(Align::Center),
+                };
+                let used = ui
+                    .scope_builder(
+                        UiBuilder::new()
+                            .id_salt(self.id.with("trailing_content"))
+                            .max_rect(slot)
+                            .layout(layout),
+                        |ui| {
+                            ui.set_clip_rect(slot.intersect(ui.clip_rect()));
+                            add(ui);
+                        },
+                    )
+                    .response
+                    .rect;
+                used.width().min(max_width)
+            }
+            None => 0.0,
+        };
         let changed = self
-            .text_edit(ui, text_rect(rect, trailing.len(), dir), query)
+            .text_edit(
+                ui,
+                text_rect_with(rect, trailing.len(), content_width, dir),
+                query,
+            )
             .changed();
         let trailing_clicked = self.trailing_actions(ui, rect, trailing, 0);
         BarResult {
@@ -711,7 +825,7 @@ impl View<'_> {
             SearchViewMode::Docked => (
                 self.bar_rect.min,
                 self.bar_rect.width(),
-                BAR_HEIGHT,
+                self.bar_rect.height(),
                 // `SearchViewTokens.DockedContainerShape`: `CornerExtraLarge`.
                 CornerSize::ExtraLarge.value().unwrap_or(28.0),
             ),
