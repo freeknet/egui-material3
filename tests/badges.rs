@@ -16,7 +16,7 @@ use egui::epaint::{ClippedShape, RectShape, Shape as PaintShape, TextShape};
 use egui::{Pos2, Rect};
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_material3::tokens::ColorRole;
-use egui_material3::{badge, badge_dot, BadgePosition, MaterialBadge, MaterialTheme};
+use egui_material3::{badge, badge_dot, BadgeColor, BadgePosition, MaterialBadge, MaterialTheme};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -161,6 +161,78 @@ fn error_and_on_error_colours() -> TestResult {
         text.fallback_color,
         theme.color(ColorRole::OnError),
         "LargeLabelTextColor is onError"
+    );
+    Ok(())
+}
+
+/// The status tones come from the theme: success and warning are
+/// harmonised extended colours, neutral is the inverse surface. A theme
+/// with another primary moves them; dark mode picks the dark tones.
+#[test]
+fn status_tones_follow_the_theme() -> TestResult {
+    let painted = |theme: MaterialTheme, color: BadgeColor| -> Result<_, String> {
+        let ctx = egui::Context::default();
+        MaterialTheme::set(&ctx, theme);
+        let input = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 200.0))),
+            ..Default::default()
+        };
+        let mut output = ctx.run_ui(input, |ui| {
+            ui.add(badge("5").color(color));
+        });
+        output.textures_delta.clear();
+        let shapes = output.shapes;
+        let fill = rects(&shapes)
+            .first()
+            .map(|r| r.fill)
+            .ok_or("no badge container painted")?;
+        let text = texts(&shapes)
+            .first()
+            .map(|t| t.fallback_color)
+            .ok_or("no badge text painted")?;
+        Ok((fill, text))
+    };
+    let light = MaterialTheme::baseline(false);
+    let dark = MaterialTheme::baseline(true);
+    for (tone, group) in [
+        (BadgeColor::Success, light.success()),
+        (BadgeColor::Warning, light.warning()),
+    ] {
+        assert_eq!(
+            painted(light.clone(), tone)?,
+            (group.color, group.on_color),
+            "{tone:?} paints the theme's group"
+        );
+    }
+    assert_eq!(
+        painted(light.clone(), BadgeColor::Neutral)?,
+        (
+            light.color(ColorRole::InverseSurface),
+            light.color(ColorRole::InverseOnSurface)
+        ),
+        "neutral is the inverse surface"
+    );
+    assert_ne!(
+        painted(light.clone(), BadgeColor::Success)?,
+        painted(dark.clone(), BadgeColor::Success)?,
+        "dark mode uses the dark tones"
+    );
+    // An orange primary sits on the other side of green's hue from the
+    // baseline purple, so harmonising turns success the other way.
+    let orange = MaterialTheme::from_seed(
+        egui::Color32::from_rgb(0xB0, 0x50, 0x00),
+        egui_material3::color::Variant::TonalSpot,
+        false,
+        0.0,
+    );
+    assert_ne!(
+        light.success().color,
+        orange.success().color,
+        "success is harmonised towards the theme's primary"
+    );
+    assert!(
+        light.success().color.g() > light.success().color.r(),
+        "success stays green"
     );
     Ok(())
 }

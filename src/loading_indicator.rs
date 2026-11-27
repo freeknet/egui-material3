@@ -30,7 +30,7 @@
 
 use std::sync::OnceLock;
 
-use egui::{Color32, Rect, Response, Sense, Ui, Vec2, Widget, WidgetInfo};
+use egui::{Color32, Painter, Rect, Response, Sense, Ui, Vec2, Widget, WidgetInfo};
 
 use crate::shapes::{fill, MaterialShape, Morph, RoundedPolygon};
 use crate::tokens::{ColorRole, SpringSpec};
@@ -91,6 +91,7 @@ pub struct LoadingIndicator {
     color: Option<Color32>,
     container_color: Option<Color32>,
     label: Option<String>,
+    size: Option<f32>,
 }
 
 impl LoadingIndicator {
@@ -128,6 +129,18 @@ impl LoadingIndicator {
     /// Overrides the container colour (contained style only).
     pub fn container_color(mut self, color: Color32) -> Self {
         self.container_color = Some(color);
+        self
+    }
+
+    /// The container's side in points (default 48,
+    /// `LoadingIndicatorTokens.ContainerWidth`). The active indicator
+    /// scales with it, keeping Compose's 38/48 ratio.
+    pub fn size(mut self, size: f32) -> Self {
+        self.size = Some(if size.is_finite() {
+            size.max(0.0)
+        } else {
+            CONTAINER_SIZE
+        });
         self
     }
 
@@ -221,7 +234,7 @@ fn determinate_scale() -> f32 {
 /// Paints `morph` at `progress` in `rect`, scaled by `scale` of the square's
 /// side, centred, and turned `rotation_degrees` clockwise.
 fn paint_morph(
-    ui: &Ui,
+    painter: &Painter,
     rect: Rect,
     morph: &Morph,
     progress: f32,
@@ -242,7 +255,7 @@ fn paint_morph(
     let (sin, cos) = rotation_degrees.to_radians().sin_cos();
     let origin = rect.center();
     fill(
-        ui.painter(),
+        painter,
         &cubics,
         center,
         |p: Vec2| {
@@ -255,7 +268,8 @@ fn paint_morph(
 
 impl Widget for LoadingIndicator {
     fn ui(self, ui: &mut Ui) -> Response {
-        let (rect, response) = ui.allocate_exact_size(Vec2::splat(CONTAINER_SIZE), Sense::hover());
+        let side = self.size.unwrap_or(CONTAINER_SIZE);
+        let (rect, response) = ui.allocate_exact_size(Vec2::splat(side), Sense::hover());
         let label = self.label.clone().unwrap_or_else(|| "Loading".to_owned());
         let value = self.progress.map(f64::from);
         response.widget_info(move || {
@@ -263,10 +277,32 @@ impl Widget for LoadingIndicator {
             info.value = value;
             info
         });
-        if !ui.is_rect_visible(rect) {
-            return response;
+        if ui.is_rect_visible(rect) {
+            self.paint_at(ui.painter(), rect);
         }
-        let theme = MaterialTheme::of(ui.ctx());
+        response
+    }
+}
+
+impl LoadingIndicator {
+    /// Paints the indicator into `rect` (the largest centred square in it)
+    /// without allocating space or adding a widget, for drawing inside
+    /// another widget. [`size`](Self::size) is ignored in favour of
+    /// `rect`. Nothing is added to the AccessKit tree; label the host
+    /// widget instead. An indeterminate indicator requests a repaint.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::LoadingIndicator;
+    ///
+    /// let (rect, _) = ui.allocate_exact_size(egui::vec2(24.0, 24.0), egui::Sense::hover());
+    /// LoadingIndicator::new().paint_at(ui.painter(), rect);
+    /// # });
+    /// ```
+    pub fn paint_at(&self, painter: &Painter, rect: Rect) {
+        let rect =
+            Rect::from_center_size(rect.center(), Vec2::splat(rect.width().min(rect.height())));
+        let theme = MaterialTheme::of(painter.ctx());
         let (indicator_role, container) = match self.style {
             Style::Plain => (ColorRole::Primary, None),
             Style::Contained => (
@@ -280,8 +316,7 @@ impl Widget for LoadingIndicator {
         let color = self.color.unwrap_or_else(|| theme.color(indicator_role));
         if let Some(container) = container {
             // `ContainerShape = CornerFull`.
-            ui.painter()
-                .rect_filled(rect, CONTAINER_SIZE / 2.0, container);
+            painter.rect_filled(rect, rect.width() / 2.0, container);
         }
         // `ActiveIndicatorScale`: 38 / 48.
         let active_scale = ACTIVE_SIZE / CONTAINER_SIZE;
@@ -290,7 +325,7 @@ impl Widget for LoadingIndicator {
                 if let Some(morph) = determinate_morph() {
                     // One morph; turns counter-clockwise by half a turn.
                     paint_morph(
-                        ui,
+                        painter,
                         rect,
                         morph,
                         progress,
@@ -301,10 +336,10 @@ impl Widget for LoadingIndicator {
                 }
             }
             None => {
-                let frame = Self::frame_at(ui.input(|i| i.time));
+                let frame = Self::frame_at(painter.ctx().input(|i| i.time));
                 if let Some(Some(morph)) = indeterminate_morphs().get(frame.morph_index) {
                     paint_morph(
-                        ui,
+                        painter,
                         rect,
                         morph,
                         frame.progress,
@@ -313,10 +348,9 @@ impl Widget for LoadingIndicator {
                         color,
                     );
                 }
-                ui.ctx().request_repaint();
+                painter.ctx().request_repaint();
             }
         }
-        response
     }
 }
 

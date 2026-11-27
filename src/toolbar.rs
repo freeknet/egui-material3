@@ -54,7 +54,7 @@ pub(crate) const FAB_SIZE: f32 = 56.0;
 pub(crate) fn symbol_options(theme: &MaterialTheme, icon: &Icon) -> SymbolOptions {
     let directional = match icon {
         Icon::Symbol(name) => AUTO_MIRRORED.contains(&name.as_str()),
-        Icon::Svg(_) | Icon::Texture(_) => false,
+        Icon::Svg(_) | Icon::Texture(_) | Icon::Glyph { .. } => false,
     };
     SymbolOptions {
         mirrored: directional && theme.layout_direction == LayoutDirection::Rtl,

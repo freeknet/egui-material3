@@ -60,6 +60,7 @@ use egui::{
     Stroke, StrokeKind, Ui, Vec2, Widget,
 };
 
+use crate::icon::{paint_icon, Icon, SymbolOptions};
 use crate::material_symbol::material_symbol_text;
 use crate::material_theme::MaterialTheme;
 use crate::tokens::state::{DISABLED_CONTENT_OPACITY, PRESSED_OPACITY};
@@ -88,10 +89,10 @@ const DENSITY_STEP: f32 = 4.0;
 pub const SEGMENTED_BUTTON_MIN_DENSITY: i8 = -3;
 
 /// One segment of a [`SegmentedButton`].
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Segment {
     label: String,
-    icon: Option<String>,
+    icon: Option<Icon>,
     enabled: bool,
     accessible_label: Option<String>,
     hover_text: Option<String>,
@@ -109,9 +110,10 @@ impl Segment {
         }
     }
 
-    /// A segment showing only an icon (a Material Symbols name). Screen
+    /// A segment showing only an icon (a Material Symbols name, or any
+    /// [`Icon`], such as an app-font [`Icon::glyph`]). Screen
     /// readers announce `accessible_label`.
-    pub fn icon_only(icon: impl Into<String>, accessible_label: impl Into<String>) -> Self {
+    pub fn icon_only(icon: impl Into<Icon>, accessible_label: impl Into<String>) -> Self {
         Self {
             label: String::new(),
             icon: Some(icon.into()),
@@ -121,9 +123,9 @@ impl Segment {
         }
     }
 
-    /// An icon (a Material Symbols name) before the label. A selected
+    /// An icon (a Material Symbols name, or any [`Icon`]) before the label. A selected
     /// segment shows the check mark in its place.
-    pub fn icon(mut self, icon: impl Into<String>) -> Self {
+    pub fn icon(mut self, icon: impl Into<Icon>) -> Self {
         self.icon = Some(icon.into());
         self
     }
@@ -631,7 +633,7 @@ impl SegmentedButton<'_> {
 
             // Content, centred: [check or icon] [label].
             let show_lead_check = selected && self.show_check;
-            let lead_icon = segment.icon.as_deref();
+            let lead_icon = segment.icon.as_ref();
             let center = segment_rect.center();
             let icon_rect_at = |x: f32| {
                 Rect::from_min_size(
@@ -643,12 +645,20 @@ impl SegmentedButton<'_> {
                 let icon_rect = icon_rect_at(x);
                 if show_lead_check {
                     paint_check(painter, icon_rect, colors.content);
-                } else if let Some(icon) = lead_icon {
+                } else if let Some(Icon::Symbol(icon)) = lead_icon {
                     painter.text(
                         icon_rect.center(),
                         egui::Align2::CENTER_CENTER,
                         material_symbol_text(icon),
                         egui::FontId::proportional(SEGMENTED_BUTTON_ICON_SIZE),
+                        colors.content,
+                    );
+                } else if let Some(icon) = lead_icon {
+                    paint_icon(
+                        painter,
+                        icon_rect,
+                        icon,
+                        &SymbolOptions::default(),
                         colors.content,
                     );
                 }

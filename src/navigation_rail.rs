@@ -35,7 +35,7 @@ use egui::{
 };
 
 use crate::navigation::{
-    describe_item, modal_scrim, paint_badge, paint_icon, rove_focus, scrim_color, text_galley,
+    describe_item, modal_scrim, paint_badge, paint_item_icon, rove_focus, scrim_color, text_galley,
     NavigationItem, RoveAxis,
 };
 use crate::tokens::state::DISABLED_CONTENT_OPACITY;
@@ -431,7 +431,7 @@ impl RailPass<'_> {
             theme.color(ColorRole::OnSecondaryContainer),
             InteractionState::from_response(response),
         );
-        let icon_rect = paint_icon(painter, icon_center, icon, ICON_SIZE, icon_color, filled);
+        let icon_rect = paint_item_icon(painter, icon_center, icon, ICON_SIZE, icon_color, filled);
         if let Some(badge) = &item.badge {
             paint_badge(painter, theme, icon_rect, badge, !self.rtl);
         }

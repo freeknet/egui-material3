@@ -22,6 +22,7 @@ use egui::{
     Painter, Pos2, Rect, Response, Role, Sense, Ui, Vec2,
 };
 
+use crate::icon::{Icon, SymbolOptions};
 use crate::tokens::{ColorRole, TypeRole};
 use crate::MaterialTheme;
 
@@ -56,17 +57,18 @@ pub enum NavigationBadge {
 /// One destination in a [`crate::NavigationBar`] or [`crate::NavigationRail`].
 #[derive(Clone, Debug, PartialEq)]
 pub struct NavigationItem {
-    pub(crate) icon: String,
-    pub(crate) selected_icon: Option<String>,
+    pub(crate) icon: Icon,
+    pub(crate) selected_icon: Option<Icon>,
     pub(crate) label: String,
     pub(crate) enabled: bool,
     pub(crate) badge: Option<NavigationBadge>,
 }
 
 impl NavigationItem {
-    /// A destination with a Material Symbols icon name (such as `"home"`) or
-    /// a literal glyph, and a label.
-    pub fn new(icon: impl Into<String>, label: impl Into<String>) -> Self {
+    /// A destination with a Material Symbols icon name (such as `"home"`),
+    /// a literal glyph, or any [`Icon`] (an app-font [`Icon::glyph`], an
+    /// SVG, a texture), and a label.
+    pub fn new(icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         Self {
             icon: icon.into(),
             selected_icon: None,
@@ -78,7 +80,7 @@ impl NavigationItem {
 
     /// A different icon while selected. Without one, the icon is drawn
     /// filled (the Material Symbols `FILL` axis at 1) when selected.
-    pub fn selected_icon(mut self, icon: impl Into<String>) -> Self {
+    pub fn selected_icon(mut self, icon: impl Into<Icon>) -> Self {
         self.selected_icon = Some(icon.into());
         self
     }
@@ -102,11 +104,11 @@ impl NavigationItem {
     }
 
     /// The icon and whether to fill it, for the selected or unselected state.
-    pub(crate) fn icon_for(&self, selected: bool) -> (&str, bool) {
+    pub(crate) fn icon_for(&self, selected: bool) -> (&Icon, bool) {
         match (&self.selected_icon, selected) {
-            (Some(icon), true) => (icon.as_str(), false),
-            (None, true) => (self.icon.as_str(), true),
-            (Some(_) | None, false) => (self.icon.as_str(), false),
+            (Some(icon), true) => (icon, false),
+            (None, true) => (&self.icon, true),
+            (Some(_) | None, false) => (&self.icon, false),
         }
     }
 }
@@ -143,6 +145,32 @@ pub(crate) fn paint_icon(
     let rect = Align2::CENTER_CENTER.anchor_size(center, galley.size());
     painter.galley(rect.min, galley, color);
     Rect::from_center_size(center, Vec2::splat(size))
+}
+
+/// Paints any [`Icon`] centred at `center` in a `size` square: a symbol
+/// string as [`paint_icon`] does (names, codepoints and emoji), anything
+/// else through [`crate::icon::paint_icon`]. `filled` selects the filled
+/// face of a Material Symbol.
+pub(crate) fn paint_item_icon(
+    painter: &Painter,
+    center: Pos2,
+    icon: &Icon,
+    size: f32,
+    color: Color32,
+    filled: bool,
+) -> Rect {
+    match icon {
+        Icon::Symbol(name) => paint_icon(painter, center, name, size, color, filled),
+        Icon::Svg(_) | Icon::Texture(_) | Icon::Glyph { .. } => {
+            let rect = Rect::from_center_size(center, Vec2::splat(size));
+            let options = SymbolOptions {
+                filled,
+                ..SymbolOptions::default()
+            };
+            crate::icon::paint_icon(painter, rect, icon, &options, color);
+            rect
+        }
+    }
 }
 
 /// Lays out `text` in `role`.
@@ -316,12 +344,13 @@ mod tests {
     #[test]
     fn selected_item_without_selected_icon_is_filled() {
         let item = NavigationItem::new("home", "Home");
-        assert_eq!(item.icon_for(true), ("home", true), "selected: filled");
-        assert_eq!(item.icon_for(false), ("home", false), "unselected: outline");
+        let home = Icon::from("home");
+        assert_eq!(item.icon_for(true), (&home, true), "selected: filled");
+        assert_eq!(item.icon_for(false), (&home, false), "unselected: outline");
         let item = item.selected_icon("house");
         assert_eq!(
             item.icon_for(true),
-            ("house", false),
+            (&Icon::from("house"), false),
             "a selected icon replaces the fill"
         );
     }

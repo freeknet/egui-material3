@@ -2,7 +2,7 @@
 // Module:       material_theme
 // Description:  MaterialTheme, the resolved theme stored per egui Context.
 //
-// Dependencies: egui; crate::theme, crate::tokens
+// Dependencies: egui; crate::color, crate::theme, crate::tokens
 // ============================================================================
 
 //! [`MaterialTheme`]: the active theme, stored per egui [`egui::Context`].
@@ -12,11 +12,24 @@
 //! A context that has none set falls back to the process-wide theme that
 //! [`crate::theme`] manages, so code written against the old global API
 //! keeps working unchanged.
+//!
+//! # Success and warning colours
+//!
+//! Material 3 has no success or warning roles (Compose's `ColorScheme` and
+//! `ColorSchemeKeyTokens` stop at `error`). Theme Builder adds them as
+//! *extended colours*: a fixed design colour harmonised towards the
+//! theme's source colour and expanded into a tonal palette
+//! ([`crate::color::custom_color`], MCU's `customColor`). [`MaterialTheme::success`]
+//! and [`MaterialTheme::warning`] do the same with [`SUCCESS_SEED`] and
+//! [`WARNING_SEED`], harmonised towards the theme's `primary`, so status
+//! colours follow the theme (and its light or dark mode) instead of being
+//! fixed RGB values. [`MaterialTheme::extended`] does it for any colour.
 
 use std::sync::Arc;
 
 use egui::{Color32, Context, Id};
 
+use crate::color::{custom_color, ColorGroup};
 use crate::theme::{ContrastLevel, MaterialThemeContext, MaterialThemeFile, ThemeMode};
 use crate::tokens::{ColorRole, ColorScheme, LayoutDirection, MotionScheme};
 
@@ -38,6 +51,15 @@ impl Default for MaterialTheme {
         Self::baseline(false)
     }
 }
+
+/// The design colour [`MaterialTheme::success`] harmonises: Material's
+/// green 500 (`#4CAF50`). Not a Compose token; Material 3 has no success
+/// role.
+pub const SUCCESS_SEED: Color32 = Color32::from_rgb(0x4C, 0xAF, 0x50);
+/// The design colour [`MaterialTheme::warning`] harmonises: Material's
+/// amber 500 (`#FFC107`). Not a Compose token; Material 3 has no warning
+/// role.
+pub const WARNING_SEED: Color32 = Color32::from_rgb(0xFF, 0xC1, 0x07);
 
 fn theme_id() -> Id {
     Id::unique("egui_material3::MaterialTheme")
@@ -118,5 +140,41 @@ impl MaterialTheme {
     #[inline]
     pub fn color(&self, role: ColorRole) -> Color32 {
         self.colors.get(role)
+    }
+
+    /// `color` as an extended colour of this theme: harmonised towards the
+    /// theme's `primary` (MCU's `Blend.harmonize`) and resolved to its four
+    /// roles in this theme's light or dark mode (tones 40/100/90/10 light,
+    /// 80/20/30/90 dark, as Theme Builder exports them). The contrast level
+    /// does not change extended colours, as in Theme Builder.
+    ///
+    /// ```
+    /// use egui_material3::MaterialTheme;
+    ///
+    /// let theme = MaterialTheme::baseline(false);
+    /// let brand = theme.extended(egui::Color32::from_rgb(0x00, 0x96, 0x88));
+    /// assert_ne!(brand.color_container, brand.on_color_container);
+    /// ```
+    pub fn extended(&self, color: Color32) -> ColorGroup {
+        let group = custom_color("", self.color(ColorRole::Primary), color, true);
+        if self.is_dark {
+            group.dark
+        } else {
+            group.light
+        }
+    }
+
+    /// The success colour group: [`SUCCESS_SEED`] as an extended colour of
+    /// this theme ([`extended`](Self::extended)). Use `color`/`on_color`
+    /// for strong indicators (a badge), `color_container` /
+    /// `on_color_container` for tinted surfaces (a banner).
+    pub fn success(&self) -> ColorGroup {
+        self.extended(SUCCESS_SEED)
+    }
+
+    /// The warning colour group: [`WARNING_SEED`] as an extended colour of
+    /// this theme ([`extended`](Self::extended)).
+    pub fn warning(&self) -> ColorGroup {
+        self.extended(WARNING_SEED)
     }
 }
