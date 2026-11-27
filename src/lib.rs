@@ -113,18 +113,20 @@
 //!
 //! ### Theme Modes and Contrast
 //!
-//! Support for multiple theme modes and contrast levels:
+//! Each egui context carries its own theme, so two viewports (or two tests
+//! running in parallel) can differ. Change a context's mode and contrast at
+//! runtime with [`theme::apply_theme_context`]:
 //!
-//! ```rust,no_run
-//! use egui_material3::theme::{get_global_theme, update_window_background, ThemeMode, ContrastLevel};
+//! ```rust
+//! use egui_material3::theme::{
+//!     apply_theme_context, theme_context_of, update_window_background, ContrastLevel, ThemeMode,
+//! };
 //!
 //! # egui::__run_test_ctx(|ctx| {
-//! // Change theme mode at runtime
-//! if let Ok(mut theme) = get_global_theme().lock() {
-//!     theme.theme_mode = ThemeMode::Dark;
-//!     theme.contrast_level = ContrastLevel::High;
-//! }
-//! // Apply changes
+//! let mut settings = theme_context_of(ctx);
+//! settings.theme_mode = ThemeMode::Dark;
+//! settings.contrast_level = ContrastLevel::High;
+//! apply_theme_context(ctx, &settings, None::<fn() -> ThemeMode>);
 //! update_window_background(ctx);
 //! # });
 //! ```
@@ -341,6 +343,14 @@ pub mod mvvm;
 )]
 pub use badge::BadgeSize;
 
+// The process-wide theme shims, kept so existing callers compile; widgets
+// read `MaterialTheme::of(ctx)`.
+#[expect(
+    deprecated,
+    reason = "re-exports the deprecated global-theme shims for existing callers"
+)]
+pub use theme::{get_global_color, get_global_color_role, get_global_theme, update_global_theme};
+
 pub use {
     actionsheet::{action_sheet, ActionButton, ActionGroup, MaterialActionSheet},
     badge::{badge, badge_dot, BadgeColor, BadgePosition, MaterialBadge},
@@ -435,8 +445,8 @@ pub use {
     switch::{switch, MaterialSwitch},
     tabs::{tabs_primary, tabs_secondary, MaterialTabs, TabItem, TabLayout, TabVariant},
     theme::{
-        get_global_color, get_global_color_role, get_global_theme, update_global_theme,
-        ContrastLevel, MaterialThemeContext, MaterialThemeFile, ThemeMode,
+        apply_theme_context, theme_context_of, ContrastLevel, MaterialThemeContext,
+        MaterialThemeFile, ThemeMode,
     },
     timeline::{
         timeline, MaterialTimeline, TimelineDot, TimelineDotColor, TimelineDotVariant,

@@ -7,7 +7,7 @@
 
 //! Tests for Material Design 3 color role compliance in DataTable
 
-use egui_material3::{theme::get_global_color, DataTableTheme};
+use egui_material3::{ColorRole, DataTableTheme, MaterialTheme};
 
 #[test]
 fn test_datatable_default_theme_uses_surface_container() {
@@ -101,13 +101,14 @@ fn test_datatable_m3_theme_constructor() {
     let theme = DataTableTheme::default(); // TODO: implement material3() constructor
 
     // Assert - M3 theme should set proper color roles
-    let surface_container = get_global_color("surfaceContainer");
-    let surface_container_high = get_global_color("surfaceContainerHigh");
-    let secondary_container = get_global_color("secondaryContainer");
-    let outline_variant = get_global_color("outlineVariant");
-    let on_surface = get_global_color("onSurface");
-    let on_surface_variant = get_global_color("onSurfaceVariant");
-    let primary = get_global_color("primary");
+    let m3 = MaterialTheme::default();
+    let surface_container = m3.color(ColorRole::SurfaceContainer);
+    let surface_container_high = m3.color(ColorRole::SurfaceContainerHigh);
+    let secondary_container = m3.color(ColorRole::SecondaryContainer);
+    let outline_variant = m3.color(ColorRole::OutlineVariant);
+    let on_surface = m3.color(ColorRole::OnSurface);
+    let on_surface_variant = m3.color(ColorRole::OnSurfaceVariant);
+    let primary = m3.color(ColorRole::Primary);
 
     assert_eq!(theme.decoration, Some(surface_container));
     assert_eq!(theme.heading_row_color, Some(surface_container_high));

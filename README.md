@@ -208,29 +208,33 @@ load_themes();
 
 ### Theme Modes and Contrast Levels
 
-Dynamically change theme appearance at runtime:
+Each egui context (each viewport) carries its own theme, so two windows can
+differ. Change a context's mode and contrast at runtime:
 
 ```rust
-use egui_material3::theme::{get_global_theme, update_window_background, ThemeMode, ContrastLevel};
+use egui_material3::theme::{apply_theme_context, theme_context_of, ThemeMode, ContrastLevel};
 
 // Switch between light and dark modes
-if let Ok(mut theme) = get_global_theme().lock() {
-    theme.theme_mode = ThemeMode::Dark; // or ThemeMode::Light
-    theme.contrast_level = ContrastLevel::High; // Standard, Medium, or High
-}
-update_window_background(ctx);
+let mut settings = theme_context_of(ctx);
+settings.theme_mode = ThemeMode::Dark; // or ThemeMode::Light
+settings.contrast_level = ContrastLevel::High; // Normal, Medium, or High
+apply_theme_context(ctx, &settings, None::<fn() -> ThemeMode>);
 
 // Or toggle mode with a button
-if ui.add(MaterialButton::new("Toggle Dark Mode")).clicked() {
-    if let Ok(mut theme) = get_global_theme().lock() {
-        theme.theme_mode = match theme.theme_mode {
-            ThemeMode::Light => ThemeMode::Dark,
-            ThemeMode::Dark => ThemeMode::Light,
-        };
-    }
-    update_window_background(ctx);
+if ui.add(MaterialButton::filled("Toggle Dark Mode")).clicked() {
+    let mut settings = theme_context_of(ctx);
+    settings.theme_mode = match settings.theme_mode {
+        ThemeMode::Dark => ThemeMode::Light,
+        ThemeMode::Light | ThemeMode::Auto => ThemeMode::Dark,
+    };
+    apply_theme_context(ctx, &settings, None::<fn() -> ThemeMode>);
 }
 ```
+
+Custom widgets read colours with `MaterialTheme::of(ctx).color(ColorRole::Primary)`.
+The older process-wide functions (`get_global_color`, `get_global_theme`,
+`set_theme_mode`, ...) still compile but are deprecated: they read or change
+the default that only contexts without a theme of their own follow.
 
 ### Component Size Variants
 

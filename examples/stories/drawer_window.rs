@@ -2,14 +2,14 @@
 // Module:       stories::drawer_window (example)
 // Description:  Story window demonstrating the drawer component.
 //
-// Dependencies: eframe, egui; crate::theme
+// Dependencies: eframe, egui; crate::MaterialTheme, crate::tokens
 // ============================================================================
 
 //! Story window demonstrating the drawer component.
 
 #![doc(hidden)]
 
-use crate::theme::get_global_color;
+use crate::{ColorRole, MaterialTheme};
 use crate::{DrawerItem, MaterialButton, MaterialCheckbox};
 use eframe::egui::{self, Ui, Window};
 
@@ -151,7 +151,7 @@ impl DrawerWindow {
                                     ui.vertical_centered(|ui| {
                                         ui.add_space(16.0);
                                         ui.heading("Mail");
-                                        ui.colored_label(get_global_color("onSurfaceVariant"), "email@material.io");
+                                        ui.colored_label(MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant), "email@material.io");
                                         ui.add_space(16.0);
                                     });
                                 }
@@ -163,7 +163,7 @@ impl DrawerWindow {
                                     ui.horizontal(|ui| {
                                         ui.add_space(28.0);
                                         ui.colored_label(
-                                            get_global_color("onSurfaceVariant"),
+                                            MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant),
                                             "Mail"
                                         );
                                     });
@@ -180,7 +180,7 @@ impl DrawerWindow {
                                     ui.horizontal(|ui| {
                                         ui.add_space(28.0);
                                         ui.colored_label(
-                                            get_global_color("onSurfaceVariant"),
+                                            MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant),
                                             "Labels"
                                         );
                                     });
@@ -209,7 +209,7 @@ impl DrawerWindow {
                                 ui.add_space(20.0);
                                 ui.heading(format!("{} - Content Area", self.selected_menu_item));
                                 ui.colored_label(
-                                    get_global_color("onSurfaceVariant"),
+                                    MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant),
                                     "The permanent drawer is always visible and adjusts the content layout."
                                 );
 
@@ -222,7 +222,7 @@ impl DrawerWindow {
                                 ui.separator();
                                 ui.add_space(10.0);
 
-                                ui.colored_label(get_global_color("onSurfaceVariant"), "✨ Features:");
+                                ui.colored_label(MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant), "✨ Features:");
                                 ui.label("• Click different items in the sidebar to see content change");
                                 ui.label("• Drawer remains fixed and always visible");
                                 ui.label("• Content area scales with available space");
@@ -255,14 +255,16 @@ impl DrawerWindow {
                 ui.painter().rect_filled(
                     container_rect,
                     self.corner_radius.min(28.0),
-                    get_global_color("secondaryContainer"),
+                    MaterialTheme::of(ui.ctx()).color(ColorRole::SecondaryContainer),
                 );
             } else if response.hovered() {
                 let container_rect = rect.shrink2(egui::vec2(horizontal_padding, 12.0));
                 ui.painter().rect_filled(
                     container_rect,
                     self.corner_radius.min(28.0),
-                    get_global_color("onSurface").linear_multiply(0.08),
+                    MaterialTheme::of(ui.ctx())
+                        .color(ColorRole::OnSurface)
+                        .linear_multiply(0.08),
                 );
             }
 
@@ -273,9 +275,9 @@ impl DrawerWindow {
             if let Some(icon) = &item.icon {
                 let icon_center = egui::pos2(cursor_x + 12.0, rect.center().y);
                 let text_color = if is_selected {
-                    get_global_color("onSecondaryContainer")
+                    MaterialTheme::of(ui.ctx()).color(ColorRole::OnSecondaryContainer)
                 } else {
-                    get_global_color("onSurfaceVariant")
+                    MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant)
                 };
 
                 ui.painter().text(
@@ -290,9 +292,9 @@ impl DrawerWindow {
 
             // Label
             let text_color = if is_selected {
-                get_global_color("onSecondaryContainer")
+                MaterialTheme::of(ui.ctx()).color(ColorRole::OnSecondaryContainer)
             } else {
-                get_global_color("onSurfaceVariant")
+                MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant)
             };
 
             ui.painter().text(
@@ -308,15 +310,18 @@ impl DrawerWindow {
                 let badge_x = rect.max.x - horizontal_padding - 30.0;
                 let badge_center = egui::pos2(badge_x, rect.center().y);
 
-                ui.painter()
-                    .circle_filled(badge_center, 12.0, get_global_color("error"));
+                ui.painter().circle_filled(
+                    badge_center,
+                    12.0,
+                    MaterialTheme::of(ui.ctx()).color(ColorRole::Error),
+                );
 
                 ui.painter().text(
                     badge_center,
                     egui::Align2::CENTER_CENTER,
                     badge,
                     egui::FontId::proportional(11.0),
-                    get_global_color("onError"),
+                    MaterialTheme::of(ui.ctx()).color(ColorRole::OnError),
                 );
             }
 
@@ -406,7 +411,7 @@ impl DrawerWindow {
                         if ui.add(MaterialButton::filled("☰").small()).clicked() {
                             self.is_dismissible_sidebar_open = !self.is_dismissible_sidebar_open;
                         }
-                        ui.colored_label(get_global_color("onSurface"), "Top Menu - Dismissible Drawer Demo");
+                        ui.colored_label(MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurface), "Top Menu - Dismissible Drawer Demo");
                     });
                 });
 
@@ -422,7 +427,7 @@ impl DrawerWindow {
                             ui.vertical_centered(|ui| {
                                 ui.heading("Navigation");
                                 if self.show_header {
-                                    ui.colored_label(get_global_color("onSurfaceVariant"), "App Menu");
+                                    ui.colored_label(MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant), "App Menu");
                                     ui.add_space(8.0);
                                 }
                             });
@@ -450,21 +455,21 @@ impl DrawerWindow {
                                     ui.painter().rect_filled(
                                         item_rect,
                                         egui::CornerRadius::same(12),
-                                        get_global_color("primaryContainer"),
+                                        MaterialTheme::of(ui.ctx()).color(ColorRole::PrimaryContainer),
                                     );
                                 } else if response.hovered() {
                                     ui.painter().rect_filled(
                                         item_rect,
                                         egui::CornerRadius::same(12),
-                                        get_global_color("surfaceVariant").linear_multiply(0.08),
+                                        MaterialTheme::of(ui.ctx()).color(ColorRole::SurfaceVariant).linear_multiply(0.08),
                                     );
                                 }
 
                                 // Draw icon and text
                                 let text_color = if is_selected {
-                                    get_global_color("onPrimaryContainer")
+                                    MaterialTheme::of(ui.ctx()).color(ColorRole::OnPrimaryContainer)
                                 } else {
-                                    get_global_color("onSurface")
+                                    MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurface)
                                 };
 
                                 let text_y = item_rect.min.y + (item_height - 20.0) / 2.0;
@@ -504,8 +509,8 @@ impl DrawerWindow {
                     // Main content area - takes remaining space
                     ui.vertical(|ui| {
                         ui.heading(format!("{} - Dismissible Drawer Demo", self.dismissible_selected_menu_item));
-                        ui.colored_label(get_global_color("onSurfaceVariant"), "This drawer can be toggled open/closed and adjusts the content layout.");
-                        ui.colored_label(get_global_color("onSurfaceVariant"), "Click the hamburger menu (☰) in the top menu to toggle the sidebar.");
+                        ui.colored_label(MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant), "This drawer can be toggled open/closed and adjusts the content layout.");
+                        ui.colored_label(MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant), "Click the hamburger menu (☰) in the top menu to toggle the sidebar.");
 
                         ui.add_space(20.0);
                         ui.label(format!("Sidebar is currently: {}",
@@ -562,11 +567,11 @@ impl DrawerWindow {
                         }
 
                         ui.add_space(20.0);
-                        ui.colored_label(get_global_color("onSurfaceVariant"), "Behavior:");
-                        ui.colored_label(get_global_color("onSurfaceVariant"), "• When dismissed, content expands to fill the full width");
-                        ui.colored_label(get_global_color("onSurfaceVariant"), "• When shown, content is constrained by the drawer width");
-                        ui.colored_label(get_global_color("onSurfaceVariant"), "• Click sidebar items to change content");
-                        ui.colored_label(get_global_color("onSurfaceVariant"), "• Press ESC to close the drawer");
+                        ui.colored_label(MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant), "Behavior:");
+                        ui.colored_label(MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant), "• When dismissed, content expands to fill the full width");
+                        ui.colored_label(MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant), "• When shown, content is constrained by the drawer width");
+                        ui.colored_label(MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant), "• Click sidebar items to change content");
+                        ui.colored_label(MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant), "• Press ESC to close the drawer");
                     });
                 });
             });
@@ -588,7 +593,7 @@ impl DrawerWindow {
                             self.is_modal_sidebar_open = !self.is_modal_sidebar_open;
                         }
                         ui.colored_label(
-                            get_global_color("onSurface"),
+                            MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurface),
                             "Top Menu - Modal Drawer Demo",
                         );
                     });
@@ -601,11 +606,11 @@ impl DrawerWindow {
                         self.modal_selected_menu_item
                     ));
                     ui.colored_label(
-                        get_global_color("onSurfaceVariant"),
+                        MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant),
                         "This drawer overlays the content with a semi-transparent scrim.",
                     );
                     ui.colored_label(
-                        get_global_color("onSurfaceVariant"),
+                        MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant),
                         "Click the hamburger menu (☰) in the top menu to show the modal sidebar.",
                     );
 
@@ -746,27 +751,27 @@ impl DrawerWindow {
 
                     ui.add_space(20.0);
                     ui.colored_label(
-                        get_global_color("onSurfaceVariant"),
+                        MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant),
                         "Modal drawer characteristics:",
                     );
                     ui.colored_label(
-                        get_global_color("onSurfaceVariant"),
+                        MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant),
                         "• Overlays content without changing layout",
                     );
                     ui.colored_label(
-                        get_global_color("onSurfaceVariant"),
+                        MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant),
                         "• Semi-transparent scrim blocks interaction",
                     );
                     ui.colored_label(
-                        get_global_color("onSurfaceVariant"),
+                        MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant),
                         "• Drawer slides in from the side",
                     );
                     ui.colored_label(
-                        get_global_color("onSurfaceVariant"),
+                        MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant),
                         "• Click outside or ESC to close",
                     );
                     ui.colored_label(
-                        get_global_color("onSurfaceVariant"),
+                        MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant),
                         "• Click menu items to change content",
                     );
                 });
@@ -795,8 +800,11 @@ impl DrawerWindow {
 
                     ui.scope_builder(egui::UiBuilder::new().max_rect(drawer_rect), |ui| {
                         egui::Frame::new()
-                            .fill(get_global_color("surface"))
-                            .stroke(egui::Stroke::new(1.0, get_global_color("outline")))
+                            .fill(MaterialTheme::of(ui.ctx()).color(ColorRole::Surface))
+                            .stroke(egui::Stroke::new(
+                                1.0,
+                                MaterialTheme::of(ui.ctx()).color(ColorRole::Outline),
+                            ))
                             .show(ui, |ui| {
                                 ui.vertical(|ui| {
                                     // Fixed header section
@@ -804,7 +812,8 @@ impl DrawerWindow {
                                         ui.heading("Menu");
                                         if self.show_header {
                                             ui.colored_label(
-                                                get_global_color("onSurfaceVariant"),
+                                                MaterialTheme::of(ui.ctx())
+                                                    .color(ColorRole::OnSurfaceVariant),
                                                 "Choose an option",
                                             );
                                             ui.add_space(8.0);
@@ -864,22 +873,26 @@ impl DrawerWindow {
                                                     ui.painter().rect_filled(
                                                         item_rect,
                                                         egui::CornerRadius::same(12),
-                                                        get_global_color("primaryContainer"),
+                                                        MaterialTheme::of(ui.ctx())
+                                                            .color(ColorRole::PrimaryContainer),
                                                     );
                                                 } else if response.hovered() {
                                                     ui.painter().rect_filled(
                                                         item_rect,
                                                         egui::CornerRadius::same(12),
-                                                        get_global_color("surfaceVariant")
+                                                        MaterialTheme::of(ui.ctx())
+                                                            .color(ColorRole::SurfaceVariant)
                                                             .linear_multiply(0.08),
                                                     );
                                                 }
 
                                                 // Draw icon and text
                                                 let text_color = if is_selected {
-                                                    get_global_color("onPrimaryContainer")
+                                                    MaterialTheme::of(ui.ctx())
+                                                        .color(ColorRole::OnPrimaryContainer)
                                                 } else {
-                                                    get_global_color("onSurface")
+                                                    MaterialTheme::of(ui.ctx())
+                                                        .color(ColorRole::OnSurface)
                                                 };
 
                                                 let text_y =

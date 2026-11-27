@@ -9,7 +9,7 @@
 
 #![doc(hidden)]
 
-use crate::{get_global_color, tabs_primary, tabs_secondary, MaterialButton};
+use crate::{tabs_primary, tabs_secondary, ColorRole, MaterialButton, MaterialTheme};
 use eframe::egui::{self, Window};
 
 #[doc(hidden)]
@@ -527,20 +527,26 @@ impl TabsWindow {
             ui.label("Tabs with custom theme colors - each tab has unique background and text");
 
             // Get theme colors for primary tabs (7 total)
-            let primary_container = get_global_color("primaryContainer");
-            let on_primary_container = get_global_color("onPrimaryContainer");
-            let secondary_container = get_global_color("secondaryContainer");
-            let on_secondary_container = get_global_color("onSecondaryContainer");
-            let tertiary_container = get_global_color("tertiaryContainer");
-            let on_tertiary_container = get_global_color("onTertiaryContainer");
-            let error_container = get_global_color("errorContainer");
-            let on_error_container = get_global_color("onErrorContainer");
-            let surface_variant = get_global_color("surfaceVariant");
-            let on_surface_variant = get_global_color("onSurfaceVariant");
-            let inverse_surface = get_global_color("inverseSurface");
-            let inverse_on_surface = get_global_color("inverseOnSurface");
-            let surface_container_highest = get_global_color("surfaceContainerHighest");
-            let on_surface = get_global_color("onSurface");
+            let primary_container = MaterialTheme::of(ui.ctx()).color(ColorRole::PrimaryContainer);
+            let on_primary_container =
+                MaterialTheme::of(ui.ctx()).color(ColorRole::OnPrimaryContainer);
+            let secondary_container =
+                MaterialTheme::of(ui.ctx()).color(ColorRole::SecondaryContainer);
+            let on_secondary_container =
+                MaterialTheme::of(ui.ctx()).color(ColorRole::OnSecondaryContainer);
+            let tertiary_container =
+                MaterialTheme::of(ui.ctx()).color(ColorRole::TertiaryContainer);
+            let on_tertiary_container =
+                MaterialTheme::of(ui.ctx()).color(ColorRole::OnTertiaryContainer);
+            let error_container = MaterialTheme::of(ui.ctx()).color(ColorRole::ErrorContainer);
+            let on_error_container = MaterialTheme::of(ui.ctx()).color(ColorRole::OnErrorContainer);
+            let surface_variant = MaterialTheme::of(ui.ctx()).color(ColorRole::SurfaceVariant);
+            let on_surface_variant = MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant);
+            let inverse_surface = MaterialTheme::of(ui.ctx()).color(ColorRole::InverseSurface);
+            let inverse_on_surface = MaterialTheme::of(ui.ctx()).color(ColorRole::InverseOnSurface);
+            let surface_container_highest =
+                MaterialTheme::of(ui.ctx()).color(ColorRole::SurfaceContainerHighest);
+            let on_surface = MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurface);
 
             ui.add(
                 tabs_primary(&mut self.vivid_primary_selected)
@@ -572,17 +578,17 @@ impl TabsWindow {
             ui.label("Secondary vivid tabs (9 total)");
 
             // Get theme colors for secondary tabs (9 total)
-            let primary = get_global_color("primary");
-            let on_primary = get_global_color("onPrimary");
-            let secondary = get_global_color("secondary");
-            let on_secondary = get_global_color("onSecondary");
-            let tertiary = get_global_color("tertiary");
-            let on_tertiary = get_global_color("onTertiary");
-            let error = get_global_color("error");
-            let on_error = get_global_color("onError");
-            let outline = get_global_color("outline");
-            let outline_variant = get_global_color("outlineVariant");
-            let scrim = get_global_color("scrim");
+            let primary = MaterialTheme::of(ui.ctx()).color(ColorRole::Primary);
+            let on_primary = MaterialTheme::of(ui.ctx()).color(ColorRole::OnPrimary);
+            let secondary = MaterialTheme::of(ui.ctx()).color(ColorRole::Secondary);
+            let on_secondary = MaterialTheme::of(ui.ctx()).color(ColorRole::OnSecondary);
+            let tertiary = MaterialTheme::of(ui.ctx()).color(ColorRole::Tertiary);
+            let on_tertiary = MaterialTheme::of(ui.ctx()).color(ColorRole::OnTertiary);
+            let error = MaterialTheme::of(ui.ctx()).color(ColorRole::Error);
+            let on_error = MaterialTheme::of(ui.ctx()).color(ColorRole::OnError);
+            let outline = MaterialTheme::of(ui.ctx()).color(ColorRole::Outline);
+            let outline_variant = MaterialTheme::of(ui.ctx()).color(ColorRole::OutlineVariant);
+            let scrim = MaterialTheme::of(ui.ctx()).color(ColorRole::Scrim);
 
             ui.add(
                 tabs_secondary(&mut self.vivid_secondary_selected)

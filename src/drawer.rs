@@ -2,7 +2,7 @@
 // Module:       drawer
 // Description:  Material Design 3 Navigation Drawer Components.
 //
-// Dependencies: egui, eframe; crate::theme
+// Dependencies: egui, eframe; crate::MaterialTheme, crate::tokens
 // ============================================================================
 
 //! Material Design 3 Navigation Drawer Components
@@ -32,7 +32,6 @@
 use crate::navigation::{
     describe_item, modal_scrim, paint_icon, rove_focus, scrim_color, text_galley, RoveAxis,
 };
-use crate::theme::get_global_color;
 use crate::tokens::state::DISABLED_CONTENT_OPACITY;
 use crate::tokens::{
     animate_value_with_spring, ColorRole, InteractionState, LayoutDirection, Shape, SpringSpeed,
@@ -120,10 +119,23 @@ impl DrawerThemeData {
         }
     }
 
-    /// Create Material 2 defaults for drawer theming.
+    /// Create Material 2 defaults for drawer theming, with the `surface`
+    /// colour of the process-wide default theme.
+    ///
+    /// Deprecated: it cannot see the theme set on a context. Use
+    /// [`material2_defaults_with`](Self::material2_defaults_with).
+    #[deprecated(
+        note = "reads the process-wide theme; use material2_defaults_with(&MaterialTheme::of(ctx))"
+    )]
     pub fn material2_defaults() -> Self {
+        Self::material2_defaults_with(&MaterialTheme::process_default())
+    }
+
+    /// Create Material 2 defaults for drawer theming, with `theme`'s
+    /// `surface` as the background.
+    pub fn material2_defaults_with(theme: &MaterialTheme) -> Self {
         Self {
-            background_color: Some(get_global_color("surface")),
+            background_color: Some(theme.color(ColorRole::Surface)),
             scrim_color: Some(Color32::from_rgba_unmultiplied(0, 0, 0, 138)),
             elevation: Some(16.0),
             shadow_color: None,

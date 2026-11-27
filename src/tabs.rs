@@ -2,7 +2,7 @@
 // Module:       tabs
 // Description:  Material Design 3 Tabs Components.
 //
-// Dependencies: egui; crate::get_global_color
+// Dependencies: egui; crate::MaterialTheme, crate::tokens
 // ============================================================================
 
 //! Material Design 3 Tabs Components

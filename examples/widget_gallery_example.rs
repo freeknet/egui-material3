@@ -96,11 +96,11 @@ impl Default for WidgetGalleryApp {
 
 impl WidgetGalleryApp {
     fn update_theme_mode(&mut self, ctx: &egui::Context) {
-        // Update the global theme context with new theme mode and contrast level
-        if let Ok(mut global_theme) = egui_material3::theme::get_global_theme().lock() {
-            global_theme.theme_mode = self.theme_mode;
-            global_theme.contrast_level = self.contrast_level;
-        }
+        // Apply the new theme mode and contrast level to this context alone
+        let mut settings = egui_material3::theme::theme_context_of(ctx);
+        settings.theme_mode = self.theme_mode;
+        settings.contrast_level = self.contrast_level;
+        egui_material3::theme::apply_theme_context(ctx, &settings, None::<fn() -> ThemeMode>);
         // Update window background to reflect the new theme settings
         update_window_background(ctx);
     }

@@ -2,7 +2,7 @@
 // Module:       timeline
 // Description:  Material Design 3 Timeline Components.
 //
-// Dependencies: egui; crate::get_global_color
+// Dependencies: egui; crate::MaterialTheme, crate::tokens
 // ============================================================================
 
 //! Material Design 3 Timeline Components

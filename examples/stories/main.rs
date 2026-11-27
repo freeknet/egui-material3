@@ -130,6 +130,8 @@ fn main() -> Result<(), eframe::Error> {
             // Load all prepared fonts and themes
             load_fonts(&cc.egui_ctx);
             load_themes();
+            // Give this window its own theme, starting from the loaded default.
+            apply_story_theme(&cc.egui_ctx, &theme::theme_context_of(&cc.egui_ctx));
             Ok(Box::<MaterialApp>::default())
         }),
     )
@@ -234,21 +236,20 @@ impl Default for MaterialApp {
 }
 
 impl MaterialApp {
-    fn get_theme(&self) -> MaterialThemeContext {
-        if let Ok(theme) = get_global_theme().lock() {
-            theme.clone()
-        } else {
-            MaterialThemeContext::default()
-        }
+    /// The theme settings of `ctx` (this window's own, not the process-wide
+    /// default).
+    fn get_theme(&self, ctx: &egui::Context) -> MaterialThemeContext {
+        theme::theme_context_of(ctx)
     }
 
-    fn update_theme<F>(&self, update_fn: F)
+    /// Changes the theme settings of `ctx` and applies them to it alone.
+    fn update_theme<F>(&self, ctx: &egui::Context, update_fn: F)
     where
         F: FnOnce(&mut MaterialThemeContext),
     {
-        if let Ok(mut theme) = get_global_theme().lock() {
-            update_fn(&mut theme);
-        }
+        let mut theme = theme::theme_context_of(ctx);
+        update_fn(&mut theme);
+        apply_story_theme(ctx, &theme);
     }
 
     fn load_theme_from_file(
@@ -290,32 +291,18 @@ impl MaterialApp {
     /// - **inverse***: High-contrast snippets (dark snackbars on light theme)
     /// - **\*Fixed**: Constants across light/dark mode switches
     ///
-    /// # Dark Mode Token Swapping
+    /// # Light and dark
     ///
-    /// `get_global_color()` automatically swaps tokens for dark mode:
-    /// - `surface` → `inverseSurface` (dark background)
-    /// - `onSurface` → `inverseOnSurface` (light text)
-    /// - Container tokens → surface variations for proper contrast
+    /// The colours come from this window's own theme
+    /// (`MaterialTheme::of(ctx)`), which already holds the light or dark
+    /// scheme the settings ask for: no token swapping happens here.
     fn apply_theme(&self, ctx: &egui::Context) {
-        let theme = self.get_theme();
-
-        let mut visuals = match theme.theme_mode {
-            ThemeMode::Light => egui::Visuals::light(),
-            ThemeMode::Dark => egui::Visuals::dark(),
-            ThemeMode::Auto => {
-                // Use system preference or default to light
-                if ctx.global_style().visuals.dark_mode {
-                    egui::Visuals::dark()
-                } else {
-                    egui::Visuals::light()
-                }
-            }
+        let m3 = MaterialTheme::of(ctx);
+        let mut visuals = if m3.is_dark {
+            egui::Visuals::dark()
+        } else {
+            egui::Visuals::light()
         };
-
-        // Sync dark_mode state to global theme so components can access it via get_global_color()
-        if let Ok(mut global_theme) = egui_material3::get_global_theme().lock() {
-            global_theme.set_dark_mode(visuals.dark_mode);
-        }
 
         // ============================================================================
         // FETCH MATERIAL DESIGN 3 COLOR TOKENS (grouped by semantic purpose)
@@ -323,28 +310,27 @@ impl MaterialApp {
 
         // === 1. ACCENT & UTILITY COLORS ===
         // Primary: Main brand color for FABs, key actions, active states
-        let primary = egui_material3::get_global_color("primary");
-        let _on_primary = egui_material3::get_global_color("onPrimary");
+        let primary = m3.color(ColorRole::Primary);
 
         // Secondary: Less prominent accents for chips, selection controls
-        let secondary_container = egui_material3::get_global_color("secondaryContainer");
+        let secondary_container = m3.color(ColorRole::SecondaryContainer);
 
         // Inverse: High-contrast snippets (e.g., dark snackbars on light background)
-        let inverse_primary = egui_material3::get_global_color("inversePrimary");
+        let inverse_primary = m3.color(ColorRole::InversePrimary);
 
         // === 2. SURFACES & STRUCTURAL HIERARCHY ===
         // Base surface: Baseline for standalone blocks (cards, dialogs, sheets)
-        let surface = egui_material3::get_global_color("surface");
-        let on_surface = egui_material3::get_global_color("onSurface");
-        let on_surface_variant = egui_material3::get_global_color("onSurfaceVariant");
+        let surface = m3.color(ColorRole::Surface);
+        let on_surface = m3.color(ColorRole::OnSurface);
+        let on_surface_variant = m3.color(ColorRole::OnSurfaceVariant);
 
         // 5-tier container system (Lowest→Highest emphasis)
         // Lowest: Closest to white (light) or black (dark)
         // Highest: Maximum relative emphasis/forward prominence
-        let surface_container_lowest = egui_material3::get_global_color("surfaceContainerLowest");
-        let surface_container = egui_material3::get_global_color("surfaceContainer");
-        let surface_container_high = egui_material3::get_global_color("surfaceContainerHigh");
-        let surface_container_highest = egui_material3::get_global_color("surfaceContainerHighest");
+        let surface_container_lowest = m3.color(ColorRole::SurfaceContainerLowest);
+        let surface_container = m3.color(ColorRole::SurfaceContainer);
+        let surface_container_high = m3.color(ColorRole::SurfaceContainerHigh);
+        let surface_container_highest = m3.color(ColorRole::SurfaceContainerHighest);
 
         // ============================================================================
         // APPLY COLORS TO EGUI VISUALS (grouped by UI element type)
@@ -454,9 +440,9 @@ impl eframe::App for MaterialApp {
             match self.load_theme_from_file(&path) {
                 Ok(theme) => {
                     self.selected_file_path = Some(path.clone());
-                    self.update_theme(|global_theme| {
-                        global_theme.material_theme = Some(theme);
-                        global_theme.selected_colors.clear();
+                    self.update_theme(ctx, |settings| {
+                        settings.material_theme = Some(theme);
+                        settings.selected_colors.clear();
                     });
                 }
                 Err(e) => {
@@ -467,7 +453,7 @@ impl eframe::App for MaterialApp {
 
         egui::CentralPanel::default().show(ui, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                let theme = self.get_theme();
+                let theme = self.get_theme(ctx);
 
                 ui.heading("Material Design Components Demo 테스트");
                 ui.add_space(10.0);
@@ -532,7 +518,7 @@ impl eframe::App for MaterialApp {
                                 let light_selected = theme.theme_mode == ThemeMode::Light;
                                 let light_button = ui.selectable_label(light_selected, "☀️ Light");
                                 if light_button.clicked() {
-                                    self.update_theme(|theme| {
+                                    self.update_theme(ctx, |theme| {
                                         theme.theme_mode = ThemeMode::Light;
                                     });
                                 }
@@ -541,7 +527,7 @@ impl eframe::App for MaterialApp {
                                 let auto_selected = theme.theme_mode == ThemeMode::Auto;
                                 let auto_button = ui.selectable_label(auto_selected, "🌗 Auto");
                                 if auto_button.clicked() {
-                                    self.update_theme(|theme| {
+                                    self.update_theme(ctx, |theme| {
                                         theme.theme_mode = ThemeMode::Auto;
                                     });
                                 }
@@ -550,7 +536,7 @@ impl eframe::App for MaterialApp {
                                 let dark_selected = theme.theme_mode == ThemeMode::Dark;
                                 let dark_button = ui.selectable_label(dark_selected, "🌙 Dark");
                                 if dark_button.clicked() {
-                                    self.update_theme(|theme| {
+                                    self.update_theme(ctx, |theme| {
                                         theme.theme_mode = ThemeMode::Dark;
                                     });
                                 }
@@ -568,7 +554,7 @@ impl eframe::App for MaterialApp {
                                 let normal_selected = theme.contrast_level == ContrastLevel::Normal;
                                 let normal_button = ui.selectable_label(normal_selected, "Normal");
                                 if normal_button.clicked() {
-                                    self.update_theme(|theme| {
+                                    self.update_theme(ctx, |theme| {
                                         theme.contrast_level = ContrastLevel::Normal;
                                     });
                                 }
@@ -576,7 +562,7 @@ impl eframe::App for MaterialApp {
                                 let medium_selected = theme.contrast_level == ContrastLevel::Medium;
                                 let medium_button = ui.selectable_label(medium_selected, "Medium");
                                 if medium_button.clicked() {
-                                    self.update_theme(|theme| {
+                                    self.update_theme(ctx, |theme| {
                                         theme.contrast_level = ContrastLevel::Medium;
                                     });
                                 }
@@ -584,7 +570,7 @@ impl eframe::App for MaterialApp {
                                 let high_selected = theme.contrast_level == ContrastLevel::High;
                                 let high_button = ui.selectable_label(high_selected, "High");
                                 if high_button.clicked() {
-                                    self.update_theme(|theme| {
+                                    self.update_theme(ctx, |theme| {
                                         theme.contrast_level = ContrastLevel::High;
                                     });
                                 }
@@ -663,7 +649,7 @@ impl eframe::App for MaterialApp {
                                     let color_changed =
                                         ui.color_edit_button_srgba(&mut temp_color).changed();
                                     if color_changed {
-                                        self.update_theme(|theme| {
+                                        self.update_theme(ctx, |theme| {
                                             theme
                                                 .selected_colors
                                                 .insert(color_name.to_string(), temp_color);
@@ -945,4 +931,22 @@ impl eframe::App for MaterialApp {
         //         let _image_response = ui.add(image_widget);
         //     });
     }
+}
+
+/// Applies `settings` to `ctx` alone, resolving Auto from the visuals the
+/// context already has (the OS preference eframe reported, or the last
+/// theme applied).
+fn apply_story_theme(ctx: &egui::Context, settings: &MaterialThemeContext) {
+    let dark = ctx.global_style().visuals.dark_mode;
+    theme::apply_theme_context(
+        ctx,
+        settings,
+        Some(|| {
+            if dark {
+                ThemeMode::Dark
+            } else {
+                ThemeMode::Light
+            }
+        }),
+    );
 }

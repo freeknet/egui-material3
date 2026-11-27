@@ -91,12 +91,13 @@ impl MaterialTheme {
         if let Some(theme) = ctx.data(|d| d.get_temp::<Arc<MaterialTheme>>(theme_id())) {
             return theme;
         }
-        let global = crate::theme::get_global_theme();
-        let theme = match global.lock() {
-            Ok(context) => Self::from_context(&context),
-            Err(poisoned) => Self::from_context(&poisoned.into_inner()),
-        };
-        Arc::new(theme)
+        Arc::new(Self::process_default())
+    }
+
+    /// The theme of the process-wide default, for code that has no context
+    /// at hand (the deprecated shims).
+    pub(crate) fn process_default() -> MaterialTheme {
+        Self::from_context(&crate::theme::process_default())
     }
 
     /// Sets the theme for `ctx`. Widgets drawn in that context use it from
@@ -105,9 +106,12 @@ impl MaterialTheme {
         ctx.data_mut(|d| d.insert_temp(theme_id(), Arc::new(theme)));
     }
 
-    /// Removes the theme set for `ctx`, going back to the process-wide one.
+    /// Removes the theme set for `ctx` (and the settings
+    /// [`apply_theme_context`](crate::theme::apply_theme_context) stored with
+    /// it), going back to the process-wide one.
     pub fn clear(ctx: &Context) {
         ctx.data_mut(|d| d.remove::<Arc<MaterialTheme>>(theme_id()));
+        crate::theme::clear_context_settings(ctx);
     }
 
     /// The colour of `role`.
