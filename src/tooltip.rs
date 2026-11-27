@@ -184,10 +184,40 @@ impl MaterialTooltip {
     /// Show the tooltip for `response` when it is hovered, after egui's
     /// tooltip delay. Returns whether it is showing.
     pub fn show_for(&self, response: &Response) -> bool {
+        self.show_for_with(response, |ui| self.text_label(ui))
+            .is_some()
+    }
+
+    /// Show custom content for `response` when it is hovered, after egui's
+    /// tooltip delay, in the plain tooltip's container: `InverseSurface`,
+    /// 4 dp corners, 8 x 4 padding, 320 dp maximum width, one tooltip at a
+    /// time. Text added in `add_contents` defaults to `InverseOnSurface`.
+    /// The text this tooltip was made with is its accessible name (screen
+    /// readers are not given the custom content). Returns what
+    /// `add_contents` returned, if the tooltip is showing.
+    ///
+    /// ```rust
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::MaterialTooltip;
+    ///
+    /// let response = ui.button("Save");
+    /// MaterialTooltip::new("Save (Ctrl+S)").show_for_with(&response, |ui| {
+    ///     ui.horizontal(|ui| {
+    ///         ui.label("Save");
+    ///         ui.label(egui::RichText::new("Ctrl+S").monospace());
+    ///     });
+    /// });
+    /// # });
+    /// ```
+    pub fn show_for_with<R>(
+        &self,
+        response: &Response,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<R> {
         let open = Tooltip::should_show_tooltip(response, false);
         let mut tooltip = Tooltip::for_widget(response);
         tooltip.popup = tooltip.popup.open(open);
-        self.show_tooltip(tooltip)
+        self.show_tooltip(tooltip, add_contents)
     }
 
     /// Show the tooltip at `target_rect` now, with no hover check or delay.
@@ -195,10 +225,30 @@ impl MaterialTooltip {
         let id = ui.next_auto_id().with("material_tooltip");
         let tooltip = Tooltip::always_open(ui.ctx().clone(), ui.layer_id(), id, target_rect);
         // Always open: whether it showed only depends on the anchor existing.
-        self.show_tooltip(tooltip);
+        let _ = self.show_tooltip(tooltip, |ui| self.text_label(ui));
     }
 
-    fn show_tooltip(&self, tooltip: Tooltip<'_>) -> bool {
+    /// The tooltip's text as a wrapped `BodySmall` label.
+    fn text_label(&self, ui: &mut Ui) {
+        let text_color = MaterialTheme::of(ui.ctx()).color(ColorRole::InverseOnSurface);
+        let mut job =
+            TypeRole::BodySmall
+                .style()
+                .layout_job(ui.ctx(), self.text.clone(), text_color);
+        if let Some(size) = self.font_size {
+            if let Some(section) = job.sections.first_mut() {
+                section.format.font_id.size = size;
+                section.format.line_height = None;
+            }
+        }
+        ui.add(Label::new(job).wrap());
+    }
+
+    fn show_tooltip<R>(
+        &self,
+        tooltip: Tooltip<'_>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> Option<R> {
         let ctx = tooltip.popup.ctx().clone();
         let theme = MaterialTheme::of(&ctx);
         let text_color = theme.color(ColorRole::InverseOnSurface);
@@ -225,19 +275,10 @@ impl MaterialTooltip {
                     (MIN_WIDTH - 2.0 * self.padding.x).max(0.0),
                     (MIN_HEIGHT - 2.0 * self.padding.y).max(0.0),
                 ));
-                let mut job =
-                    TypeRole::BodySmall
-                        .style()
-                        .layout_job(ui.ctx(), self.text.clone(), text_color);
-                if let Some(size) = self.font_size {
-                    if let Some(section) = job.sections.first_mut() {
-                        section.format.font_id.size = size;
-                        section.format.line_height = None;
-                    }
-                }
-                ui.add(Label::new(job).wrap());
+                ui.visuals_mut().override_text_color = Some(text_color);
+                add_contents(ui)
             })
-            .is_some()
+            .map(|inner| inner.inner)
     }
 }
 
@@ -324,21 +365,52 @@ impl RichTooltip {
     /// Show the tooltip for `response` when it is hovered, after egui's
     /// tooltip delay.
     pub fn show_for(&self, response: &Response) -> RichTooltipResponse {
+        self.show_for_with(response, |ui| self.text_label(ui)).0
+    }
+
+    /// Show the tooltip for `response` when it is hovered, after egui's
+    /// tooltip delay, with custom content in place of the supporting text.
+    /// The subhead and actions, the `SurfaceContainer` container, 16 dp
+    /// padding, 320 dp maximum width and one-at-a-time behaviour stay.
+    /// Text added in `add_contents` defaults to `OnSurfaceVariant`. The
+    /// subhead and the text this tooltip was made with are its accessible
+    /// name. Returns the tooltip's response and what `add_contents`
+    /// returned, if it is showing.
+    pub fn show_for_with<R>(
+        &self,
+        response: &Response,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (RichTooltipResponse, Option<R>) {
         let open = Tooltip::should_show_tooltip(response, true)
             || (self.persistent && pointer_over_tooltip(response));
         let mut tooltip = Tooltip::for_widget(response);
         tooltip.popup = tooltip.popup.open(open);
-        self.show_tooltip(tooltip, response.id)
+        self.show_tooltip(tooltip, response.id, add_contents)
     }
 
     /// Show the tooltip at `target_rect` now, with no hover check or delay.
     pub fn show(&self, ui: &mut Ui, target_rect: Rect) -> RichTooltipResponse {
         let id = ui.next_auto_id().with("material_rich_tooltip");
         let tooltip = Tooltip::always_open(ui.ctx().clone(), ui.layer_id(), id, target_rect);
-        self.show_tooltip(tooltip, id)
+        self.show_tooltip(tooltip, id, |ui| self.text_label(ui)).0
     }
 
-    fn show_tooltip(&self, tooltip: Tooltip<'_>, id: Id) -> RichTooltipResponse {
+    /// The supporting text as a wrapped `BodyMedium` label.
+    fn text_label(&self, ui: &mut Ui) {
+        let color = MaterialTheme::of(ui.ctx()).color(ColorRole::OnSurfaceVariant);
+        let mut job = TypeRole::BodyMedium
+            .style()
+            .layout_job(ui.ctx(), self.text.clone(), color);
+        job.wrap.max_width = ui.max_rect().width();
+        ui.add(Label::new(job).wrap());
+    }
+
+    fn show_tooltip<R>(
+        &self,
+        tooltip: Tooltip<'_>,
+        id: Id,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (RichTooltipResponse, Option<R>) {
         let mut tooltip = place(tooltip, self.position)
             .gap(GAP)
             .width(self.max_width)
@@ -347,12 +419,18 @@ impl RichTooltip {
                 None => self.text.clone(),
             });
         tooltip.popup = tooltip.popup.frame(Frame::NONE);
-        match tooltip.show(|ui| self.content(ui, id)) {
-            Some(inner) => RichTooltipResponse {
-                shown: true,
-                action_clicked: inner.inner,
-            },
-            None => RichTooltipResponse::default(),
+        match tooltip.show(|ui| self.content(ui, id, add_contents)) {
+            Some(inner) => {
+                let (action_clicked, value) = inner.inner;
+                (
+                    RichTooltipResponse {
+                        shown: true,
+                        action_clicked,
+                    },
+                    Some(value),
+                )
+            }
+            None => (RichTooltipResponse::default(), None),
         }
     }
 
@@ -386,7 +464,12 @@ impl RichTooltip {
         response.clicked()
     }
 
-    fn content(&self, ui: &mut Ui, id: Id) -> Option<usize> {
+    fn content<R>(
+        &self,
+        ui: &mut Ui,
+        id: Id,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (Option<usize>, R) {
         let ctx = ui.ctx().clone();
         let theme = MaterialTheme::of(&ctx);
         let content_color = theme.color(ColorRole::OnSurfaceVariant);
@@ -422,7 +505,13 @@ impl RichTooltip {
                     (PLAIN_PADDING.y, PLAIN_PADDING.y)
                 };
                 ui.add_space(top);
-                ui.add(wrapped(TypeRole::BodyMedium, &self.text));
+                let value = ui
+                    .scope(|ui| {
+                        ui.set_max_width(text_max);
+                        ui.visuals_mut().override_text_color = Some(content_color);
+                        add_contents(ui)
+                    })
+                    .inner;
                 ui.add_space(bottom);
                 let mut clicked = None;
                 if !self.actions.is_empty() {
@@ -436,7 +525,7 @@ impl RichTooltip {
                     });
                     ui.add_space(ACTION_LABEL_BOTTOM_PADDING);
                 }
-                clicked
+                (clicked, value)
             });
 
         let rect = inner.response.rect;

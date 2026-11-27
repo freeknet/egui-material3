@@ -705,6 +705,82 @@ fn rich_tooltip_appears_after_the_hover_delay_and_not_before() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn custom_tooltip_content_appears_after_the_hover_delay() -> TestResult {
+    // A label and a key chip, as a shortcut hint would show them.
+    let content = |ui: &mut egui::Ui| {
+        ui.horizontal(|ui| {
+            ui.label("Save");
+            egui::Frame::NONE
+                .stroke(egui::Stroke::new(1.0, color(ColorRole::OutlineVariant)))
+                .inner_margin(egui::Margin::symmetric(4, 0))
+                .show(ui, |ui| ui.label("Ctrl+S"));
+        });
+    };
+    let after = tooltip_appears_after(
+        &|r| {
+            MaterialTooltip::new("Save, Ctrl+S").show_for_with(r, content);
+        },
+        "Ctrl+S",
+    )?;
+    assert!(after >= 0.5, "appeared after {after} s, before the delay");
+    assert!(
+        after < 0.8,
+        "appeared after {after} s, long after the delay"
+    );
+
+    let after = tooltip_appears_after(
+        &|r| {
+            RichTooltip::new("Save, Ctrl+S")
+                .subhead("Save")
+                .show_for_with(r, content);
+        },
+        "Ctrl+S",
+    )?;
+    assert!(
+        after >= 0.5,
+        "rich: appeared after {after} s, before the delay"
+    );
+    assert!(
+        after < 0.8,
+        "rich: appeared after {after} s, long after the delay"
+    );
+    Ok(())
+}
+
+#[test]
+fn custom_tooltip_text_defaults_to_inverse_on_surface() -> TestResult {
+    let mut driver = Driver::new();
+    let button = Cell::new(Rect::NOTHING);
+    let mut app = |ui: &mut egui::Ui| {
+        ui.add_space(200.0);
+        let response = ui.button("Anchor");
+        button.set(response.rect);
+        MaterialTooltip::new("Hint").show_for_with(&response, |ui| ui.label("Custom"));
+    };
+    driver.run_for(1.0, 0.1, &mut app);
+    driver.frame(
+        0.0,
+        vec![Event::PointerMoved(button.get().center())],
+        &mut app,
+    );
+    let shapes = driver.run_for(1.0, 0.05, &mut app);
+    let text = text_shape(&shapes, "Custom").ok_or("the custom label is painted")?;
+    let section = text.galley.job.sections.first().map(|s| s.format.color);
+    // A label's colour is either baked into its section or left as the
+    // placeholder and taken from the shape's fallback colour.
+    let painted = match section {
+        Some(c) if c != Color32::PLACEHOLDER => c,
+        Some(_) | None => text.fallback_color,
+    };
+    assert_eq!(
+        painted,
+        color(ColorRole::InverseOnSurface),
+        "custom text defaults to PlainTooltipTokens.SupportingTextColor"
+    );
+    Ok(())
+}
+
 /// Shows an always-open tooltip under a fixed anchor and returns the shapes
 /// once it has settled, with the anchor rect.
 fn always_open(show: &dyn Fn(&mut egui::Ui, Rect)) -> (Vec<ClippedShape>, Rect) {
