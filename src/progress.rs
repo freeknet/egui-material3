@@ -36,7 +36,9 @@
 use std::f32::consts::PI;
 
 use egui::epaint::{PathShape, PathStroke};
-use egui::{Color32, CornerRadius, Pos2, Rect, Response, Sense, Ui, Vec2, Widget, WidgetInfo};
+use egui::{
+    Color32, CornerRadius, Painter, Pos2, Rect, Response, Sense, Ui, Vec2, Widget, WidgetInfo,
+};
 
 use crate::tokens::{ColorRole, CubicBezier, LayoutDirection};
 use crate::MaterialTheme;
@@ -361,40 +363,74 @@ impl Widget for MaterialProgress {
         if !ui.is_rect_visible(rect) {
             return response;
         }
-        let theme = MaterialTheme::of(ui.ctx());
-        let time = ui.input(|i| i.time);
-        let colors = Colors::resolve(&self, &theme, time);
         // The wavy amplitude eases in and out with progress.
-        let amplitude_target = if !self.wavy {
+        let amplitude = ui.ctx().animate_value_with_time(
+            response.id.with("wave_amplitude"),
+            self.amplitude_target(),
+            AMPLITUDE_ANIMATION_SECONDS,
+        );
+        self.paint_with_amplitude(ui.painter(), rect, amplitude);
+        response
+    }
+}
+
+impl MaterialProgress {
+    /// The wave amplitude (0..=1 of the full amplitude) for the current
+    /// progress, before easing.
+    fn amplitude_target(&self) -> f32 {
+        if !self.wavy {
             0.0
         } else if self.indeterminate {
             1.0
         } else {
             wavy_amplitude_fraction(self.fraction())
-        };
-        let amplitude = ui.ctx().animate_value_with_time(
-            response.id.with("wave_amplitude"),
-            amplitude_target,
-            AMPLITUDE_ANIMATION_SECONDS,
-        );
+        }
+    }
+
+    /// Paints the indicator into `rect` without allocating space or adding
+    /// a widget: for drawing progress inside another widget (a row, a
+    /// thumbnail, a custom button). The colours, animation and RTL
+    /// mirroring are the widget's; the size set with [`size`](Self::size)
+    /// is ignored in favour of `rect` (a circular indicator uses the
+    /// largest centred square). The wavy amplitude jumps instead of easing,
+    /// since there is no widget id to animate it by. Nothing is added to
+    /// the AccessKit tree; label the host widget instead. Indeterminate
+    /// and wavy indicators request a repaint.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::MaterialProgress;
+    ///
+    /// let (rect, _) = ui.allocate_exact_size(egui::vec2(200.0, 4.0), egui::Sense::hover());
+    /// MaterialProgress::linear().value(0.4).paint_at(ui.painter(), rect);
+    /// # });
+    /// ```
+    pub fn paint_at(&self, painter: &Painter, rect: Rect) {
+        self.paint_with_amplitude(painter, rect, self.amplitude_target());
+    }
+
+    fn paint_with_amplitude(&self, painter: &Painter, rect: Rect, amplitude: f32) {
+        let ctx = painter.ctx();
+        let theme = MaterialTheme::of(ctx);
+        let time = ctx.input(|i| i.time);
+        let colors = Colors::resolve(self, &theme, time);
         let rtl = match theme.layout_direction {
             LayoutDirection::Rtl => true,
             LayoutDirection::Ltr => false,
         };
-        let painter = Paint {
-            ui,
+        let paint = Paint {
+            painter,
             rect,
             rtl,
             colors,
         };
         match self.variant {
-            ProgressVariant::Linear => self.paint_linear(&painter, time, amplitude),
-            ProgressVariant::Circular => self.paint_circular(&painter, time, amplitude),
+            ProgressVariant::Linear => self.paint_linear(&paint, time, amplitude),
+            ProgressVariant::Circular => self.paint_circular(&paint, time, amplitude),
         }
         if self.indeterminate || self.wavy {
-            ui.ctx().request_repaint();
+            ctx.request_repaint();
         }
-        response
     }
 }
 
@@ -448,7 +484,7 @@ impl Colors {
 
 /// Where and with what an indicator is painted.
 struct Paint<'u> {
-    ui: &'u Ui,
+    painter: &'u Painter,
     rect: Rect,
     rtl: bool,
     colors: Colors,
@@ -482,7 +518,7 @@ impl Paint<'_> {
         let cy = self.rect.center().y;
         let bar = Rect::from_x_y_ranges(x0.min(x1)..=x0.max(x1), (cy - cap)..=(cy + cap));
         let r = radius.unwrap_or(cap);
-        self.ui.painter().rect_filled(
+        self.painter.rect_filled(
             bar,
             CornerRadius::same(r.clamp(0.0, 255.0).round() as u8),
             color,
@@ -517,16 +553,15 @@ impl Paint<'_> {
                 Pos2::new(self.x(d / w.max(1.0)), y)
             })
             .collect();
-        stroke_round(self.ui, points, thickness, color);
+        stroke_round(self.painter, points, thickness, color);
     }
 }
 
 /// A polyline stroke with round caps.
-fn stroke_round(ui: &Ui, points: Vec<Pos2>, thickness: f32, color: Color32) {
+fn stroke_round(painter: &Painter, points: Vec<Pos2>, thickness: f32, color: Color32) {
     let (Some(first), Some(last)) = (points.first().copied(), points.last().copied()) else {
         return;
     };
-    let painter = ui.painter();
     painter.circle_filled(first, thickness / 2.0, color);
     painter.circle_filled(last, thickness / 2.0, color);
     if points.len() >= 2 {
@@ -544,7 +579,7 @@ fn stroke_round(ui: &Ui, points: Vec<Pos2>, thickness: f32, color: Color32) {
 /// radians).
 #[expect(clippy::too_many_arguments, reason = "private painting helper")]
 fn arc(
-    ui: &Ui,
+    painter: &Painter,
     center: Pos2,
     radius: f32,
     start_deg: f32,
@@ -569,7 +604,7 @@ fn arc(
             center + Vec2::angled(angle) * r
         })
         .collect();
-    stroke_round(ui, points, thickness, color);
+    stroke_round(painter, points, thickness, color);
 }
 
 /// A keyframed 0 to 1 line position: 0 until `delay`, eased over
@@ -722,7 +757,7 @@ impl MaterialProgress {
             let offset = ((thickness - stop_size) / 2.0).min(STOP_MAX_OFFSET);
             let d = w - stop_size / 2.0 - offset;
             let center = Pos2::new(p.x(d / w), p.rect.center().y);
-            p.ui.painter()
+            p.painter
                 .circle_filled(center, stop_size / 2.0, p.colors.stop);
         }
     }
@@ -765,7 +800,7 @@ impl MaterialProgress {
             let track_start = start + sweep + sweep.min(gap_sweep);
             let track_sweep = 360.0 - sweep - sweep.min(gap_sweep) * 2.0;
             arc(
-                p.ui,
+                p.painter,
                 center,
                 radius,
                 track_start,
@@ -776,7 +811,7 @@ impl MaterialProgress {
             );
         }
         arc(
-            p.ui,
+            p.painter,
             center,
             radius,
             start,

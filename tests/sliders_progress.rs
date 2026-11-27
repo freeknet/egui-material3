@@ -729,6 +729,123 @@ fn loading_indicator_morphs_in_compose_order() {
     );
 }
 
+/// The bounding box of every non-empty painted shape.
+fn painted_bounds(shapes: &[ClippedShape]) -> Rect {
+    flatten(shapes)
+        .iter()
+        .map(PaintShape::visual_bounding_rect)
+        .filter(|r| r.is_positive())
+        .fold(Rect::NOTHING, |a, b| a.union(b))
+}
+
+#[test]
+fn progress_paint_at_fills_the_given_rect_without_allocating() -> TestResult {
+    let mut driver = Driver::new();
+    let primary = driver.theme().color(ColorRole::Primary);
+    let target = Rect::from_min_size(Pos2::new(100.0, 200.0), egui::vec2(120.0, 6.0));
+    let cursor = RefCell::new((Pos2::ZERO, Pos2::ZERO));
+    let mut app = |ui: &mut egui::Ui| {
+        let before = ui.cursor().min;
+        MaterialProgress::linear()
+            .value(0.5)
+            .paint_at(ui.painter(), target);
+        *cursor.borrow_mut() = (before, ui.cursor().min);
+    };
+    let shapes = driver.frame(0.0, vec![], &mut app);
+    let (before, after) = *cursor.borrow();
+    assert_eq!(before, after, "painting allocates no space");
+    let bounds = painted_bounds(&shapes);
+    assert!(
+        target.expand(0.5).contains_rect(bounds),
+        "linear paints inside the rect: {bounds:?} in {target:?}"
+    );
+    assert!(
+        (bounds.width() - target.width()).abs() < 1.0,
+        "linear spans the rect's width: {bounds:?}"
+    );
+    let stop = circles(&shapes)
+        .into_iter()
+        .find(|c| c.fill == primary)
+        .ok_or("stop dot")?;
+    // A 6 dp bar: the 4 dp stop is inset by (6 - 4) / 2 from the end.
+    assert!(
+        (stop.center.x - (target.max.x - 3.0)).abs() < 0.5,
+        "the stop dot sits at the rect's end: {}",
+        stop.center.x
+    );
+
+    let square = Rect::from_min_size(Pos2::new(300.0, 100.0), egui::vec2(64.0, 32.0));
+    let mut app = |ui: &mut egui::Ui| {
+        MaterialProgress::circular()
+            .value(0.25)
+            .paint_at(ui.painter(), square);
+    };
+    let shapes = driver.frame(0.0, vec![], &mut app);
+    let bounds = painted_bounds(&shapes);
+    assert!(
+        square.expand(0.5).contains_rect(bounds),
+        "circular paints inside the rect: {bounds:?}"
+    );
+    assert!(
+        (bounds.height() - 32.0).abs() < 1.0 && (bounds.center() - square.center()).length() < 1.0,
+        "circular uses the largest centred square: {bounds:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn loading_indicator_size_and_paint_at() -> TestResult {
+    let mut driver = Driver::new();
+    let theme = driver.theme();
+    let sizes = RefCell::new(Vec::new());
+    let mut app = |ui: &mut egui::Ui| {
+        let mut s = sizes.borrow_mut();
+        s.clear();
+        s.push(ui.add(LoadingIndicator::new()).rect.size());
+        s.push(ui.add(LoadingIndicator::contained().size(24.0)).rect.size());
+    };
+    let shapes = driver.frame(0.0, vec![], &mut app);
+    assert_eq!(
+        *sizes.borrow(),
+        vec![egui::vec2(48.0, 48.0), egui::vec2(24.0, 24.0)],
+        "48 dp by default (LoadingIndicatorTokens.ContainerWidth), or the size set"
+    );
+    let container = rects(&shapes)
+        .into_iter()
+        .find(|r| r.fill == theme.color(ColorRole::PrimaryContainer))
+        .ok_or("contained indicator paints PrimaryContainer")?;
+    assert_eq!(
+        container.rect.size(),
+        egui::vec2(24.0, 24.0),
+        "the container follows the size"
+    );
+
+    let target = Rect::from_min_size(Pos2::new(400.0, 50.0), egui::vec2(20.0, 20.0));
+    let cursor = RefCell::new((Pos2::ZERO, Pos2::ZERO));
+    let mut app = |ui: &mut egui::Ui| {
+        let before = ui.cursor().min;
+        LoadingIndicator::contained()
+            .progress(0.5)
+            .paint_at(ui.painter(), target);
+        *cursor.borrow_mut() = (before, ui.cursor().min);
+    };
+    let shapes = driver.frame(0.0, vec![], &mut app);
+    let (before, after) = *cursor.borrow();
+    assert_eq!(before, after, "painting allocates no space");
+    let container = rects(&shapes)
+        .into_iter()
+        .find(|r| r.fill == theme.color(ColorRole::PrimaryContainer))
+        .ok_or("paint_at paints the container")?;
+    assert_eq!(container.rect, target, "the container fills the rect");
+    let bounds = painted_bounds(&shapes);
+    assert!(
+        target.expand(0.5).contains_rect(bounds),
+        "everything is inside the rect: {bounds:?}"
+    );
+    assert_eq!(meshes(&shapes), 1, "the indicator shape is filled");
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Snapshots
 
