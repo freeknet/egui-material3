@@ -20,7 +20,7 @@ leak into pull requests sent there.
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets --features ondemand,spreadsheet,svg,system-theme -- -D warnings
 cargo clippy --locked --all-targets -- -D warnings
-cargo test --locked --features ondemand,spreadsheet,svg,system-theme --lib --tests
+cargo test --locked --features ondemand,spreadsheet,svg,system-theme --lib --tests --examples
 cargo test --locked --features ondemand,spreadsheet,svg,system-theme --doc
 RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --features ondemand,spreadsheet,svg,system-theme
 cargo deny --all-features check
@@ -221,9 +221,23 @@ values from WP-0 live in the `tokens` module that owns them.
 
 ---
 
-## Known gaps
+## The theme is per context
 
-- Components still read colours through the global `get_global_color`
-  shim; `MaterialTheme::of(ctx)` (WP-0) is the per-context source. Each
-  work package moves its own components onto `MaterialTheme::of` and the
-  `tokens`/`paint`/`a11y` helpers.
+Widgets read colours with `MaterialTheme::of(ctx).color(ColorRole::..)`
+(and the `tokens`/`paint`/`a11y` helpers), never the process-wide theme.
+A context gets its theme from `apply_theme_context` (visuals, type scale
+and widget colours) or `MaterialTheme::set` (widget colours only); one
+with none falls back to the process-wide default that `load_themes` and
+`apply_theme` manage.
+
+`get_global_color`, `get_global_color_role`, `get_global_theme`,
+`update_global_theme`, `get_theme_mode`, `set_theme_mode`,
+`get_contrast_level`, `set_contrast_level` and
+`DrawerThemeData::material2_defaults` are `#[deprecated]` shims kept for
+downstream callers: they read or change that default. Do not call them
+from `src/`; `tests/tokens.rs` (`no_widget_reads_the_global_theme`) fails
+the build if a file other than `theme.rs` does, and
+`tests/theme_isolation.rs` checks that two contexts with different themes
+paint only their own colours. Tests theme their own context (see
+`tests/support`), so they run in parallel, examples included
+(`--examples`).
