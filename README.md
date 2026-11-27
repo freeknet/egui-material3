@@ -24,6 +24,12 @@ cargo add egui-material3 --features "svg,system-theme"  # SVG icons, OS dark mod
 No feature is on by default. SVG rendering (`svg`) and OS light/dark
 detection (`system-theme`) are opt-in; see [Features](#features).
 
+The crate depends on `egui` only, not on `eframe` (on any desktop target,
+Linux included): add `eframe` yourself, with the features your app wants.
+Its windowing stack, and on Linux the D-Bus (zbus) and window-decoration
+font crates under it, then come from your choice of features, not from
+this crate.
+
 Or manually in `Cargo.toml`:
 
 ```toml
@@ -483,7 +489,7 @@ if let Some(svg) = TWEMOJI.get("1f600") {
 | `ondemand` | off | Online images in `MaterialImageList`, and Google Fonts downloads in `setup_google_fonts`. |
 | `spreadsheet` | off | `MaterialSpreadsheet`. |
 | `svg_solar`, `svg_noto`, `svg_twemoji`, `svg_emoji` | off | Embedded SVG icon and emoji collections (each turns on `svg`). |
-| `symbols_rounded`, `symbols_sharp` | off | Material Symbols Rounded / Sharp faces besides Outlined. |
+| `symbols_rounded`, `symbols_sharp` | off | Material Symbols Rounded / Sharp faces besides Outlined. An app that only draws Outlined icons can call `fonts::install_outlined` (or `add_material_fonts_outlined` / `add_symbols_outlined`) instead of `fonts::install`, and the other faces are not linked in even when a dependency turns these features on. |
 
 ### SVG rendering and OS theme detection
 

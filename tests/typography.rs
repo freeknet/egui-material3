@@ -305,6 +305,95 @@ fn symbol_family_falls_back_to_outlined_400() {
 }
 
 #[test]
+fn outlined_only_fonts_register_what_the_widgets_draw_with() -> TestResult {
+    let mut defs = egui::FontDefinitions::default();
+    fonts::add_material_fonts_outlined(&mut defs);
+    // Outlined FILL 0 (every icon) and FILL 1 (selected and toggled icons).
+    for filled in [false, true] {
+        let family = fonts::symbol_family(SymbolStyle::Outlined, filled, 400);
+        assert!(
+            defs.families.contains_key(&family),
+            "Outlined fill {filled} registered"
+        );
+        assert_eq!(
+            fonts::resolve_symbol_family(&defs, SymbolStyle::Outlined, filled, 400),
+            family,
+            "an Outlined fill {filled} icon resolves to its own face"
+        );
+    }
+    // A codepoint in ordinary text still draws as an icon.
+    let outlined = symbol_family_name(SymbolStyle::Outlined, false, 400);
+    let proportional = defs.families.get(&FontFamily::Proportional);
+    assert!(
+        proportional.is_some_and(|l| l.last() == Some(&outlined)),
+        "Outlined FILL 0 is the last proportional fallback"
+    );
+    // Roboto and the weight families, as with every style.
+    for (weight, face, _) in fonts::ROBOTO {
+        let family = FontFamily::Name(weight_family_name(weight).into());
+        assert_eq!(
+            defs.families
+                .get(&family)
+                .and_then(|l| l.first())
+                .map(String::as_str),
+            Some(face),
+            "plain-{weight} starts with {face}"
+        );
+    }
+    // Nothing else: Rounded and Sharp fall back to Outlined.
+    for style in [SymbolStyle::Rounded, SymbolStyle::Sharp] {
+        for filled in [false, true] {
+            assert!(
+                !defs
+                    .families
+                    .contains_key(&fonts::symbol_family(style, filled, 400)),
+                "{style:?} fill {filled} not registered"
+            );
+            assert_eq!(
+                fonts::resolve_symbol_family(&defs, style, filled, 400),
+                fonts::symbol_family(SymbolStyle::Outlined, filled, 400),
+                "{style:?} fill {filled} falls back to Outlined"
+            );
+        }
+    }
+    let symbol_faces = defs
+        .font_data
+        .keys()
+        .filter(|name| name.starts_with("MaterialSymbols"))
+        .count();
+    assert_eq!(symbol_faces, 2, "only the two Outlined faces are loaded");
+
+    // install_outlined puts the same families in a context, and an icon
+    // drawn filled and unfilled finds its glyph.
+    let mut harness = Harness::builder()
+        .with_size(egui::vec2(120.0, 60.0))
+        .with_context_setup(|ctx| {
+            fonts::install_outlined(ctx);
+            MaterialTheme::set(ctx, MaterialTheme::baseline(false));
+        })
+        .build_ui(|ui| {
+            ui.horizontal(|ui| {
+                ui.add(icon("home").filled(false));
+                ui.add(icon("home").filled(true));
+            });
+        });
+    harness.run();
+    let installed = harness.ctx.fonts(|f| f.definitions().clone());
+    for filled in [false, true] {
+        let family = fonts::symbol_family(SymbolStyle::Outlined, filled, 400);
+        assert!(
+            installed.families.contains_key(&family),
+            "install_outlined registers Outlined fill {filled}"
+        );
+        let glyph = harness
+            .ctx
+            .fonts_mut(|f| f.has_glyph(&egui::FontId::new(24.0, family.clone()), ICON_HOME));
+        assert!(glyph, "Outlined fill {filled} has the home glyph");
+    }
+    Ok(())
+}
+
+#[test]
 fn icon_home_draws_the_glyph_not_the_word() -> TestResult {
     let _gpu = one_renderer_at_a_time();
     let mut harness = harness(
