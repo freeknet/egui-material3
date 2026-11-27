@@ -303,9 +303,15 @@ pub mod treeview;
 // MVVM support module
 pub mod mvvm;
 
+#[expect(
+    deprecated,
+    reason = "kept so existing callers of the old badge sizes still compile"
+)]
+pub use badge::BadgeSize;
+
 pub use {
     actionsheet::{action_sheet, ActionButton, ActionGroup, MaterialActionSheet},
-    badge::{badge, badge_dot, BadgeColor, BadgePosition, BadgeSize, MaterialBadge},
+    badge::{badge, badge_dot, BadgeColor, BadgePosition, MaterialBadge},
     bottom_sheet::{BottomSheet, BottomSheetKind, BottomSheetResponse, SheetCloseReason},
     breadcrumbs::{breadcrumbs, MaterialBreadcrumbs},
     button::{ButtonShape, ButtonSize, MaterialButton, MaterialButtonVariant},
@@ -313,7 +319,10 @@ pub use {
     card2::{elevated_card2, filled_card2, outlined_card2, Card2Variant, MaterialCard2},
     carousel::{carousel, CarouselItem, MaterialCarousel},
     checkbox::{checkbox, MaterialCheckbox},
-    chips::{assist_chip, filter_chip, input_chip, suggestion_chip, ChipVariant, MaterialChip},
+    chips::{
+        assist_chip, chip_set, filter_chip, input_chip, suggestion_chip, ChipResponse, ChipVariant,
+        MaterialChip,
+    },
     dashcounter::{dashcounter, CounterCard, MaterialDashCounter},
     datatable::{
         data_table, CellContent, ColumnWidth, DataTableCell, DataTableColumn, DataTableRow,
