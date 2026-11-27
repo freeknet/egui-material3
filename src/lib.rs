@@ -150,7 +150,10 @@
 //! ### Navigation Components
 //! - [`MaterialTabs`] - Tab navigation
 //! - [`MaterialDrawer`] - Navigation drawers
-//! - [`MaterialTopAppBar`] - App bars and toolbars
+//! - [`MaterialTopAppBar`] - Top app bars
+//! - [`MaterialBottomAppBar`] - Bottom app bar with a FAB slot
+//! - [`MaterialToolbar`] - Docked toolbar
+//! - [`MaterialFloatingToolbar`] - Floating toolbar
 //!
 //! ### Icons and Visual Elements
 //! - [`MaterialIcon`] - Material Design icons with font support
@@ -244,6 +247,7 @@
 pub mod a11y;
 pub mod actionsheet;
 pub mod badge;
+pub mod bottom_app_bar;
 pub mod bottom_sheet;
 pub mod breadcrumbs;
 pub mod button;
@@ -262,6 +266,7 @@ pub mod drawer;
 pub mod egui_smol;
 pub mod fab;
 pub mod fab_menu;
+pub mod floating_toolbar;
 pub mod fonts;
 pub mod icon;
 pub mod iconbutton;
@@ -321,6 +326,7 @@ pub use badge::BadgeSize;
 pub use {
     actionsheet::{action_sheet, ActionButton, ActionGroup, MaterialActionSheet},
     badge::{badge, badge_dot, BadgeColor, BadgePosition, MaterialBadge},
+    bottom_app_bar::{bottom_app_bar, MaterialBottomAppBar, BOTTOM_APP_BAR_HEIGHT},
     bottom_sheet::{BottomSheet, BottomSheetKind, BottomSheetResponse, SheetCloseReason},
     breadcrumbs::{breadcrumbs, MaterialBreadcrumbs},
     button::{ButtonShape, ButtonSize, MaterialButton, MaterialButtonVariant},
@@ -354,6 +360,10 @@ pub use {
         MaterialFab,
     },
     fab_menu::{FabMenu, FabMenuColors, FabMenuResponse},
+    floating_toolbar::{
+        floating_toolbar, FloatingToolbarOrientation, FloatingToolbarStyle,
+        MaterialFloatingToolbar, FLOATING_TOOLBAR_SIZE,
+    },
     icon::{icon, paint_icon, Icon, MaterialIcon},
     iconbutton::{
         icon_button_filled, icon_button_filled_tonal, icon_button_outlined, icon_button_standard,
@@ -411,14 +421,18 @@ pub use {
         TimelineItem, TimelinePosition,
     },
     tokens::{ColorRole, ColorScheme},
-    toolbar::{toolbar, MaterialToolbar, ToolbarElevation},
+    toolbar::{
+        docked_toolbar, scroll_area_id, scroll_area_offset, toolbar, MaterialToolbar,
+        ToolbarElevation,
+    },
     tooltip::{
         show_tooltip_on_hover, show_tooltip_on_hover_custom, tooltip, with_tooltip,
         MaterialTooltip, RichTooltip, RichTooltipResponse, TooltipPosition,
     },
     topappbar::{
-        center_aligned_top_app_bar, large_top_app_bar, medium_top_app_bar, top_app_bar,
-        MaterialTopAppBar, TopAppBarVariant,
+        center_aligned_top_app_bar, large_flexible_top_app_bar, large_top_app_bar,
+        medium_flexible_top_app_bar, medium_top_app_bar, top_app_bar, MaterialTopAppBar,
+        TopAppBarScrollBehavior, TopAppBarVariant,
     },
     treeview::{tree_view, MaterialTreeView, TreeViewItem, TreeViewState},
 };
