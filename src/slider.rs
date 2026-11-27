@@ -26,9 +26,14 @@
 //! - disabled: active track and handle `OnSurface` at 0.38, inactive track
 //!   `OnSurface` at 0.12.
 //!
-//! The track sizes S to XL ([`SliderSize`]) are not in the Compose token
-//! files on androidx-main; they come from the M3 Expressive slider spec on
-//! m3.material.io (a stated exception to the Compose-token rule).
+//! Two sets of values are not in Compose and come from the M3 Expressive
+//! slider spec on m3.material.io instead (a stated exception to the
+//! Compose-token rule, checked against androidx-main): the track sizes S to
+//! XL ([`SliderSize`]), since `SliderTokens` has only the XS
+//! `ActiveTrackHeight` / `InactiveTrackHeight` 16 and `HandleHeight` 44;
+//! and the value indicator's 48 x 44 dp container, since `Slider.kt` draws
+//! no value indicator (`SliderTokens` has only its colours, label font and
+//! `ValueIndicatorActiveBottomSpace`).
 //!
 //! # Keyboard
 //!
@@ -59,7 +64,8 @@ pub const TRACK_INSIDE_CORNER: f32 = 2.0;
 pub const STOP_INDICATOR_SIZE: f32 = 4.0;
 /// `SliderTokens.ValueIndicatorActiveBottomSpace` (`Space150`): 12 dp.
 pub const VALUE_INDICATOR_BOTTOM_SPACE: f32 = 12.0;
-/// The value indicator container: 48 x 44 dp (m3.material.io slider spec).
+/// The value indicator container: 48 x 44 dp (m3.material.io slider spec;
+/// androidx-main's `SliderTokens` and `Slider.kt` have no size for it).
 const VALUE_INDICATOR_SIZE: Vec2 = Vec2::new(48.0, 44.0);
 /// Width reserved to the right of a horizontal slider for its label and
 /// value text.
