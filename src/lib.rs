@@ -256,6 +256,7 @@ pub mod color;
 pub mod dashcounter;
 pub mod datatable;
 pub mod dialog;
+pub mod divider;
 pub mod drawer;
 #[cfg(feature = "spreadsheet")]
 pub mod egui_smol;
@@ -280,6 +281,7 @@ pub mod paint;
 pub mod progress;
 pub mod radio;
 pub mod scrim;
+pub mod segmented_button;
 pub mod select;
 pub mod side_sheet;
 pub mod slider;
@@ -319,6 +321,7 @@ pub use {
         SortDirection, VAlign,
     },
     dialog::{dialog, DialogCloseReason, DialogResponse, FullScreenDialog, MaterialDialog},
+    divider::{divider, vertical_divider, DividerOrientation, MaterialDivider},
     drawer::{
         dismissible_drawer, modal_drawer, permanent_drawer, standard_drawer, DrawerAlignment,
         DrawerHeader, DrawerItem, DrawerSection, DrawerThemeData, DrawerVariant, MaterialDrawer,
@@ -340,13 +343,14 @@ pub use {
     input::{InputVariant, MaterialInput},
     layoutgrid::{debug_layout_grid, layout_grid, GridTile, GridTileBar, MaterialLayoutGrid},
     list::{
-        list, list_item, ListItem, ListTileStyle, ListTileTitleAlignment, MaterialList,
-        MaterialListState, VisualDensity,
+        list, list_item, ListItem, ListLeading, ListTileStyle, ListTileTitleAlignment,
+        MaterialList, MaterialListState, VisualDensity,
     },
     material_theme::MaterialTheme,
     menu::{
-        menu, menu_item, Corner, FocusState, MaterialMenu, MenuBarThemeData, MenuButtonThemeData,
-        MenuItem, MenuStyle, MenuThemeData, Positioning,
+        context_menu, menu, menu_item, Corner, FocusState, MaterialMenu, MenuBarThemeData,
+        MenuButtonThemeData, MenuEntry, MenuItem, MenuStyle, MenuThemeData, MenuVariant,
+        Positioning,
     },
     navigation::{NavigationBadge, NavigationItem},
     navigation_bar::{NavigationBar, NavigationBarVariant},
@@ -359,6 +363,7 @@ pub use {
         radio, radio_group, radio_list_tile, ListTileControlAffinity, MaterialRadio,
         MaterialRadioGroup, RadioListTile,
     },
+    segmented_button::{Segment, SegmentedButton},
     select::{select, MaterialSelect, MenuAlignment, SelectVariant},
     side_sheet::{SideSheet, SideSheetKind, SideSheetResponse},
     slider::{
