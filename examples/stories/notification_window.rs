@@ -342,16 +342,8 @@ impl NotificationWindow {
             }
         });
 
-        // Check for auto-dismiss
-        if self.show_closeable {
-            if let Some(show_time) = self.closeable_show_time {
-                if show_time.elapsed() >= Duration::from_secs(5) {
-                    self.show_closeable = false;
-                    self.closeable_show_time = None;
-                }
-            }
-        }
-
+        // The notification times itself out (`auto_dismiss`) and reports it
+        // as a change, like a click on its close button.
         if self.show_closeable {
             let response = ui.add(
                 notification()
@@ -359,11 +351,12 @@ impl NotificationWindow {
                     .text("Click the close button or anywhere on notification to dismiss")
                     .icon("info")
                     .closeable(true)
+                    .auto_dismiss(Duration::from_secs(5))
                     .align(self.notification_align)
                     .opened(true),
             );
 
-            // Close button was clicked or notification was clicked
+            // Timed out, close button clicked, or notification clicked
             if response.changed() || response.clicked() {
                 self.show_closeable = false;
                 self.closeable_show_time = None;
