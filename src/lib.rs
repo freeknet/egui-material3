@@ -317,7 +317,10 @@ pub use {
     button::{ButtonShape, ButtonSize, MaterialButton, MaterialButtonVariant},
     button_group::{ButtonGroup, ButtonGroupResponse},
     card2::{elevated_card2, filled_card2, outlined_card2, Card2Variant, MaterialCard2},
-    carousel::{carousel, CarouselItem, MaterialCarousel},
+    carousel::{
+        carousel, CarouselItem, CarouselItemLayout, CarouselMetrics, CarouselResponse,
+        CarouselStrategy, MaterialCarousel,
+    },
     checkbox::{checkbox, MaterialCheckbox},
     chips::{
         assist_chip, chip_set, filter_chip, input_chip, suggestion_chip, ChipResponse, ChipVariant,
