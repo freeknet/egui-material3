@@ -348,6 +348,86 @@ fn context_menu_opens_at_the_pointer() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn show_reports_item_responses_and_the_activated_item() -> TestResult {
+    let open = Cell::new(true);
+    let slots = RefCell::new(Vec::new());
+    let activated = Cell::new(None);
+    let mut harness = support::harness_for(MaterialTheme::baseline(false), harness_size(), |ui| {
+        let mut o = open.get();
+        let shown = MaterialMenu::new(egui::Id::unique("responses"), &mut o)
+            .anchor_rect(ANCHOR)
+            .item(menu_item("Cut"))
+            .divider()
+            .item(menu_item("Copy"))
+            .show(ui.ctx());
+        if o {
+            *slots.borrow_mut() = shown.items.iter().map(Option::is_some).collect();
+        }
+        if shown.activated.is_some() {
+            activated.set(shown.activated);
+        }
+        open.set(o);
+    });
+    assert_eq!(
+        *slots.borrow(),
+        vec![true, false, true],
+        "one slot per entry; the divider has no response"
+    );
+    harness.get_by_label("Copy").click();
+    harness.run();
+    assert_eq!(activated.get(), Some(2), "the clicked entry's index");
+    assert!(!open.get(), "activating an item closes the menu");
+    Ok(())
+}
+
+#[test]
+fn show_with_puts_custom_content_on_the_menu_surface() -> TestResult {
+    let open = Cell::new(true);
+    let surface = Cell::new(None);
+    let mut harness = support::harness_for(MaterialTheme::baseline(false), harness_size(), |ui| {
+        let mut o = open.get();
+        let shown = MaterialMenu::new(egui::Id::unique("custom"), &mut o)
+            .anchor_rect(ANCHOR)
+            .show_with(ui.ctx(), |ui| {
+                ui.label("Zoom level");
+                if ui.button("Fit").clicked() {
+                    ui.close();
+                }
+                7
+            });
+        if let Some(shown) = shown {
+            assert_eq!(shown.inner, 7, "the content's value comes back");
+            surface.set(Some(shown.response.rect));
+        }
+        open.set(o);
+    });
+    let menu = harness.get_by_role(Role::Menu).rect();
+    assert!(
+        menu.width() >= 112.0 && menu.width() <= 280.0,
+        "the surface keeps the 112-280 dp width limits: {menu:?}"
+    );
+    assert!(
+        menu.min.y >= ANCHOR.max.y,
+        "the surface opens below its anchor: {menu:?}"
+    );
+    assert_eq!(surface.get(), Some(menu), "the response is the surface");
+    let label = harness.get_by_label("Zoom level").rect();
+    assert!(menu.contains_rect(label), "content sits on the surface");
+    harness.get_by_label("Fit").click();
+    harness.run();
+    assert!(!open.get(), "ui.close() in the content closes the menu");
+
+    open.set(true);
+    harness.run();
+    harness.run();
+    assert!(open.get(), "reopened");
+    harness.key_press(Key::Escape);
+    harness.run();
+    assert!(!open.get(), "Escape closes a custom menu");
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Snapshots.
 

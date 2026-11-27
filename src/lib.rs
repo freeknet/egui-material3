@@ -349,8 +349,8 @@ pub use {
     material_theme::MaterialTheme,
     menu::{
         context_menu, menu, menu_item, Corner, FocusState, MaterialMenu, MenuBarThemeData,
-        MenuButtonThemeData, MenuEntry, MenuItem, MenuStyle, MenuThemeData, MenuVariant,
-        Positioning,
+        MenuButtonThemeData, MenuEntry, MenuItem, MenuResponse, MenuStyle, MenuThemeData,
+        MenuVariant, Positioning,
     },
     navigation::{NavigationBadge, NavigationItem},
     navigation_bar::{NavigationBar, NavigationBarVariant},
