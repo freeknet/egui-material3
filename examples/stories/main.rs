@@ -42,6 +42,7 @@ mod list_window;
 mod menu_window;
 mod navigation_window;
 mod notification_window;
+mod pickers_window;
 mod progress_window;
 mod radio_window;
 mod search_window;
@@ -82,6 +83,7 @@ use list_window::ListWindow;
 use menu_window::MenuWindow;
 use navigation_window::NavigationWindow;
 use notification_window::NotificationWindow;
+use pickers_window::PickersWindow;
 use progress_window::ProgressWindow;
 use radio_window::RadioWindow;
 use search_window::SearchWindow;
@@ -154,6 +156,7 @@ struct MaterialApp {
     list_window: ListWindow,
     menu_window: MenuWindow,
     navigation_window: NavigationWindow,
+    pickers_window: PickersWindow,
     notification_window: NotificationWindow,
     progress_window: ProgressWindow,
     radio_window: RadioWindow,
@@ -201,6 +204,7 @@ impl Default for MaterialApp {
             list_window: ListWindow::default(),
             menu_window: MenuWindow::default(),
             navigation_window: NavigationWindow::default(),
+            pickers_window: PickersWindow::default(),
             notification_window: NotificationWindow::default(),
             progress_window: ProgressWindow::default(),
             radio_window: RadioWindow::default(),
@@ -406,6 +410,7 @@ impl MaterialApp {
         self.list_window.open = false;
         self.menu_window.open = false;
         self.navigation_window.open = false;
+        self.pickers_window.open = false;
         self.progress_window.open = false;
         self.radio_window.open = false;
         self.select_window.open = false;
@@ -780,6 +785,12 @@ impl eframe::App for MaterialApp {
                     if ui.add(MaterialButton::filled("Menu Stories")).clicked() {
                         self.menu_window.open = true;
                     }
+                    if ui
+                        .add(MaterialButton::filled("Date & Time Picker Stories"))
+                        .clicked()
+                    {
+                        self.pickers_window.open = true;
+                    }
 
                     if ui
                         .add(MaterialButton::filled("Navigation Stories"))
@@ -894,6 +905,7 @@ impl eframe::App for MaterialApp {
         self.list_window.show(ctx);
         self.menu_window.show(ctx);
         self.navigation_window.show(ctx);
+        self.pickers_window.show(ctx);
         self.notification_window.show(ctx);
         self.progress_window.show(ctx);
         self.radio_window.show(ctx);
