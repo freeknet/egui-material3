@@ -67,11 +67,16 @@ pub enum BadgeColor {
     /// `error` container, `onError` text: the Material 3 badge, and the
     /// default.
     Error,
-    /// A fixed green. Not a Material 3 colour role.
+    /// The theme's success colour ([`MaterialTheme::success`]: a green
+    /// harmonised to the theme), `color` container and `onColor` text.
+    /// Material 3 has no success role; this is a Theme Builder style
+    /// extended colour.
     Success,
-    /// A fixed amber. Not a Material 3 colour role.
+    /// The theme's warning colour ([`MaterialTheme::warning`]: an amber
+    /// harmonised to the theme), `color` container and `onColor` text.
     Warning,
-    /// A fixed grey. Not a Material 3 colour role.
+    /// `inverseSurface` container, `inverseOnSurface` text: a neutral,
+    /// high-contrast badge in the theme's own greys.
     Neutral,
     /// A custom container and text colour.
     Custom(Color32, Color32),
@@ -89,9 +94,18 @@ impl BadgeColor {
                 theme.color(ColorRole::Error),
                 theme.color(ColorRole::OnError),
             ),
-            BadgeColor::Success => (Color32::from_rgb(34, 197, 94), Color32::WHITE),
-            BadgeColor::Warning => (Color32::from_rgb(234, 179, 8), Color32::BLACK),
-            BadgeColor::Neutral => (Color32::from_rgb(107, 114, 128), Color32::WHITE),
+            BadgeColor::Success => {
+                let group = theme.success();
+                (group.color, group.on_color)
+            }
+            BadgeColor::Warning => {
+                let group = theme.warning();
+                (group.color, group.on_color)
+            }
+            BadgeColor::Neutral => (
+                theme.color(ColorRole::InverseSurface),
+                theme.color(ColorRole::InverseOnSurface),
+            ),
             BadgeColor::Custom(container, text) => (container, text),
         }
     }
