@@ -8,14 +8,15 @@
 //! Menus (WP-11): content-sized width within 112-280 dp, item heights per
 //! variant, keyboard navigation and typeahead, submenus opened with the
 //! Right arrow, check and radio items in the AccessKit tree, Escape and
-//! outside clicks closing, the context-menu helper, and snapshots.
+//! outside clicks closing, the context-menu helper, custom content that
+//! closes on a click and nests submenus, and snapshots.
 
 mod support;
 
 use std::cell::{Cell, RefCell};
 
 use egui::accesskit::{Role, Toggled};
-use egui::{Event, Key, Pos2, Rect, Vec2};
+use egui::{Event, Key, PopupCloseBehavior, Pos2, Rect, Vec2};
 use egui_kittest::kittest::{NodeT, Queryable};
 use egui_material3::{
     context_menu, menu_item, FocusState, MaterialMenu, MaterialTheme, MenuVariant,
@@ -425,6 +426,254 @@ fn show_with_puts_custom_content_on_the_menu_surface() -> TestResult {
     harness.key_press(Key::Escape);
     harness.run();
     assert!(!open.get(), "Escape closes a custom menu");
+    Ok(())
+}
+
+#[test]
+fn a_click_on_a_widget_in_custom_content_closes_the_menu() -> TestResult {
+    for (behavior, closes) in [
+        (PopupCloseBehavior::CloseOnClick, true),
+        (PopupCloseBehavior::CloseOnClickOutside, false),
+    ] {
+        let open = Cell::new(true);
+        let clicked = Cell::new(false);
+        let mut harness =
+            support::harness_for(MaterialTheme::baseline(false), harness_size(), |ui| {
+                let mut o = open.get();
+                MaterialMenu::new(egui::Id::unique("close_on_click"), &mut o)
+                    .anchor_rect(ANCHOR)
+                    .close_behavior(behavior)
+                    .show_with(ui.ctx(), |ui| {
+                        ui.add(egui::Label::new("Zoom").selectable(false));
+                        if ui.button("Fit").clicked() {
+                            clicked.set(true);
+                        }
+                    });
+                open.set(o);
+            });
+        harness.run();
+        harness.get_by_label("Zoom").click();
+        harness.run();
+        assert!(
+            open.get(),
+            "{behavior:?}: a click on a label keeps the menu"
+        );
+        harness.get_by_label("Fit").click();
+        harness.run();
+        assert!(clicked.get(), "{behavior:?}: the button saw its click");
+        assert_eq!(
+            !open.get(),
+            closes,
+            "{behavior:?}: whether a button click closes the menu"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn keep_open_content_items_do_not_close_the_menu() -> TestResult {
+    let open = Cell::new(true);
+    let bold = Cell::new(false);
+    let mut harness = support::harness_for(MaterialTheme::baseline(false), harness_size(), |ui| {
+        let mut o = open.get();
+        let mut b = bold.get();
+        MaterialMenu::new(egui::Id::unique("keep_open_content"), &mut o)
+            .anchor_rect(ANCHOR)
+            .show_with(ui.ctx(), |ui| {
+                MaterialMenu::content_item(ui, menu_item("Bold").toggles(&mut b).keep_open(true));
+                MaterialMenu::content_item(ui, menu_item("Plain"));
+            });
+        bold.set(b);
+        open.set(o);
+    });
+    harness.run();
+    assert_eq!(
+        harness.get_by_label("Bold").accesskit_node().role(),
+        Role::MenuItemCheckBox,
+        "a content item reports its menu role"
+    );
+    harness.get_by_label("Bold").click();
+    harness.run();
+    assert!(bold.get(), "the bound flag flips");
+    assert!(open.get(), "a keep_open item leaves the menu open");
+    harness.get_by_label("Plain").click();
+    harness.run();
+    assert!(!open.get(), "a plain content item closes the menu");
+    Ok(())
+}
+
+/// A custom menu: "Edit", a "Share" submenu holding "Email" and a nested
+/// "More" submenu holding "Fax".
+fn nested_harness<'a>(
+    open: &'a Cell<bool>,
+    picked: &'a RefCell<Vec<&'static str>>,
+) -> egui_kittest::Harness<'a> {
+    support::harness_for(MaterialTheme::baseline(false), harness_size(), move |ui| {
+        let mut o = open.get();
+        MaterialMenu::new(egui::Id::unique("nested_custom"), &mut o)
+            .anchor_rect(ANCHOR)
+            .show_with(ui.ctx(), |ui| {
+                MaterialMenu::submenu(ui, "Share", |ui| {
+                    if MaterialMenu::content_item(ui, menu_item("Email")).clicked() {
+                        picked.borrow_mut().push("Email");
+                    }
+                    MaterialMenu::submenu(ui, "More", |ui| {
+                        if MaterialMenu::content_item(ui, menu_item("Fax")).clicked() {
+                            picked.borrow_mut().push("Fax");
+                        }
+                    });
+                });
+                if MaterialMenu::content_item(ui, menu_item("Edit")).clicked() {
+                    picked.borrow_mut().push("Edit");
+                }
+            });
+        open.set(o);
+    })
+}
+
+#[test]
+fn nested_submenus_open_and_a_leaf_click_closes_the_chain() -> TestResult {
+    let open = Cell::new(true);
+    let picked = RefCell::new(Vec::new());
+    let mut harness = nested_harness(&open, &picked);
+    harness.run();
+    assert!(
+        harness.query_by_label("Email").is_none(),
+        "the submenu starts closed"
+    );
+    harness.get_by_label("Share").click();
+    harness.run();
+    assert!(open.get(), "clicking a submenu row does not close the menu");
+    let share = harness.get_by_label("Share").rect();
+    let email = harness.get_by_label("Email").rect();
+    assert!(
+        email.min.x >= share.max.x,
+        "the submenu opens beside its row: {share:?} {email:?}"
+    );
+    harness.get_by_label("More").click();
+    harness.run();
+    assert!(open.get(), "opening a nested submenu keeps the menu open");
+    assert!(
+        harness.query_by_label("Email").is_some(),
+        "the first submenu stays open under the nested one"
+    );
+    assert_eq!(
+        harness.query_all_by_role(Role::Menu).count(),
+        3,
+        "three surfaces: the menu and two submenus"
+    );
+    harness.get_by_label("Fax").click();
+    harness.run();
+    assert_eq!(*picked.borrow(), vec!["Fax"], "the leaf saw its click");
+    assert!(!open.get(), "a leaf click closes the whole chain");
+    harness.run();
+    assert!(
+        harness.query_by_label("Fax").is_none() && harness.query_by_label("Email").is_none(),
+        "no submenu outlives the menu"
+    );
+
+    open.set(true);
+    harness.run();
+    harness.run();
+    assert!(
+        harness.query_by_label("Email").is_none(),
+        "a reopened menu starts with its submenus closed"
+    );
+    Ok(())
+}
+
+#[test]
+fn resting_on_a_submenu_row_opens_it() -> TestResult {
+    let open = Cell::new(true);
+    let picked = RefCell::new(Vec::new());
+    let mut harness = nested_harness(&open, &picked);
+    harness.run();
+    harness.get_by_label("Share").hover();
+    for _ in 0..30 {
+        harness.step();
+    }
+    assert!(
+        harness.query_by_label("Email").is_some(),
+        "resting the pointer on the row opens its submenu"
+    );
+    harness.get_by_label("Edit").hover();
+    for _ in 0..30 {
+        harness.step();
+    }
+    assert!(
+        harness.query_by_label("Email").is_none(),
+        "resting on another entry closes it again"
+    );
+    assert!(open.get(), "hovering never closes the menu");
+    Ok(())
+}
+
+#[test]
+fn submenus_in_custom_content_follow_right_left_and_escape() -> TestResult {
+    let open = Cell::new(true);
+    let picked = RefCell::new(Vec::new());
+    let mut harness = nested_harness(&open, &picked);
+    harness.run();
+    harness.get_by_label("Share").focus();
+    harness.run();
+    assert!(
+        harness.get_by_label("Share").is_focused(),
+        "the row has focus"
+    );
+
+    harness.key_press(Key::ArrowRight);
+    harness.run();
+    assert!(
+        harness.get_by_label("Email").is_focused(),
+        "Right opens the submenu on its first widget"
+    );
+    harness.key_press(Key::ArrowLeft);
+    harness.run();
+    assert!(
+        harness.query_by_label("Email").is_none(),
+        "Left closes the submenu"
+    );
+    assert!(
+        harness.get_by_label("Share").is_focused(),
+        "focus returns to the row"
+    );
+    assert!(open.get(), "Left leaves the menu open");
+
+    harness.key_press(Key::ArrowRight);
+    harness.run();
+    harness.key_press(Key::Escape);
+    harness.run();
+    assert!(
+        harness.query_by_label("Email").is_none(),
+        "Escape closes the submenu"
+    );
+    assert!(open.get(), "Escape in a submenu leaves the menu open");
+    assert!(
+        harness.get_by_label("Share").is_focused(),
+        "focus returns to the row after Escape"
+    );
+    harness.key_press(Key::Escape);
+    harness.run();
+    assert!(!open.get(), "Escape on the top level closes the menu");
+
+    open.set(true);
+    harness.run();
+    harness.run();
+    harness.get_by_label("Share").focus();
+    harness.run();
+    harness.key_press(Key::Enter);
+    harness.run();
+    assert!(
+        harness.get_by_label("Email").is_focused(),
+        "Enter on the row opens the submenu too"
+    );
+    harness.key_press(Key::Enter);
+    harness.run();
+    assert_eq!(*picked.borrow(), vec!["Email"], "Enter activates the leaf");
+    assert!(
+        !open.get(),
+        "activating a leaf from the keyboard closes the menu"
+    );
     Ok(())
 }
 
