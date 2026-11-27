@@ -739,6 +739,37 @@ fn tab_layouts_size_tabs() {
 }
 
 #[test]
+fn content_tabs_allocate_only_their_own_width() {
+    let bar = Cell::new(Rect::NOTHING);
+    let after = Cell::new(Rect::NOTHING);
+    let harness = support::harness_for(light(), Vec2::new(800.0, 100.0), |ui| {
+        ui.horizontal(|ui| {
+            let mut selected = 0;
+            bar.set(
+                ui.add(
+                    MaterialTabs::primary(&mut selected)
+                        .tab("A")
+                        .tab("B")
+                        .layout(TabLayout::Content),
+                )
+                .rect,
+            );
+            after.set(ui.label("next").rect);
+        });
+    });
+    let a = harness.get_by_label("A").rect();
+    let b = harness.get_by_label("B").rect();
+    let bar = bar.get();
+    assert_eq!(bar.min.x, a.min.x, "the bar starts at the first tab");
+    assert_eq!(bar.max.x, b.max.x, "the bar ends at the last tab: {bar:?}");
+    assert!(
+        after.get().min.x < 400.0,
+        "a widget after content tabs sits beside them: {:?}",
+        after.get()
+    );
+}
+
+#[test]
 fn scrollable_tabs_overflow_into_a_scroll_area() {
     let mut harness = support::harness_for(light(), Vec2::new(300.0, 100.0), |ui| {
         let mut selected = 0;
