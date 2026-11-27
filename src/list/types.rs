@@ -7,7 +7,7 @@
 
 //! Type definitions for Material Design 3 List Components
 
-use egui::{ecolor::Color32, Rect, Vec2};
+use egui::{ecolor::Color32, Rect, Response, Sense, Vec2};
 
 /// Which title font a list tile uses.
 pub enum ListTileStyle {
@@ -121,6 +121,54 @@ pub struct MaterialList<'a> {
     pub(crate) fill_width: bool,
     /// M3 Expressive segmented list: items in separate containers, 2 dp apart
     pub(crate) segmented: bool,
+    /// What each row senses besides clicks (e.g. drags)
+    pub(crate) row_sense: Sense,
+}
+
+/// What [`MaterialList::show`] reports: the list's own response and one
+/// response per row.
+///
+/// Each row's response is the whole item container, with the row's id,
+/// and senses clicks (so secondary and double clicks too) plus whatever
+/// [`MaterialList::row_sense`] adds; a disabled row senses hover only.
+/// Attach context menus, double-click handlers or drag sources to it:
+///
+/// ```rust
+/// # egui::__run_test_ui(|ui| {
+/// use egui_material3::{list_item, MaterialList, MaterialMenu, menu_item};
+///
+/// let shown = MaterialList::new()
+///     .id(egui::Id::unique("files"))
+///     .row_sense(egui::Sense::drag())
+///     .item(list_item("clip-01.mp4"))
+///     .item(list_item("clip-02.mp4"))
+///     .show(ui);
+/// for (index, row) in shown.items.iter().enumerate() {
+///     if row.double_clicked() {
+///         // open item `index`
+///     }
+///     if row.drag_started() {
+///         // start dragging item `index`
+///     }
+///     MaterialMenu::context(row.id.with("menu"))
+///         .item(menu_item("Rename"))
+///         .show_context(row);
+/// }
+/// # });
+/// ```
+#[derive(Debug, Clone)]
+pub struct ListResponse {
+    /// The whole list.
+    pub response: Response,
+    /// One response per row, index-aligned with the items added.
+    pub items: Vec<Response>,
+}
+
+impl ListResponse {
+    /// The response of row `index`, if there is one.
+    pub fn item(&self, index: usize) -> Option<&Response> {
+        self.items.get(index)
+    }
 }
 
 /// What a list item shows at its start, besides a plain icon.

@@ -8,7 +8,9 @@
 //! Lists (WP-11): one/two/three-line heights 56/72/88 with BodyLarge
 //! labels, `surface` container and `secondaryContainer` selection, leading
 //! avatars, images, checkboxes and radios, segmented items 2 dp apart, the
-//! AccessKit tree, keyboard roving with Up/Down, and snapshots.
+//! AccessKit tree, keyboard roving with Up/Down, per-row responses from
+//! `MaterialList::show` (secondary click, double click, drag), and
+//! snapshots.
 
 mod support;
 
@@ -363,6 +365,119 @@ fn content_ui_keeps_clicks_keyboard_and_accesskit() -> TestResult {
     harness.key_press(Key::Space);
     harness.run();
     assert_eq!(clicked.get(), 2, "Space activates the focused item");
+    Ok(())
+}
+
+#[test]
+fn show_reports_secondary_and_double_clicks_on_the_right_row() -> TestResult {
+    let secondary = Cell::new(None);
+    let double = Cell::new(None);
+    let count = Cell::new(0);
+    // Steps of 1/60 s instead of kittest's 1/4 s, so two clicks a few
+    // frames apart fall within egui's 0.3 s double-click delay.
+    let mut harness = egui_kittest::Harness::builder()
+        .with_size(size())
+        .with_step_dt(1.0 / 60.0)
+        .allow_missing_glyphs()
+        .build_ui(|ui| {
+            let shown = MaterialList::new()
+                .id(egui::Id::unique("rows"))
+                .item(ListItem::new("Alpha"))
+                .item(ListItem::new("Beta").selected(true))
+                .item(ListItem::new("Gamma"))
+                .show(ui);
+            count.set(shown.items.len());
+            for (index, row) in shown.items.iter().enumerate() {
+                if row.secondary_clicked() {
+                    secondary.set(Some(index));
+                }
+                if row.double_clicked() {
+                    double.set(Some(index));
+                }
+            }
+        });
+    MaterialTheme::set(&harness.ctx, MaterialTheme::baseline(false));
+    harness.run();
+    assert_eq!(count.get(), 3, "one response per row");
+    // The double click comes first: a click shortly after an earlier one
+    // would count as a triple click.
+    harness.get_by_label("Beta").click();
+    harness.get_by_label("Beta").click();
+    harness.run();
+    assert_eq!(double.get(), Some(1), "the double click is on Beta");
+    harness.get_by_label("Gamma").click_secondary();
+    harness.run();
+    assert_eq!(secondary.get(), Some(2), "the secondary click is on Gamma");
+    assert_eq!(
+        harness.get_by_label("Beta").accesskit_node().role(),
+        Role::ListItem,
+        "rows keep their AccessKit role"
+    );
+    Ok(())
+}
+
+#[test]
+fn row_sense_drag_starts_a_drag_on_the_right_row() -> TestResult {
+    let started = Cell::new(None);
+    let mut harness = support::harness_for(MaterialTheme::baseline(false), size(), |ui| {
+        let shown = MaterialList::new()
+            .id(egui::Id::unique("drag_rows"))
+            .row_sense(egui::Sense::drag())
+            .item(ListItem::new("Alpha"))
+            .item(ListItem::new("Beta"))
+            .item(ListItem::new("Gamma"))
+            .show(ui);
+        for (index, row) in shown.items.iter().enumerate() {
+            if row.drag_started() {
+                started.set(Some(index));
+            }
+        }
+    });
+    let from = harness.get_by_label("Beta").rect().center();
+    harness.hover_at(from);
+    harness.run();
+    harness.drag_at(from);
+    harness.run();
+    harness.hover_at(from + Vec2::new(0.0, 30.0));
+    harness.run();
+    assert_eq!(started.get(), Some(1), "the drag starts on Beta");
+    harness.drop_at(from + Vec2::new(0.0, 30.0));
+    harness.run();
+    Ok(())
+}
+
+#[test]
+fn show_keeps_up_and_down_roving_and_activation() -> TestResult {
+    let clicked = Cell::new(0);
+    let mut harness = support::harness_for(MaterialTheme::baseline(false), size(), |ui| {
+        let _rows = MaterialList::new()
+            .row_sense(egui::Sense::drag())
+            .item(ListItem::new("Alpha"))
+            .item(ListItem::new("Beta").enabled(false))
+            .item(ListItem::new("Gamma").on_click(|| clicked.set(clicked.get() + 1)))
+            .show(ui);
+    });
+    harness.key_press(Key::Tab);
+    harness.run();
+    assert!(
+        harness.get_by_label("Alpha").is_focused(),
+        "Tab reaches the first row"
+    );
+    harness.key_press(Key::ArrowDown);
+    harness.run();
+    assert!(
+        harness.get_by_label("Gamma").is_focused(),
+        "Down skips the disabled row"
+    );
+    harness.key_press(Key::Enter);
+    harness.run();
+    assert_eq!(clicked.get(), 1, "Enter activates the focused row");
+    harness.get_by_label("Alpha").click();
+    harness.run();
+    assert!(
+        harness.get_by_label("Beta").accesskit_node().is_disabled(),
+        "a disabled row is still reported disabled"
+    );
     Ok(())
 }
 
