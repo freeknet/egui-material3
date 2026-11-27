@@ -1096,7 +1096,7 @@ impl<'a> MaterialRangeSlider<'a> {
     }
 
     /// The label: painted beside a horizontal slider, and the accessible
-    /// name ("<label> start" / "<label> end" for the thumbs).
+    /// name ("`<label>` start" / "`<label>` end" for the thumbs).
     pub fn text(mut self, text: impl Into<String>) -> Self {
         self.text = Some(text.into());
         self
