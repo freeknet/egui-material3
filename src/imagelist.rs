@@ -814,6 +814,10 @@ mod tests {
     }
 
     /// Runs frames until `source` leaves the loading state, or 10 s pass.
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "every state but a still-loading one ends the wait"
+    )]
     fn settle(ctx: &egui::Context, source: &str) -> ImageState {
         let started = Instant::now();
         loop {
