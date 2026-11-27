@@ -34,6 +34,22 @@
 //!
 //! Most apps call [`install`] once at start-up. Apps that build their own
 //! [`FontDefinitions`] call [`add_material_fonts`] on them instead.
+//!
+//! ## Outlined only
+//!
+//! [`install`], [`add_material_fonts`] and [`add_symbols`] register every
+//! style this build bundles. An app that only draws Outlined icons calls
+//! [`install_outlined`], [`add_material_fonts_outlined`] or
+//! [`add_symbols_outlined`] instead. Those register Outlined FILL 0 and
+//! FILL 1 (both are needed: the library's widgets draw selected and
+//! toggled icons, such as a selected navigation destination or a selected
+//! toggle icon button, in FILL 1) and never refer to the Rounded or Sharp
+//! faces, so even when another crate in the build turns on
+//! `symbols_rounded` or `symbols_sharp`, the linker drops those faces from
+//! a binary that only takes the outlined path. Without those features the
+//! Rounded and Sharp faces are not compiled in at all. Outlined FILL 1 is
+//! not behind a feature: turning it off would have to be a subtractive
+//! feature, and the widgets above would lose their selected style.
 
 use egui::epaint::text::{FontTweak, VariationCoords};
 use egui::{FontData, FontDefinitions, FontFamily};
@@ -96,15 +112,18 @@ impl SymbolStyle {
     /// bundles it.
     pub fn bundled(self) -> Option<[&'static [u8]; 2]> {
         match self {
-            SymbolStyle::Outlined => Some([
-                include_bytes!("../resources/fonts/MaterialSymbolsOutlined-Fill0.ttf"),
-                include_bytes!("../resources/fonts/MaterialSymbolsOutlined-Fill1.ttf"),
-            ]),
+            SymbolStyle::Outlined => Some(OUTLINED_FACES),
             SymbolStyle::Rounded => rounded_faces(),
             SymbolStyle::Sharp => sharp_faces(),
         }
     }
 }
+
+/// The Outlined FILL 0 and FILL 1 faces, always bundled.
+const OUTLINED_FACES: [&[u8]; 2] = [
+    include_bytes!("../resources/fonts/MaterialSymbolsOutlined-Fill0.ttf"),
+    include_bytes!("../resources/fonts/MaterialSymbolsOutlined-Fill1.ttf"),
+];
 
 #[cfg(feature = "symbols_rounded")]
 fn rounded_faces() -> Option<[&'static [u8]; 2]> {
@@ -243,19 +262,40 @@ pub fn add_variable_symbols(defs: &mut FontDefinitions, style: SymbolStyle, data
 /// returns) still draws as an icon.
 pub fn add_symbols(defs: &mut FontDefinitions) {
     for style in SymbolStyle::ALL {
-        let Some(faces) = style.bundled() else {
-            continue;
-        };
-        for (filled, bytes) in [(false, faces[0]), (true, faces[1])] {
-            add_symbol_font(
-                defs,
-                style,
-                filled,
-                SYMBOL_WEIGHT,
-                FontData::from_static(bytes),
-            );
+        if let Some(faces) = style.bundled() {
+            add_style_faces(defs, style, faces);
         }
     }
+    push_outlined_fallback(defs);
+}
+
+/// Adds only the Outlined Material Symbols faces (FILL 0 and FILL 1, the
+/// families the library's widgets draw with), and Outlined FILL 0 at the
+/// end of `Proportional`, as [`add_symbols`] does. Rounded and Sharp are
+/// not registered, and not linked in through this path (see the
+/// [module docs](self#outlined-only)); an icon asking for them falls back
+/// to Outlined ([`resolve_symbol_family`]).
+pub fn add_symbols_outlined(defs: &mut FontDefinitions) {
+    add_style_faces(defs, SymbolStyle::Outlined, OUTLINED_FACES);
+    push_outlined_fallback(defs);
+}
+
+/// Registers the FILL 0 and FILL 1 `faces` of `style` at weight 400.
+fn add_style_faces(defs: &mut FontDefinitions, style: SymbolStyle, faces: [&'static [u8]; 2]) {
+    let [fill0, fill1] = faces;
+    for (filled, bytes) in [(false, fill0), (true, fill1)] {
+        add_symbol_font(
+            defs,
+            style,
+            filled,
+            SYMBOL_WEIGHT,
+            FontData::from_static(bytes),
+        );
+    }
+}
+
+/// Puts Outlined FILL 0 at the end of `Proportional`.
+fn push_outlined_fallback(defs: &mut FontDefinitions) {
     let outlined = symbol_family_name(SymbolStyle::Outlined, false, SYMBOL_WEIGHT);
     push_back(defs, FontFamily::Proportional, &outlined);
 }
@@ -285,6 +325,14 @@ pub fn add_material_fonts(defs: &mut FontDefinitions) {
     complete_weight_families(defs);
 }
 
+/// [`add_material_fonts`] with only the Outlined symbols
+/// ([`add_symbols_outlined`]).
+pub fn add_material_fonts_outlined(defs: &mut FontDefinitions) {
+    add_roboto(defs);
+    add_symbols_outlined(defs);
+    complete_weight_families(defs);
+}
+
 /// egui's default fonts with [`add_material_fonts`] applied.
 pub fn material_font_definitions() -> FontDefinitions {
     let mut defs = FontDefinitions::default();
@@ -297,6 +345,17 @@ pub fn material_font_definitions() -> FontDefinitions {
 /// ([`apply_text_styles`](crate::tokens::typography::apply_text_styles)).
 pub fn install(ctx: &egui::Context) {
     let defs = material_font_definitions();
+    crate::tokens::typography::record_font_families(ctx, &defs);
+    crate::tokens::typography::apply_text_styles(ctx);
+    ctx.set_fonts(defs);
+}
+
+/// [`install`] with only the Outlined symbols: egui's default fonts with
+/// [`add_material_fonts_outlined`] applied, and the type scale mapped into
+/// the text styles.
+pub fn install_outlined(ctx: &egui::Context) {
+    let mut defs = FontDefinitions::default();
+    add_material_fonts_outlined(&mut defs);
     crate::tokens::typography::record_font_families(ctx, &defs);
     crate::tokens::typography::apply_text_styles(ctx);
     ctx.set_fonts(defs);

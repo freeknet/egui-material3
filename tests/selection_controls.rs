@@ -184,6 +184,76 @@ fn switch_thumb_has_icon_size_when_off_with_an_icon() {
 }
 
 #[test]
+fn dense_switch_is_two_density_steps_down() -> TestResult {
+    let mut on = false;
+    let mut harness = support::harness_for(
+        MaterialTheme::baseline(false),
+        egui::vec2(200.0, 100.0),
+        |ui| {
+            ui.add(MaterialSwitch::new(&mut on).dense(true).text("Dense"));
+        },
+    );
+    let node = harness.get_by_label("Dense").rect();
+    assert_eq!(node.height(), 40.0, "dense: 40 dp touch target");
+    let off = circles(&harness, 6.0);
+    let [(off_centre, _)] = off.as_slice() else {
+        return Err(format!("one 12 dp thumb when off: {off:?}").into());
+    };
+    let off_x = off_centre.x - node.min.x;
+    assert!(
+        (off_x - 12.0).abs() < 0.01,
+        "dense off thumb centre at 12, got {off_x}"
+    );
+    assert!(
+        (off_centre.y - node.center().y).abs() < 0.01,
+        "dense thumb vertically centred"
+    );
+
+    harness.get_by_label("Dense").click();
+    harness.run();
+    harness.remove_cursor();
+    harness.run();
+    let on_thumbs = circles(&harness, 9.0);
+    let [(on_centre, _)] = on_thumbs.as_slice() else {
+        return Err(format!("one 18 dp thumb when on: {on_thumbs:?}").into());
+    };
+    let on_x = on_centre.x - node.min.x;
+    assert!(
+        (on_x - 27.0).abs() < 0.01,
+        "dense on thumb centre at 27, got {on_x}"
+    );
+    drop(harness);
+    assert!(on, "clicking turns the dense switch on");
+    Ok(())
+}
+
+#[test]
+fn accessible_label_names_the_switch_without_painting_text() {
+    let mut on = true;
+    let harness = support::harness_for(
+        MaterialTheme::baseline(false),
+        egui::vec2(200.0, 100.0),
+        |ui| {
+            ui.add(MaterialSwitch::new(&mut on).accessible_label("Wi-Fi"));
+        },
+    );
+    let node = harness.get_by_label("Wi-Fi");
+    assert_eq!(node.accesskit_node().role(), Role::Switch, "a switch");
+    assert_eq!(
+        node.accesskit_node().toggled(),
+        Some(Toggled::True),
+        "reports its state"
+    );
+    let width = node.rect().width();
+    assert_eq!(width, 52.0, "no label space: the track alone, got {width}");
+    let texts = shapes(&harness)
+        .into_iter()
+        .filter(|shape| matches!(shape, Shape::Text(_)))
+        .count();
+    assert_eq!(texts, 0, "no text painted");
+}
+
+#[test]
 fn switch_colours_follow_tokens() {
     let theme = MaterialTheme::baseline(false);
     let surface = theme.color(ColorRole::Surface);
