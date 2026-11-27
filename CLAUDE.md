@@ -43,6 +43,11 @@ are not built there: `build.rs` downloads thousands of SVG files from the
 GitHub API for them, which an unauthenticated runner is rate-limited out
 of. Build them locally when you touch `svg_emoji.rs` or `build.rs`.
 
+`eframe` is a dev-dependency on every desktop target (the examples and
+doctests use it; the library does not): do not make it a normal
+dependency again, or every downstream Linux build pulls in winit, zbus
+and the font crates under it, and the advisories that come with them.
+
 The doctests run in CI on Linux (slow on Windows: one binary per
 snippet). Snippets compile; use `no_run` for ones that need a window,
 the network or the file system, and hidden `# egui::__run_test_ui(|ui| {`

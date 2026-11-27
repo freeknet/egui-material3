@@ -94,18 +94,22 @@ glob = "0.3"
 smol = { version = "2.0" }
 async-channel = { version = "2.3" }
 
-# Windows/macOS: the examples need eframe (Linux/BSD and Android get it from the
-# target-specific sections below)
+# The library does not use eframe; the examples and doctests do. Keeping it a
+# dev-dependency keeps eframe's windowing stack (winit, zbus via
+# accesskit_unix, ab_glyph/ttf-parser via sctk-adwaita on Linux) out of
+# downstream builds, which bring their own eframe with the features they want.
+# Windows/macOS: the examples need eframe (Android gets it from the
+# target-specific section below)
 [target.'cfg(any(target_os = "windows", target_os = "macos"))'.dev-dependencies]
 eframe = { version = "0.37", default-features = false, features = ["accesskit", "clipboard", "default_fonts", "glow", "links"] }
+
+# Linux/BSD: the examples need eframe with both windowing back ends
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dev-dependencies]
+eframe = { version = "0.37", default-features = false, features = ["accesskit", "clipboard", "default_fonts", "glow", "links", "x11", "wayland"] }
 
 # Android specific dependencies
 [target.'cfg(target_os = "android")'.dependencies]
 eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "android-native-activity"] }
-
-# Linux/BSD-specific dependencies for proper windowing support
-[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
-eframe = { version = "0.37", features = ["default_fonts", "glow", "x11", "wayland"] }
 
 # Wasm specific dependencies
 [target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]

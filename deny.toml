@@ -22,19 +22,22 @@ ignore = [
     { id = "RUSTSEC-2026-0441", reason = "pin-utils via async-std via dark-light 2.0 (system-theme feature); unmaintained, not vulnerable" },
     # rustybuzz 0.20 and ttf-parser 0.25, unmaintained, not vulnerable.
     # Pulled in by resvg/usvg behind the optional `svg` feature (off by
-    # default; also egui_extras' svg loader in dev), and ttf-parser also on
-    # Linux by ab_glyph via eframe -> winit -> sctk-adwaita. Cleared when
-    # resvg and winit's decorations move to harfrust/skrifa.
-    { id = "RUSTSEC-2026-0206", reason = "rustybuzz via resvg/usvg (svg feature); unmaintained, not vulnerable" },
-    { id = "RUSTSEC-2026-0192", reason = "ttf-parser via resvg, fontdb and ab_glyph; unmaintained, not vulnerable" },
+    # default), and in dev by egui_extras' svg loader (tests, examples).
+    # The default build does not have them: eframe, whose winit decorations
+    # (sctk-adwaita -> ab_glyph) also pulled ttf-parser in on Linux, is a
+    # dev-dependency on every desktop target and is built without them.
+    # Cleared when resvg moves to harfrust/skrifa.
+    { id = "RUSTSEC-2026-0206", reason = "rustybuzz via resvg/usvg (svg feature, dev svg loader); unmaintained, not vulnerable" },
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser via resvg/usvg/fontdb (svg feature, dev svg loader); unmaintained, not vulnerable" },
     # zvariant, zvariant_derive and zbus_names, unmaintained, not
-    # vulnerable. Pulled in on Linux by eframe -> egui-winit ->
-    # accesskit_unix (AT-SPI over D-Bus), and by dark-light -> ashpd behind
-    # the optional `system-theme` feature. Cleared by accesskit and
-    # dark-light releases that move off them.
-    { id = "RUSTSEC-2026-0370", reason = "zvariant via eframe's accesskit_unix; unmaintained, not vulnerable" },
-    { id = "RUSTSEC-2026-0371", reason = "zbus_names via eframe's accesskit_unix; unmaintained, not vulnerable" },
-    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive via eframe's accesskit_unix; unmaintained, not vulnerable" },
+    # vulnerable. Pulled in on Linux by dark-light -> ashpd behind the
+    # optional `system-theme` feature (off by default), and in dev by the
+    # examples' eframe -> egui-winit -> accesskit_unix (AT-SPI over D-Bus).
+    # The default build does not have them: eframe is a dev-dependency.
+    # Cleared by dark-light and accesskit releases that move off them.
+    { id = "RUSTSEC-2026-0370", reason = "zvariant via dark-light/ashpd (system-theme feature) and the examples' eframe; unmaintained, not vulnerable" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names via dark-light/ashpd (system-theme feature) and the examples' eframe; unmaintained, not vulnerable" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive via dark-light/ashpd (system-theme feature) and the examples' eframe; unmaintained, not vulnerable" },
 ]
 
 [licenses]

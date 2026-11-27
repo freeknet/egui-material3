@@ -84,8 +84,8 @@ jobs:
         with:
           key: ${{ matrix.os }}
 
-      # eframe is a regular dependency on Linux (x11 and wayland features);
-      # its windowing stack needs these headers to build.
+      # The examples' eframe (a dev-dependency, with the x11 and wayland
+      # features on Linux) needs these headers to build.
       - name: System libraries
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libxkbcommon-dev libwayland-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libdbus-1-dev pkg-config
