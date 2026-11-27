@@ -2,19 +2,18 @@
 // Module:       image_utils
 // Description:  Image and SVG Utilities.
 //
-// Dependencies: egui, resvg, image
+// Dependencies: egui, resvg (svg feature), image
 // ============================================================================
 
 //! Image and SVG Utilities
 //!
 //! Helper functions for loading and caching images and SVG graphics.
 //! Icons rendered from these utilities should use M3 color roles.
+//!
+//! The SVG functions need the `svg` cargo feature. Without it they keep
+//! their signatures and return an error, so callers compile either way.
 
 use egui::{self, ColorImage, Context, TextureHandle};
-use resvg::{
-    tiny_skia::Pixmap,
-    usvg::{Options, Tree},
-};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -28,7 +27,17 @@ lazy_static::lazy_static! {
 }
 
 /// Renders SVG markup to PNG bytes at the SVG's own size.
+///
+/// # Errors
+/// When the markup does not parse or the image cannot be encoded, and
+/// always without the `svg` feature.
+#[cfg(feature = "svg")]
 pub fn svg_to_png_bytes(svg_data: &str) -> Result<Vec<u8>, String> {
+    use resvg::{
+        tiny_skia::Pixmap,
+        usvg::{Options, Tree},
+    };
+
     // Parse the SVG data into a usvg::Tree
     let tree = Tree::from_str(svg_data, &Options::default())
         .map_err(|e| format!("Failed to parse SVG: {}", e))?;
@@ -62,7 +71,21 @@ pub fn svg_to_png_bytes(svg_data: &str) -> Result<Vec<u8>, String> {
     Ok(png_bytes)
 }
 
+/// Renders SVG markup to PNG bytes at the SVG's own size.
+///
+/// # Errors
+/// Always: this build has no SVG rasteriser. Enable the `svg` feature of
+/// egui-material3 to render SVG.
+#[cfg(not(feature = "svg"))]
+pub fn svg_to_png_bytes(_svg_data: &str) -> Result<Vec<u8>, String> {
+    Err("SVG rendering needs the `svg` feature of egui-material3".to_string())
+}
+
 /// Renders SVG markup to a texture, cached under `name`.
+///
+/// # Errors
+/// As [`svg_to_png_bytes`]: always without the `svg` feature (unless a
+/// texture is already cached under `name`).
 pub fn create_texture_from_svg(
     ctx: &Context,
     svg_data: &str,

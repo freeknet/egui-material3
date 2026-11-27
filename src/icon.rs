@@ -2,7 +2,7 @@
 // Module:       icon
 // Description:  Material Symbols icons and the shared icon painter.
 //
-// Dependencies: egui; crate::fonts, crate::material_symbol, crate::MaterialTheme
+// Dependencies: egui, resvg; crate::fonts, crate::material_symbol, crate::MaterialTheme
 // ============================================================================
 
 //! Material Design 3 icons.
@@ -86,7 +86,8 @@ pub enum Icon {
     /// codepoint as a one-character string.
     Symbol(String),
     /// An SVG document. A monochrome SVG is drawn in the tint colour; a
-    /// multi-colour one keeps its colours.
+    /// multi-colour one keeps its colours. Drawing it needs the `svg`
+    /// cargo feature; without it the icon paints nothing.
     Svg(Arc<[u8]>),
     /// A texture already loaded into egui, drawn multiplied by the tint.
     Texture(SizedTexture),
@@ -251,6 +252,7 @@ struct SvgTexture {
     tintable: bool,
 }
 
+#[cfg(feature = "svg")]
 fn rasterize_svg(bytes: &[u8], width: u32, height: u32) -> Option<(ColorImage, bool)> {
     use resvg::{tiny_skia, usvg};
     let tree = usvg::Tree::from_data(bytes, &usvg::Options::default()).ok()?;
@@ -286,6 +288,13 @@ fn rasterize_svg(bytes: &[u8], width: u32, height: u32) -> Option<(ColorImage, b
         })
         .collect();
     Some((ColorImage::from_rgba_unmultiplied(size, &rgba), tintable))
+}
+
+/// Without the `svg` feature there is no rasteriser: an SVG icon paints
+/// nothing.
+#[cfg(not(feature = "svg"))]
+fn rasterize_svg(_bytes: &[u8], _width: u32, _height: u32) -> Option<(ColorImage, bool)> {
+    None
 }
 
 fn svg_texture(ctx: &egui::Context, bytes: &[u8], rect: Rect) -> Option<SvgTexture> {
