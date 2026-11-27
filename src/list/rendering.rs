@@ -24,6 +24,10 @@
 //!
 //! Keyboard: every enabled item is a Tab stop, Up and Down move between
 //! items, Space or Enter activates the focused one.
+//!
+//! [`MaterialList::show`] returns every row's response, so apps can attach
+//! context menus, double-click handlers and drag sources to single rows;
+//! `ui.add(list)` returns only the list's.
 
 use std::sync::Arc;
 
@@ -425,6 +429,15 @@ fn paint_radio(
 
 impl<'a> Widget for MaterialList<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
+        self.show(ui).response
+    }
+}
+
+impl<'a> MaterialList<'a> {
+    /// Shows the list and returns its response and one response per row
+    /// (see [`ListResponse`]). `ui.add(list)` shows it the same way and
+    /// returns only the list's response.
+    pub fn show(self, ui: &mut Ui) -> ListResponse {
         let theme = MaterialTheme::of(ui.ctx());
         let direction = theme.layout_direction;
         let segmented = self.segmented;
@@ -529,6 +542,7 @@ impl<'a> Widget for MaterialList<'a> {
 
         let mut current_y = rect.min.y;
         let mut pending_actions = Vec::new();
+        let mut rows = Vec::with_capacity(count);
 
         for (index, (mut item, layout)) in self.items.into_iter().zip(layouts).enumerate() {
             let item_rect = Rect::from_min_size(
@@ -539,8 +553,9 @@ impl<'a> Widget for MaterialList<'a> {
             let item_response = ui.interact(
                 item_rect,
                 item_id(index),
-                crate::a11y::sense(item.enabled, Sense::click()),
+                crate::a11y::sense(item.enabled, Sense::click() | self.row_sense),
             );
+            rows.push(item_response.clone());
             match &item.leading {
                 Some(ListLeading::Checkbox(checked)) => crate::a11y::toggle(
                     &item_response,
@@ -950,7 +965,10 @@ impl<'a> Widget for MaterialList<'a> {
         // Persist drawer state
         ui.data_mut(|d| d.insert_persisted(state_id, state));
 
-        response
+        ListResponse {
+            response,
+            items: rows,
+        }
     }
 }
 

@@ -2,7 +2,7 @@
 // Module:       menu
 // Description:  Material Design 3 menus, submenus and context menus.
 //
-// Dependencies: egui; crate::tokens, crate::MaterialTheme
+// Dependencies: egui; crate::tokens, crate::MaterialTheme, crate::a11y, crate::paint
 // ============================================================================
 
 //! Material Design 3 menus.
@@ -63,13 +63,22 @@
 //! [`MaterialMenu::show_with`] and [`MaterialMenu::show_context_with`]
 //! show arbitrary UI on the menu surface instead of items: the same
 //! container, anchoring, flipping, outside-click and Escape closing, with
-//! the content's own widgets. Content closes the menu with `ui.close()`.
+//! the content's own widgets. As in egui's menus, a click on any clickable
+//! widget in the content closes the menu by default
+//! ([`MaterialMenu::close_behavior`] changes that), and content can close
+//! it with `ui.close()`. [`MaterialMenu::content_item`] adds a Material
+//! item row to the content, and [`MaterialMenu::submenu`] /
+//! [`MaterialMenu::submenu_item`] a row opening a cascading submenu of
+//! more custom content: it opens on hover, click or the Right arrow,
+//! closes with Left or Escape, and a click on a leaf closes the whole
+//! chain.
 
 use std::sync::Arc;
 
 use egui::{
-    self, Align2, Color32, Context, CornerRadius, Event, EventFilter, Galley, Id, Key, Modifiers,
-    Pos2, Rect, Response, Role, Sense, Stroke, Ui, Vec2,
+    self, Align2, Color32, Context, CornerRadius, Event, EventFilter, FocusDirection, Galley, Id,
+    Key, LayerId, Modifiers, PointerButton, PopupCloseBehavior, Pos2, Rect, Response, Role, Sense,
+    Stroke, Ui, UiStackInfo, Vec2,
 };
 
 use crate::material_symbol::material_symbol_text;
@@ -492,6 +501,7 @@ pub struct MaterialMenu<'a> {
     segmented: bool,
     menu_style: Option<MenuStyle>,
     button_theme: Option<MenuButtonThemeData>,
+    close_behavior: PopupCloseBehavior,
 }
 
 /// Individual menu item.
@@ -542,6 +552,7 @@ impl<'a> MaterialMenu<'a> {
             segmented: false,
             menu_style: None,
             button_theme: None,
+            close_behavior: PopupCloseBehavior::CloseOnClick,
         }
     }
 
@@ -702,6 +713,32 @@ impl<'a> MaterialMenu<'a> {
         self
     }
 
+    /// What a click does to a menu showing custom content
+    /// ([`show_with`](Self::show_with),
+    /// [`show_context_with`](Self::show_context_with)).
+    ///
+    /// - [`PopupCloseBehavior::CloseOnClick`] (the default, as in egui's own
+    ///   menus): a click on any clickable widget in the content, or in one
+    ///   of its [`submenu`](Self::submenu)s, closes the whole menu, and so
+    ///   does a click outside. Submenu openers and
+    ///   [`content_item`](Self::content_item)s marked
+    ///   [`MenuItem::keep_open`] do not close it; nor does Enter or Space
+    ///   typed into a focused text field.
+    /// - [`PopupCloseBehavior::CloseOnClickOutside`]: only a click outside
+    ///   closes it; the content closes it with `ui.close()`.
+    /// - [`PopupCloseBehavior::IgnoreClicks`]: clicks never close it, outside
+    ///   or in; Escape and `ui.close()` still do.
+    ///
+    /// The default follows egui, so content moved from an egui menu keeps
+    /// closing when an entry is picked. Item menus ([`show`](Self::show))
+    /// close per item ([`MenuItem::keep_open`]); for them only
+    /// `IgnoreClicks` changes anything, keeping them open on outside
+    /// clicks like [`stay_open_on_outside_click`](Self::stay_open_on_outside_click).
+    pub fn close_behavior(mut self, behavior: PopupCloseBehavior) -> Self {
+        self.close_behavior = behavior;
+        self
+    }
+
     /// Kept for compatibility; menu items are reached with the arrow keys.
     pub fn list_tab_index(self, _index: i32) -> Self {
         self
@@ -725,8 +762,14 @@ impl<'a> MaterialMenu<'a> {
     /// menu's container colour, shape, elevation, vertical padding and
     /// width limits, adds 12 dp (`DropdownMenuItemHorizontalPadding`) at
     /// each side, and closes on an outside click, on Escape, or when the
-    /// content calls `ui.close()`. Clicks inside the content do not close
-    /// it on their own. Returns `None` while the menu is closed.
+    /// content calls `ui.close()`. By default a click on any clickable
+    /// widget in the content closes it too, as in egui's menus; see
+    /// [`close_behavior`](Self::close_behavior). Returns `None` while the
+    /// menu is closed.
+    ///
+    /// [`MaterialMenu::content_item`] adds a Material menu item row to the
+    /// content and [`MaterialMenu::submenu`] a row that opens a cascading
+    /// submenu of more custom content.
     ///
     /// The content applies no text style of its own: it inherits the
     /// surrounding `Ui` style, so use Material widgets or set one.
@@ -861,7 +904,11 @@ impl<'a> MaterialMenu<'a> {
 
     /// Whether a press landed outside every menu rect and the anchor.
     fn clicked_outside(&self, ctx: &Context, top: &TopState, rects: &[Rect]) -> bool {
-        if self.stay_open_on_outside_click || top.frames_open <= 2 {
+        let ignore = match self.close_behavior {
+            PopupCloseBehavior::IgnoreClicks => true,
+            PopupCloseBehavior::CloseOnClick | PopupCloseBehavior::CloseOnClickOutside => false,
+        };
+        if ignore || self.stay_open_on_outside_click || top.frames_open <= 2 {
             return false;
         }
         let clicked_at = ctx.input(|i| {
@@ -909,64 +956,56 @@ impl<'a> MaterialMenu<'a> {
         let area_id = root.with("custom");
         // The content's size is known only after it is laid out, so place
         // it with last frame's size (egui hides an area's first frame).
-        let size = ctx
-            .memory(|m| m.area_rect(area_id))
-            .map_or(Vec2::new(style.min_width, 0.0), |r| r.size());
+        let last = ctx.memory(|m| m.area_rect(area_id));
+        let size = last.map_or(Vec2::new(style.min_width, 0.0), |r| r.size());
         let placement = self.placement(ctx, size);
-        let escape = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape));
+        let level_key = content_level_id(root);
+        let level_state: ContentLevelState =
+            ctx.data(|d| d.get_temp(level_key)).unwrap_or_default();
+        // With a submenu open, Escape belongs to the deepest submenu (which
+        // takes it while the content runs); otherwise it closes the menu.
+        let escape_first = level_state.open.is_none()
+            && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape));
+        ctx.data_mut(|d| d.insert_temp(content_frame_id(root), ContentFrame::default()));
+        let focused = ctx.memory(|m| m.focused());
+        let level = ContentLevel {
+            root,
+            level: level_key,
+            surface: placement,
+            content_width: last.map_or(0.0, |r| {
+                (r.width() - 2.0 * ITEM_HORIZONTAL_PADDING).max(0.0)
+            }),
+            variant: self.variant,
+            style: self.menu_style.clone(),
+            button_theme: self.button_theme.clone(),
+        };
 
         let shown = egui::Area::new(area_id)
             .order(egui::Order::Foreground)
             .fixed_pos(placement.min)
             .constrain(false)
             .interactable(true)
-            .show(ctx, |ui| {
-                let corner =
-                    CornerRadius::same(style.corner_radius.round().clamp(0.0, 255.0) as u8);
-                let painter = ui.painter().clone();
-                let shadow_slots = style
-                    .elevation
-                    .shadows(style.shadow_color)
-                    .map(|_| painter.add(egui::Shape::Noop));
-                let background_slot = painter.add(egui::Shape::Noop);
-                let margin = egui::Margin::symmetric(
-                    ITEM_HORIZONTAL_PADDING.round().clamp(0.0, 127.0) as i8,
-                    style.padding.round().clamp(0.0, 127.0) as i8,
-                );
-                let mut content = ui.new_child(
-                    egui::UiBuilder::new()
-                        .max_rect(Rect::from_min_size(
-                            ui.max_rect().min + margin.left_top(),
-                            Vec2::new((style.max_width - margin.sum().x).max(0.0), f32::INFINITY),
-                        ))
-                        .layout(egui::Layout::top_down(egui::Align::Min))
-                        .closable(),
-                );
-                content.set_min_width((style.min_width - margin.sum().x).max(0.0));
-                let inner = add_contents(&mut content);
-                let should_close = content.should_close();
-                let surface = Rect::from_min_max(
-                    content.min_rect().min - margin.left_top(),
-                    content.min_rect().max + margin.right_bottom(),
-                );
-                let response = ui.allocate_rect(surface, Sense::hover());
-                crate::a11y::describe(&response, Role::Menu, true, "", None);
-                for (slot, shadow) in shadow_slots
-                    .into_iter()
-                    .zip(style.elevation.shadows(style.shadow_color))
-                {
-                    if shadow.color != Color32::TRANSPARENT {
-                        painter.set(slot, shadow.as_shape(surface, corner));
-                    }
-                }
-                painter.set(
-                    background_slot,
-                    egui::epaint::RectShape::filled(surface, corner, style.background_color),
-                );
-                (inner, response, should_close)
-            });
+            // The surface itself is not clickable, so a click on it is not
+            // a click on a widget.
+            .sense(Sense::hover())
+            .show(ctx, |ui| content_surface(ui, &style, level, add_contents));
         let (inner, response, should_close) = shown.inner;
-        let close = escape || should_close || self.clicked_outside(ctx, &top, &[response.rect]);
+
+        let mut frame: ContentFrame = ctx
+            .data(|d| d.get_temp(content_frame_id(root)))
+            .unwrap_or_default();
+        frame.layers.push(response.layer_id);
+        frame.rects.push(response.rect);
+        drop_stale_open(ctx, level_key, &frame);
+        let escape = escape_first || ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape));
+        let clicked_inside = match self.close_behavior {
+            PopupCloseBehavior::CloseOnClick => content_widget_clicked(ctx, &frame, focused),
+            PopupCloseBehavior::CloseOnClickOutside | PopupCloseBehavior::IgnoreClicks => false,
+        };
+        let close = escape
+            || should_close
+            || clicked_inside
+            || self.clicked_outside(ctx, &top, &frame.rects);
         self.finish(ctx, root, top, close, open);
         Some(egui::InnerResponse::new(inner, response))
     }
@@ -1040,7 +1079,582 @@ fn reset_state(ctx: &Context, id: Id) {
     ctx.data_mut(|d| {
         d.remove::<TopState>(root.with("top"));
         d.remove::<LevelState>(level_id(root, &[]));
+        d.remove::<ContentLevelState>(content_level_id(root));
+        d.remove::<ContentFrame>(content_frame_id(root));
     });
+}
+
+// ---------------------------------------------------------------------------
+// Custom content: submenus, item rows and closing on a click.
+
+/// The `UiStackInfo` tag under which a custom content `Ui` carries its
+/// [`ContentLevel`].
+const CONTENT_TAG: &str = "egui_material3::menu::content";
+
+fn content_level_id(root: Id) -> Id {
+    root.with("content_level")
+}
+
+fn content_frame_id(root: Id) -> Id {
+    root.with("content_frame")
+}
+
+/// What a `Ui` inside custom menu content knows about the menu it is on.
+#[derive(Clone, Debug)]
+struct ContentLevel {
+    /// The menu's root id.
+    root: Id,
+    /// Where this level's [`ContentLevelState`] lives.
+    level: Id,
+    /// This level's surface, as placed this frame from last frame's size.
+    surface: Rect,
+    /// Last frame's content width (between the 12 dp side paddings).
+    content_width: f32,
+    variant: MenuVariant,
+    style: Option<MenuStyle>,
+    button_theme: Option<MenuButtonThemeData>,
+}
+
+impl ContentLevel {
+    /// The level `ui` is on, and whether it is inside custom menu content
+    /// at all (if not, a stand-alone level with no menu to close).
+    fn of(ui: &Ui) -> (Self, bool) {
+        let found = ui.stack().iter().find_map(|stack| {
+            stack
+                .info
+                .tags
+                .get_downcast::<ContentLevel>(CONTENT_TAG)
+                .cloned()
+        });
+        match found {
+            Some(level) => (level, true),
+            None => {
+                let root = ui.scope_id().with("material_menu_standalone");
+                (
+                    Self {
+                        root,
+                        level: content_level_id(root),
+                        surface: ui.max_rect(),
+                        content_width: 0.0,
+                        variant: MenuVariant::Baseline,
+                        style: None,
+                        button_theme: None,
+                    },
+                    false,
+                )
+            }
+        }
+    }
+}
+
+/// One level of custom content: which submenu is open, and hover intent.
+#[derive(Clone, Debug, Default)]
+struct ContentLevelState {
+    /// The opener row whose submenu is open.
+    open: Option<Id>,
+    /// The opener row the pointer rests on, and since when.
+    hover: Option<(Id, f64)>,
+    /// Since when the pointer has rested elsewhere on this level while a
+    /// submenu is open.
+    away_since: Option<f64>,
+    /// Focus this level's first focusable widget once it is laid out
+    /// (the submenu was opened from the keyboard).
+    focus_first: bool,
+}
+
+/// What custom content and its submenus registered this frame.
+#[derive(Clone, Debug, Default)]
+struct ContentFrame {
+    /// Every surface's layer, so a click on a widget in any of them counts
+    /// as a click inside the menu.
+    layers: Vec<LayerId>,
+    /// Every surface's rect, for outside-click detection.
+    rects: Vec<Rect>,
+    /// Widgets whose click must not close the menu (submenu openers,
+    /// `keep_open` items).
+    keep_open: Vec<Id>,
+    /// Submenu openers shown this frame.
+    openers: Vec<Id>,
+}
+
+fn update_frame(ctx: &Context, root: Id, f: impl FnOnce(&mut ContentFrame)) {
+    ctx.data_mut(|d| f(d.get_temp_mut_or_default::<ContentFrame>(content_frame_id(root))));
+}
+
+/// Forgets a level's open submenu when its opener was not shown this frame.
+fn drop_stale_open(ctx: &Context, level: Id, frame: &ContentFrame) {
+    ctx.data_mut(|d| {
+        let state = d.get_temp_mut_or_default::<ContentLevelState>(level);
+        if state.open.is_some_and(|id| !frame.openers.contains(&id)) {
+            state.open = None;
+            state.away_since = None;
+        }
+    });
+}
+
+/// Whether a clickable widget on one of the menu's surfaces was clicked
+/// this frame (pointer, Enter/Space while it had focus, or an AccessKit
+/// click), other than the ones that keep the menu open. `focused` is the
+/// focus before the content ran: a submenu opened with Enter moves focus
+/// into itself during the frame, and that Enter is not a click there.
+fn content_widget_clicked(ctx: &Context, frame: &ContentFrame, focused: Option<Id>) -> bool {
+    let candidates: Vec<Id> = ctx.viewport(|viewport| {
+        frame
+            .layers
+            .iter()
+            .flat_map(|layer| viewport.this_pass.widgets.get_layer(*layer))
+            .filter(|w| w.enabled && w.sense.senses_click() && !frame.keep_open.contains(&w.id))
+            .map(|w| w.id)
+            .collect()
+    });
+    if candidates.is_empty() {
+        return false;
+    }
+    let pointer = ctx.interaction_snapshot(|s| s.clicked);
+    let typing = ctx.text_edit_focused();
+    ctx.input(|i| {
+        let key = !typing && (i.key_pressed(Key::Enter) || i.key_pressed(Key::Space));
+        candidates.iter().any(|id| {
+            pointer == Some(*id)
+                || (key && focused == Some(*id))
+                || i.has_accesskit_action_request(*id, egui::accesskit::Action::Click)
+        })
+    })
+}
+
+/// Paints a menu surface (container, elevation, 12 dp side padding) around
+/// `add_contents`, shown in `ui` (an `Area`'s `Ui`) with `level` tagged on
+/// the content. Returns the content's value, the surface's response and
+/// whether the content asked to close.
+fn content_surface<R>(
+    ui: &mut Ui,
+    style: &ResolvedMenuStyle,
+    level: ContentLevel,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> (R, Response, bool) {
+    let corner = CornerRadius::same(style.corner_radius.round().clamp(0.0, 255.0) as u8);
+    let painter = ui.painter().clone();
+    let shadow_slots = style
+        .elevation
+        .shadows(style.shadow_color)
+        .map(|_| painter.add(egui::Shape::Noop));
+    let background_slot = painter.add(egui::Shape::Noop);
+    let margin = egui::Margin::symmetric(
+        ITEM_HORIZONTAL_PADDING.round().clamp(0.0, 127.0) as i8,
+        style.padding.round().clamp(0.0, 127.0) as i8,
+    );
+    let mut content = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(Rect::from_min_size(
+                ui.max_rect().min + margin.left_top(),
+                Vec2::new((style.max_width - margin.sum().x).max(0.0), f32::INFINITY),
+            ))
+            .layout(egui::Layout::top_down(egui::Align::Min))
+            .ui_stack_info(UiStackInfo::default().with_tag_value(CONTENT_TAG, level))
+            .closable(),
+    );
+    content.set_min_width((style.min_width - margin.sum().x).max(0.0));
+    let inner = add_contents(&mut content);
+    let should_close = content.should_close();
+    let surface = Rect::from_min_max(
+        content.min_rect().min - margin.left_top(),
+        content.min_rect().max + margin.right_bottom(),
+    );
+    let response = ui.allocate_rect(surface, Sense::hover());
+    crate::a11y::describe(&response, Role::Menu, true, "", None);
+    for (slot, shadow) in shadow_slots
+        .into_iter()
+        .zip(style.elevation.shadows(style.shadow_color))
+    {
+        if shadow.color != Color32::TRANSPARENT {
+            painter.set(slot, shadow.as_shape(surface, corner));
+        }
+    }
+    painter.set(
+        background_slot,
+        egui::epaint::RectShape::filled(surface, corner, style.background_color),
+    );
+    (inner, response, should_close)
+}
+
+/// A menu item row in custom content: allocated across the content width
+/// (its state layer reaching the item inset from the surface edges),
+/// painted like an item of an item menu, and described to AccessKit.
+fn content_row(
+    ui: &mut Ui,
+    level: &ContentLevel,
+    item: &MenuItem<'_>,
+    submenu_open: impl FnOnce(Id) -> bool,
+) -> Response {
+    let ctx = ui.ctx().clone();
+    let theme = MaterialTheme::of(&ctx);
+    let style = level
+        .style
+        .clone()
+        .unwrap_or_default()
+        .resolve(&theme, level.variant);
+    let items = level
+        .button_theme
+        .clone()
+        .unwrap_or_default()
+        .resolve(&theme, level.variant);
+    let config = LevelConfig {
+        style: &style,
+        items: &items,
+        theme: &theme,
+        segmented: false,
+        typeahead_delay: 0.0,
+        now: ctx.input(|i| i.time),
+    };
+    let text = item_text(&ctx, item, &items);
+    let lead = has_leading(item);
+    // The row's own edges sit `reach` beyond the content, at the item inset
+    // from the surface edge.
+    let reach = (ITEM_HORIZONTAL_PADDING - item_inset(&config)).max(0.0);
+    let needed = item_width(item, &text, &items, lead) - 2.0 * reach;
+    let width = needed
+        .max(level.content_width)
+        .max(ui.min_rect().width())
+        .min(ui.available_width().max(0.0));
+    let (id, rect) = ui.allocate_space(Vec2::new(width, item_height(item, &items)));
+    let item_rect = rect.expand2(Vec2::new(reach, 0.0));
+    let submenu_open = submenu_open(id);
+    let response = ui.interact(
+        item_rect,
+        id,
+        crate::a11y::sense(item.enabled, Sense::click()),
+    );
+    let (role, checked) = match &item.kind {
+        ItemKind::Plain => (Role::MenuItem, None),
+        ItemKind::Check(on) => (Role::MenuItemCheckBox, Some(*on)),
+        ItemKind::BoundCheck(on) => (Role::MenuItemCheckBox, Some(**on)),
+        ItemKind::Radio(on) => (Role::MenuItemRadio, Some(*on)),
+    };
+    crate::a11y::describe(&response, role, item.enabled, &item.text, checked);
+    paint_item(
+        ui,
+        item,
+        &text,
+        item_rect,
+        &response,
+        false,
+        submenu_open,
+        lead,
+        &config,
+    );
+    response
+}
+
+/// The first focusable, enabled widget on `layer` this frame.
+fn first_focusable(ctx: &Context, layer: LayerId) -> Option<Id> {
+    ctx.viewport(|viewport| {
+        viewport
+            .this_pass
+            .widgets
+            .get_layer(layer)
+            .find(|w| w.enabled && w.sense.is_focusable())
+            .map(|w| w.id)
+    })
+}
+
+/// The layer of widget `id`, from this frame or the last.
+fn widget_layer(ctx: &Context, id: Id) -> Option<LayerId> {
+    ctx.read_response(id).map(|r| r.layer_id)
+}
+
+impl MaterialMenu<'_> {
+    /// Adds a Material menu item row to custom menu content (inside
+    /// [`show_with`](Self::show_with), [`show_context_with`](Self::show_context_with)
+    /// or a [`submenu`](Self::submenu)) and returns its response.
+    ///
+    /// The row looks and behaves like an item of an item menu: leading
+    /// icon, check or radio mark, supporting and trailing text, state
+    /// layer and focus ring; a click toggles a [`MenuItem::toggles`] flag
+    /// and runs its [`MenuItem::on_click`] action. Under the default
+    /// [`close_behavior`](Self::close_behavior) the click also closes the
+    /// whole menu, unless the item is [`MenuItem::keep_open`]. Submenus
+    /// set with [`MenuItem::submenu`] are ignored here; use
+    /// [`submenu_item`](Self::submenu_item).
+    ///
+    /// ```rust
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::{menu_item, MaterialMenu};
+    ///
+    /// let mut open = true;
+    /// MaterialMenu::new(egui::Id::unique("file_menu"), &mut open).show_with(ui.ctx(), |ui| {
+    ///     if MaterialMenu::content_item(ui, menu_item("Open").leading_icon("folder_open"))
+    ///         .clicked()
+    ///     {
+    ///         // open a file; the menu closes on its own
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn content_item(ui: &mut Ui, mut item: MenuItem<'_>) -> Response {
+        let (level, in_menu) = ContentLevel::of(ui);
+        item.submenu.clear();
+        let response = content_row(ui, &level, &item, |_| false);
+        if in_menu && item.keep_open {
+            update_frame(ui.ctx(), level.root, |f| f.keep_open.push(response.id));
+        }
+        if response.clicked() && item.enabled {
+            match &mut item.kind {
+                ItemKind::BoundCheck(on) => **on = !**on,
+                ItemKind::Plain | ItemKind::Check(_) | ItemKind::Radio(_) => {}
+            }
+            if let Some(action) = item.action.as_mut() {
+                action();
+            }
+        }
+        response
+    }
+
+    /// Adds a row labelled `label` to custom menu content that opens a
+    /// cascading submenu showing `add_contents`. See
+    /// [`submenu_item`](Self::submenu_item).
+    ///
+    /// ```rust
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::{menu_item, MaterialMenu};
+    ///
+    /// let mut open = true;
+    /// MaterialMenu::new(egui::Id::unique("edit_menu"), &mut open).show_with(ui.ctx(), |ui| {
+    ///     MaterialMenu::content_item(ui, menu_item("Undo"));
+    ///     MaterialMenu::submenu(ui, "Export", |ui| {
+    ///         MaterialMenu::content_item(ui, menu_item("PNG"));
+    ///         MaterialMenu::content_item(ui, menu_item("SVG"));
+    ///     });
+    /// });
+    /// # });
+    /// ```
+    pub fn submenu<R>(
+        ui: &mut Ui,
+        label: impl Into<String>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (Response, Option<egui::InnerResponse<R>>) {
+        Self::submenu_item(ui, MenuItem::new(label), add_contents)
+    }
+
+    /// Adds `item` as a row to custom menu content that opens a cascading
+    /// submenu showing `add_contents` (any UI, including more
+    /// [`content_item`](Self::content_item)s and nested submenus) on a
+    /// Material menu surface beside the row.
+    ///
+    /// The row shows a trailing arrow. The submenu opens when the pointer
+    /// rests on the row (after the same hover-intent delay as item menus),
+    /// on a click, on Enter/Space, or on the Right arrow while the row has
+    /// focus (focusing the submenu's first widget). Left or Escape inside
+    /// the submenu closes it and returns focus to the row; resting the
+    /// pointer on another entry of this level closes it too. A click on a
+    /// widget anywhere in the chain closes the whole menu under the
+    /// default [`close_behavior`](Self::close_behavior), and `ui.close()`
+    /// in the submenu closes the whole menu as well. Clicking the row
+    /// itself does not close anything.
+    ///
+    /// Returns the row's response and, while the submenu is open, its
+    /// content's value and surface response. Outside custom menu content
+    /// the row still opens its submenu but there is no menu to close.
+    pub fn submenu_item<R>(
+        ui: &mut Ui,
+        mut item: MenuItem<'_>,
+        add_contents: impl FnOnce(&mut Ui) -> R,
+    ) -> (Response, Option<egui::InnerResponse<R>>) {
+        let ctx = ui.ctx().clone();
+        let (level, in_menu) = ContentLevel::of(ui);
+        let now = ctx.input(|i| i.time);
+        let mut state: ContentLevelState =
+            ctx.data(|d| d.get_temp(level.level)).unwrap_or_default();
+        // A non-empty submenu list gives the row its trailing arrow.
+        item.submenu = vec![MenuEntry::Divider];
+        let open_row = state.open;
+        let response = content_row(ui, &level, &item, |id| open_row == Some(id));
+        let id = response.id;
+        let child_level = id.with("material_submenu");
+        if in_menu {
+            update_frame(&ctx, level.root, |f| {
+                f.keep_open.push(id);
+                f.openers.push(id);
+            });
+        }
+
+        let mut opened = false;
+        let mut focus_child = false;
+        if item.enabled {
+            // Hover intent.
+            if response.hovered() {
+                let since = match state.hover {
+                    Some((row, since)) if row == id => since,
+                    Some(_) | None => {
+                        state.hover = Some((id, now));
+                        now
+                    }
+                };
+                if state.open != Some(id) {
+                    if now - since >= SUBMENU_HOVER_DELAY {
+                        opened = true;
+                    } else {
+                        ctx.request_repaint_after(std::time::Duration::from_secs_f64(
+                            SUBMENU_HOVER_DELAY - (now - since),
+                        ));
+                    }
+                }
+            } else if state.hover.is_some_and(|(row, _)| row == id) {
+                state.hover = None;
+            }
+            let from_keyboard = response.clicked() && !response.clicked_by(PointerButton::Primary);
+            let arrow_right = response.has_focus()
+                && !ctx.text_edit_focused()
+                && ctx.input(|i| i.modifiers.is_none() && i.key_pressed(Key::ArrowRight));
+            if arrow_right {
+                ctx.memory_mut(|m| m.move_focus(FocusDirection::None));
+            }
+            if response.clicked() || arrow_right {
+                opened = true;
+                focus_child = from_keyboard || arrow_right;
+            }
+        } else if state.open == Some(id) {
+            state.open = None;
+        }
+        if opened && state.open != Some(id) {
+            state.open = Some(id);
+            state.away_since = None;
+            ctx.data_mut(|d| d.insert_temp(child_level, ContentLevelState::default()));
+        }
+        if focus_child {
+            ctx.data_mut(|d| {
+                d.get_temp_mut_or_default::<ContentLevelState>(child_level)
+                    .focus_first = true;
+            });
+        }
+
+        let mut shown = None;
+        if state.open == Some(id) {
+            let theme = MaterialTheme::of(&ctx);
+            let style = level
+                .style
+                .clone()
+                .unwrap_or_default()
+                .resolve(&theme, level.variant);
+            let area_id = child_level.with("area");
+            let last = ctx.memory(|m| m.area_rect(area_id));
+            let size = last.map_or(Vec2::new(style.min_width, 0.0), |r| r.size());
+            let row = response.rect;
+            let parent = Rect::from_x_y_ranges(level.surface.x_range(), row.y_range());
+            let sub_rect = place_submenu(
+                parent,
+                row,
+                size,
+                ctx.content_rect(),
+                theme.layout_direction,
+                style.padding,
+            );
+            let child = ContentLevel {
+                root: level.root,
+                level: child_level,
+                surface: sub_rect,
+                content_width: last.map_or(0.0, |r| {
+                    (r.width() - 2.0 * ITEM_HORIZONTAL_PADDING).max(0.0)
+                }),
+                variant: level.variant,
+                style: level.style.clone(),
+                button_theme: level.button_theme.clone(),
+            };
+            let area = egui::Area::new(area_id)
+                .order(egui::Order::Foreground)
+                .fixed_pos(sub_rect.min)
+                .constrain(false)
+                .interactable(true)
+                .sense(Sense::hover())
+                .show(&ctx, |ui| content_surface(ui, &style, child, add_contents));
+            let (inner, surface, should_close) = area.inner;
+            let layer = surface.layer_id;
+            let child_rect = surface.rect;
+            let mut openers = Vec::new();
+            if in_menu {
+                update_frame(&ctx, level.root, |f| {
+                    f.layers.push(layer);
+                    f.rects.push(child_rect);
+                    openers.clone_from(&f.openers);
+                });
+            }
+            if should_close {
+                ui.close();
+            }
+
+            let mut child_state: ContentLevelState =
+                ctx.data(|d| d.get_temp(child_level)).unwrap_or_default();
+            if child_state
+                .open
+                .is_some_and(|open| !openers.contains(&open))
+            {
+                child_state.open = None;
+            }
+            if child_state.focus_first {
+                if let Some(first) = first_focusable(&ctx, layer) {
+                    ctx.memory_mut(|m| m.request_focus(first));
+                    child_state.focus_first = false;
+                }
+            }
+            ctx.data_mut(|d| d.insert_temp(child_level, child_state.clone()));
+
+            // Keyboard: Escape, or Left with focus in this submenu, closes
+            // the deepest open submenu and returns focus to its row.
+            let deepest = child_state.open.is_none();
+            let focus_inside = ctx
+                .memory(|m| m.focused())
+                .and_then(|f| widget_layer(&ctx, f))
+                == Some(layer);
+            let escape = deepest && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape));
+            let left = deepest
+                && focus_inside
+                && !ctx.text_edit_focused()
+                && ctx.input(|i| i.modifiers.is_none() && i.key_pressed(Key::ArrowLeft));
+            let mut close_child = escape || left;
+
+            // Pointer: resting elsewhere on this level closes the submenu,
+            // unless the pointer is on its way to it.
+            let pointer = ctx.input(|i| {
+                (
+                    i.pointer.hover_pos(),
+                    i.pointer.delta() != Vec2::ZERO,
+                    i.pointer.is_moving_towards_rect(&child_rect),
+                )
+            });
+            let (hover, moved, towards) = pointer;
+            let elsewhere = hover.is_some_and(|p| {
+                level.surface.contains(p) && !response.rect.contains(p) && !child_rect.contains(p)
+            });
+            if elsewhere && !towards && (moved || state.away_since.is_some()) {
+                let since = *state.away_since.get_or_insert(now);
+                if now - since >= SUBMENU_HOVER_DELAY {
+                    close_child = true;
+                } else {
+                    ctx.request_repaint_after(std::time::Duration::from_secs_f64(
+                        SUBMENU_HOVER_DELAY - (now - since),
+                    ));
+                }
+            } else {
+                state.away_since = None;
+                if towards {
+                    ctx.request_repaint();
+                }
+            }
+
+            if close_child {
+                state.open = None;
+                state.away_since = None;
+                if escape || left {
+                    ctx.memory_mut(|m| {
+                        m.move_focus(FocusDirection::None);
+                        m.request_focus(id);
+                    });
+                }
+            }
+            shown = Some(egui::InnerResponse::new(inner, surface));
+        }
+        ctx.data_mut(|d| d.insert_temp(level.level, state));
+        (response, shown)
+    }
 }
 
 #[derive(Clone, Debug, Default)]

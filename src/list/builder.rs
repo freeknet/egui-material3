@@ -32,7 +32,26 @@ impl<'a> MaterialList<'a> {
             allow_drawer: false,
             fill_width: false,
             segmented: false,
+            row_sense: egui::Sense::hover(),
         }
+    }
+
+    /// What every row senses in addition to clicks, e.g.
+    /// `Sense::drag()` to make rows drag sources. Rows always sense clicks
+    /// (and so secondary and double clicks); read them from
+    /// [`MaterialList::show`]. Adding drag makes a drag that starts on a
+    /// row belong to the row rather than to a surrounding `ScrollArea`.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use egui_material3::*;
+    /// let list = MaterialList::new()
+    ///     .row_sense(egui::Sense::drag())
+    ///     .item(ListItem::new("Drag me"));
+    /// ```
+    pub fn row_sense(mut self, sense: egui::Sense) -> Self {
+        self.row_sense = sense;
+        self
     }
 
     /// M3 Expressive segmented list: every item sits in its own `surface`
