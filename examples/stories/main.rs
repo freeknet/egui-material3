@@ -44,6 +44,7 @@ mod navigation_window;
 mod notification_window;
 mod progress_window;
 mod radio_window;
+mod search_window;
 mod segmented_button_window;
 mod select_window;
 mod slider_window;
@@ -83,6 +84,7 @@ use navigation_window::NavigationWindow;
 use notification_window::NotificationWindow;
 use progress_window::ProgressWindow;
 use radio_window::RadioWindow;
+use search_window::SearchWindow;
 use segmented_button_window::SegmentedButtonWindow;
 use select_window::SelectWindow;
 use slider_window::SliderWindow;
@@ -171,6 +173,7 @@ struct MaterialApp {
     symbol_window: SymbolWindow,
     timeline_window: TimelineWindow,
     toolbar_window: ToolbarWindow,
+    search_window: SearchWindow,
     tooltip_window: TooltipWindow,
     treeview_window: TreeViewWindow,
     segmented_button_window: SegmentedButtonWindow,
@@ -217,6 +220,7 @@ impl Default for MaterialApp {
             symbol_window: SymbolWindow::default(),
             timeline_window: TimelineWindow::default(),
             toolbar_window: ToolbarWindow::default(),
+            search_window: SearchWindow::default(),
             tooltip_window: TooltipWindow::default(),
             treeview_window: TreeViewWindow::default(),
             segmented_button_window: SegmentedButtonWindow::default(),
@@ -419,6 +423,7 @@ impl MaterialApp {
         self.carousel_window.open = false;
         self.timeline_window.open = false;
         self.toolbar_window.open = false;
+        self.search_window.open = false;
         self.svgemoji_window.open = false;
         self.symbol_window.open = false;
         self.color_pickers_open.clear(); // Also close all color pickers
@@ -802,6 +807,10 @@ impl eframe::App for MaterialApp {
                         self.select_window.open = true;
                     }
 
+                    if ui.add(MaterialButton::filled("Search Stories")).clicked() {
+                        self.search_window.open = true;
+                    }
+
                     if ui.add(MaterialButton::filled("Slider Stories")).clicked() {
                         self.slider_window.open = true;
                     }
@@ -905,6 +914,7 @@ impl eframe::App for MaterialApp {
         self.dashcounter_window.show(ctx);
         self.timeline_window.show(ctx);
         self.toolbar_window.show(ctx);
+        self.search_window.show(ctx);
         self.tooltip_window.show(ctx);
         self.treeview_window.show(ctx);
         self.segmented_button_window.show(ctx);

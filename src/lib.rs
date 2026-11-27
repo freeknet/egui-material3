@@ -282,6 +282,7 @@ pub mod paint;
 pub mod progress;
 pub mod radio;
 pub mod scrim;
+pub mod search;
 pub mod segmented_button;
 pub mod select;
 pub mod side_sheet;
