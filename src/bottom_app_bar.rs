@@ -12,13 +12,17 @@
 //!
 //! Values from Compose's `BottomAppBarTokens` (ContainerHeight 80,
 //! ContainerColor SurfaceContainer, ContainerElevation Level2 shown as
-//! tone, ContainerShape CornerNone, IconColor OnSurfaceVariant, IconSize
-//! 24) and `AppBar.kt` (`BottomAppBarHorizontalPadding` and
+//! tone, ContainerShape CornerNone; the icons' OnSurfaceVariant and 24 dp
+//! are not in androidx-main's `BottomAppBarTokens` and are unverified) and
+//! `AppBar.kt` (`BottomAppBarHorizontalPadding` and
 //! `BottomAppBarVerticalPadding` 16 - 12 = 4, `FABHorizontalPadding`
 //! 16 - 4 = 12, `FABVerticalPadding` 12 - 4 = 8). The FAB uses
-//! `BottomAppBarDefaults.bottomAppBarFabColor` (SecondaryContainer, content
-//! OnSecondaryContainer) and `bottomAppBarFabElevation` (Level0), in the
-//! 56 dp `FabPrimaryContainerTokens` container.
+//! `BottomAppBarDefaults.bottomAppBarFabColor`
+//! (`FabSecondaryContainerTokens.ContainerColor` SecondaryContainer, content
+//! `FabSecondaryContainerTokens.IconColor` OnSecondaryContainer) and
+//! `FloatingActionButtonDefaults.bottomAppBarFabElevation` (0 dp), in the
+//! 56 dp `FabBaselineTokens` container (ContainerHeight/Width 56,
+//! ContainerShape CornerLarge).
 
 use egui::{
     Color32, Id, Pos2, Rect, Response, Role, Sense, Ui, UiBuilder, Vec2, Widget, WidgetInfo,
@@ -251,10 +255,12 @@ impl Widget for MaterialBottomAppBar<'_> {
                 id.with("fab"),
                 &action.icon,
                 &action.label,
+                // `FabSecondaryContainerTokens` ContainerColor / IconColor.
                 FabColors {
                     container: theme.color(ColorRole::SecondaryContainer),
                     content: theme.color(ColorRole::OnSecondaryContainer),
                 },
+                // `bottomAppBarFabElevation`: 0 dp in every state.
                 Elevation::Level0,
             );
             if r.clicked() {

@@ -11,15 +11,21 @@
 //! 40 dp circular state layer, the FAB slot, the overflow menu and the
 //! exit-always scroll offset.
 //!
-//! Values come from the Jetpack Compose material3 token files:
+//! Values come from the Jetpack Compose material3 sources on androidx-main:
 //! `IconButtonTokens` (StateLayerSize 40, IconSize 24, 48 dp touch target
-//! from `minimumInteractiveComponentSize`), `FabPrimaryContainerTokens`
-//! (ContainerHeight/Width 56, ContainerShape CornerLarge), `MenuTokens`
-//! (ContainerShape CornerExtraSmall, ContainerColor SurfaceContainer,
-//! ContainerElevation Level2, ListItemContainerHeight 48, ListItemLabelTextFont
-//! LabelLarge) and the Expressive `DockedToolbarTokens` (ContainerHeight 64,
-//! ContainerColor SurfaceContainer, ContainerLeadingSpace and
-//! ContainerTrailingSpace 16).
+//! from `minimumInteractiveComponentSize`); `FabBaselineTokens`
+//! (ContainerHeight/Width 56, ContainerShape CornerLarge) for the FAB;
+//! `MenuTokens` (ContainerShape CornerExtraSmall, ContainerColor
+//! SurfaceContainer, ContainerElevation Level2) and `StandardMenuTokens`
+//! (ItemLabelTextColor OnSurface, ItemLeadingIconColor OnSurfaceVariant)
+//! for the overflow menu, whose dimensions are not tokens but `Menu.kt`
+//! constants (`MenuListItemContainerHeight` 48,
+//! `DropdownMenuItemHorizontalPadding` 12, `DropdownMenuItemDefaultMinWidth`
+//! 112, `DropdownMenuItemDefaultMaxWidth` 280, `DropdownMenuVerticalPadding`
+//! 8, LabelLarge text); and the Expressive `DockedToolbarTokens`
+//! (ContainerHeight 64, ContainerLeadingSpace and ContainerTrailingSpace 16,
+//! ContainerMinSpacing 4, ContainerMaxSpacing 32) with
+//! `StandardToolbarTokens.ContainerColor` SurfaceContainer.
 
 use egui::{
     Align, Color32, CornerRadius, Frame, Id, Layout, Margin, Rect, Response, Role, Sense, Stroke,
@@ -38,7 +44,9 @@ pub(crate) const ACTION_TARGET: f32 = 48.0;
 pub(crate) const ACTION_STATE_LAYER: f32 = 40.0;
 /// `IconButtonTokens.IconSize`: 24 dp.
 pub(crate) const ICON_SIZE: f32 = 24.0;
-/// `FabPrimaryContainerTokens.ContainerHeight` and `ContainerWidth`: 56 dp.
+/// `FabBaselineTokens.ContainerHeight` and `ContainerWidth` (and, for the
+/// floating toolbar's FAB, `FloatingToolbarFabTokens.ContainerHeight` and
+/// `ContainerWidth`): 56 dp.
 pub(crate) const FAB_SIZE: f32 = 56.0;
 
 /// Symbol options for `icon` in the current layout direction: the icons
@@ -142,7 +150,8 @@ pub(crate) struct FabColors {
     pub(crate) content: Color32,
 }
 
-/// A 56 dp FAB in `rect`: CornerLarge container at `elevation`, a state
+/// A 56 dp FAB in `rect`: a `FabBaselineTokens.ContainerShape` (CornerLarge)
+/// container at `elevation`, a state
 /// layer, the icon, a focus ring, and an AccessKit button named `label`.
 pub(crate) fn fab(
     ui: &mut Ui,
@@ -194,19 +203,21 @@ pub(crate) fn fab(
 /// per item (icon and label). Returns the index of the item clicked this
 /// frame; the menu closes on any click.
 pub(crate) fn overflow_menu(button: &Response, items: &[(&Icon, &str)]) -> Option<usize> {
-    // `MenuTokens.ListItemContainerHeight`.
+    // `Menu.kt` `MenuListItemContainerHeight` (not a token).
     const ITEM_HEIGHT: f32 = 48.0;
-    // `MenuTokens` ListItemLeadingSpace / ListItemTrailingSpace and the gap
-    // between the leading icon and the label: 12 dp each.
+    // `Menu.kt` `DropdownMenuItemHorizontalPadding` (not a token): the
+    // item's start and end padding (`MenuDefaults.DropdownMenuItemContentPadding`)
+    // and the gap between the leading icon and the label, 12 dp each.
     const SPACE: f32 = 12.0;
-    // Compose `DropdownMenuItemDefaults`: DropdownMenuItemMinWidth 112,
-    // DropdownMenuItemMaxWidth 280; DropdownMenuVerticalPadding 8.
+    // `Menu.kt` (not tokens): `DropdownMenuItemDefaultMinWidth` 112,
+    // `DropdownMenuItemDefaultMaxWidth` 280, `DropdownMenuVerticalPadding` 8.
     const MIN_WIDTH: f32 = 112.0;
     const MAX_WIDTH: f32 = 280.0;
     const VERTICAL_PADDING: i8 = 8;
 
     let ctx = button.ctx.clone();
     let theme = MaterialTheme::of(&ctx);
+    // `MenuTokens.ContainerColor` and `ContainerElevation`.
     let container = theme.color(ColorRole::SurfaceContainer);
     let [_ambient, key] = Elevation::Level2.shadows(theme.color(ColorRole::Shadow));
     let frame = Frame::new()
@@ -216,6 +227,7 @@ pub(crate) fn overflow_menu(button: &Response, items: &[(&Icon, &str)]) -> Optio
         .shadow(key)
         .inner_margin(Margin::symmetric(0, VERTICAL_PADDING));
     let style = TypeRole::LabelLarge.style();
+    // `StandardMenuTokens.ItemLabelTextColor` / `ItemLeadingIconColor`.
     let label_color = theme.color(ColorRole::OnSurface);
     let icon_color = theme.color(ColorRole::OnSurfaceVariant);
 
@@ -356,9 +368,10 @@ pub enum ToolbarElevation {
 /// `surfaceContainer` holding buttons and icon buttons, docked to the top
 /// or bottom of a screen.
 ///
-/// `DockedToolbarTokens`: ContainerHeight 64, ContainerColor
-/// SurfaceContainer, ContainerShape CornerNone, ContainerLeadingSpace and
-/// ContainerTrailingSpace 16. Items before a [`spacer`](Self::spacer) are
+/// `DockedToolbarTokens`: ContainerHeight 64, ContainerShape CornerNone,
+/// ContainerLeadingSpace and ContainerTrailingSpace 16, ContainerMinSpacing
+/// 4 between items; the colour is `StandardToolbarTokens.ContainerColor`
+/// (SurfaceContainer). Items before a [`spacer`](Self::spacer) are
 /// laid out from the start, items after it from the end.
 ///
 /// For the M3 bottom app bar with a FAB slot, see
@@ -408,8 +421,11 @@ impl Default for MaterialToolbar<'_> {
             elevation: None,
             // `DockedToolbarTokens.ContainerHeight`.
             min_height: 64.0,
-            // Not a token: egui's gap between neighbouring items.
-            item_spacing: 8.0,
+            // `DockedToolbarTokens.ContainerMinSpacing`: 4 dp between
+            // neighbouring items. Compose's fixed arrangement
+            // (`FlexibleFixedHorizontalArrangement`) spaces them by
+            // `ContainerMaxSpacing`, 32 dp; pass that to `item_spacing`.
+            item_spacing: 4.0,
             // `DockedToolbarTokens.ContainerLeadingSpace` / `TrailingSpace`
             // 16; 8 above and below centres a 48 dp item in 64.
             padding: Vec2::new(16.0, 8.0),
@@ -537,7 +553,8 @@ impl<'a> MaterialToolbar<'a> {
         self
     }
 
-    /// Sets the gap between items (default 8).
+    /// Sets the gap between items (default 4, `DockedToolbarTokens`
+    /// ContainerMinSpacing; ContainerMaxSpacing is 32).
     pub fn item_spacing(mut self, spacing: f32) -> Self {
         self.item_spacing = spacing;
         self
