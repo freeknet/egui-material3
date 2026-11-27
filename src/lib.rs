@@ -263,6 +263,7 @@
 pub mod a11y;
 pub mod actionsheet;
 pub mod badge;
+pub mod banner;
 pub mod bottom_app_bar;
 pub mod bottom_sheet;
 pub mod breadcrumbs;
@@ -354,6 +355,7 @@ pub use theme::{get_global_color, get_global_color_role, get_global_theme, updat
 pub use {
     actionsheet::{action_sheet, ActionButton, ActionGroup, MaterialActionSheet},
     badge::{badge, badge_dot, BadgeColor, BadgePosition, MaterialBadge},
+    banner::{BannerExt, BannerResponse, BannerTone, MaterialBanner},
     bottom_app_bar::{bottom_app_bar, MaterialBottomAppBar, BOTTOM_APP_BAR_HEIGHT},
     bottom_sheet::{BottomSheet, BottomSheetKind, BottomSheetResponse, SheetCloseReason},
     breadcrumbs::{breadcrumbs, MaterialBreadcrumbs},
@@ -412,7 +414,7 @@ pub use {
         MaterialList, MaterialListState, VisualDensity,
     },
     loading_indicator::LoadingIndicator,
-    material_theme::MaterialTheme,
+    material_theme::{MaterialTheme, SUCCESS_SEED, WARNING_SEED},
     menu::{
         context_menu, menu, menu_item, Corner, FocusState, MaterialMenu, MenuBarThemeData,
         MenuButtonThemeData, MenuEntry, MenuItem, MenuResponse, MenuStyle, MenuThemeData,

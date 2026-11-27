@@ -9,7 +9,9 @@
 
 #![doc(hidden)]
 
-use crate::{notification, MaterialButton, NotificationAlign};
+use crate::{
+    notification, BannerExt, BannerTone, MaterialBanner, MaterialButton, NotificationAlign,
+};
 use eframe::egui::{self, Ui, Window};
 use std::time::{Duration, Instant};
 
@@ -45,12 +47,15 @@ pub(crate) struct NotificationWindow {
     custom_closeable: bool,
     // Alignment setting
     notification_align: NotificationAlign,
+    // Which inline banners were dismissed (Info, Warning, Error, Success).
+    banners_dismissed: [bool; 4],
 }
 
 impl Default for NotificationWindow {
     fn default() -> Self {
         Self {
             open: false,
+            banners_dismissed: [false; 4],
             show_basic: false,
             show_with_icon: false,
             show_with_subtitle: false,
@@ -154,6 +159,40 @@ impl NotificationWindow {
     }
 
     fn render_examples(&mut self, ui: &mut Ui) {
+        ui.heading("Inline Banners");
+        ui.label("MaterialBanner sits in the layout. Tones come from the theme.");
+        let tones = [
+            (BannerTone::Info, "A new version is available."),
+            (
+                BannerTone::Warning,
+                "You are offline. Changes will sync later.",
+            ),
+            (
+                BannerTone::Error,
+                "Rendering failed: the output folder is read-only.",
+            ),
+            (BannerTone::Success, "Export finished."),
+        ];
+        for ((tone, message), dismissed) in tones.into_iter().zip(self.banners_dismissed.iter_mut())
+        {
+            if *dismissed {
+                continue;
+            }
+            let banner = ui.add_banner(
+                MaterialBanner::new(message)
+                    .tone(tone)
+                    .default_icon(true)
+                    .action("Details")
+                    .dismissible(true),
+            );
+            *dismissed = banner.dismissed();
+            ui.add_space(8.0);
+        }
+        if ui.button("Reset banners").clicked() {
+            self.banners_dismissed = [false; 4];
+        }
+        ui.add_space(20.0);
+
         // Basic Notification
         ui.heading("Basic Notification");
         ui.label("Simple notification with title and text (auto-dismisses after 5 seconds):");
