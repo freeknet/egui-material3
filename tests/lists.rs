@@ -278,6 +278,94 @@ fn up_and_down_rove_and_space_activates() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn leading_ui_gets_its_slot_and_the_item_state() -> TestResult {
+    let slot = Cell::new(Rect::NOTHING);
+    let state = Cell::new(None);
+    let harness = support::harness_for(MaterialTheme::baseline(false), size(), |ui| {
+        ui.add(
+            MaterialList::new().item(ListItem::new("Clip 3").selected(true).leading_ui(
+                Vec2::new(48.0, 27.0),
+                |ui, s| {
+                    slot.set(ui.max_rect());
+                    state.set(Some(*s));
+                },
+            )),
+        );
+    });
+    let item = harness.get_by_label("Clip 3");
+    let item_rect = item.rect();
+    assert_eq!(
+        item.accesskit_node().role(),
+        Role::ListItem,
+        "the item keeps its AccessKit node"
+    );
+    let slot = slot.get();
+    assert_eq!(
+        slot.size(),
+        Vec2::new(48.0, 27.0),
+        "the slot has the asked size"
+    );
+    assert_eq!(
+        slot.min.x,
+        item_rect.min.x + 16.0,
+        "the slot sits after the 16 dp leading space"
+    );
+    let state = state.get().ok_or("the callback ran")?;
+    assert!(state.selected, "the callback sees the selection");
+    assert_eq!(state.rect, item_rect, "state.rect is the whole item");
+    assert_eq!(
+        state.label_color,
+        MaterialTheme::baseline(false).color(ColorRole::OnSecondaryContainer),
+        "selected content colour"
+    );
+    Ok(())
+}
+
+#[test]
+fn content_ui_keeps_clicks_keyboard_and_accesskit() -> TestResult {
+    let clicked = Cell::new(0);
+    let area = Cell::new(Rect::NOTHING);
+    let mut harness = support::harness_for(MaterialTheme::baseline(false), size(), |ui| {
+        ui.add(
+            MaterialList::new().fill_width(true).item(
+                ListItem::new("Custom row")
+                    .min_tile_height(64.0)
+                    .on_click(|| clicked.set(clicked.get() + 1))
+                    .content_ui(|ui, _state| {
+                        area.set(ui.max_rect());
+                        ui.label("Painted by the app");
+                    }),
+            ),
+        );
+    });
+    let item = harness.get_by_label("Custom row");
+    let item_rect = item.rect();
+    assert_eq!(item_rect.height(), 64.0, "min_tile_height sizes the row");
+    assert_eq!(
+        area.get(),
+        item_rect.shrink2(Vec2::new(16.0, 0.0)),
+        "the content Ui is the item inset by 16 dp each side"
+    );
+    assert!(
+        harness.query_by_label("Painted by the app").is_some(),
+        "the custom content is shown"
+    );
+    item.click();
+    harness.run();
+    assert_eq!(clicked.get(), 1, "a click still activates the item");
+    harness.key_press(Key::Tab);
+    harness.run();
+    assert!(
+        harness.get_by_label("Custom row").is_focused(),
+        "the item is still a Tab stop"
+    );
+    harness.key_press(Key::Space);
+    harness.run();
+    assert_eq!(clicked.get(), 2, "Space activates the focused item");
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Snapshots.
 

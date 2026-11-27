@@ -7,7 +7,7 @@
 
 //! Type definitions for Material Design 3 List Components
 
-use egui::{ecolor::Color32, Vec2};
+use egui::{ecolor::Color32, Rect, Vec2};
 
 /// Which title font a list tile uses.
 pub enum ListTileStyle {
@@ -151,6 +151,36 @@ pub enum ListLeading {
     Radio(bool),
 }
 
+/// What a custom list-item callback ([`ListItem::leading_ui`],
+/// [`ListItem::content_ui`]) sees: the item's geometry, state and the
+/// colours the built-in content would use in that state, so custom content
+/// can match selection, disabled and hover styling.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ListItemState {
+    /// The whole item (container) rect.
+    pub rect: Rect,
+    /// Whether the item is enabled.
+    pub enabled: bool,
+    /// Whether the item is selected.
+    pub selected: bool,
+    /// Whether the pointer is over the item.
+    pub hovered: bool,
+    /// Whether the item is being pressed.
+    pub pressed: bool,
+    /// Whether the item has keyboard focus.
+    pub focused: bool,
+    /// The label colour (`onSurface`, `onSecondaryContainer` when selected,
+    /// 38 % `onSurface` when disabled).
+    pub label_color: Color32,
+    /// The supporting-text colour.
+    pub supporting_color: Color32,
+    /// The icon colour.
+    pub icon_color: Color32,
+}
+
+/// A custom list-item callback: a `Ui` over its slot, and the item state.
+pub(crate) type ListItemUi<'a> = Box<dyn FnOnce(&mut egui::Ui, &ListItemState) + 'a>;
+
 /// Persistent state for a Material Design list
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct MaterialListState {
@@ -237,4 +267,8 @@ pub struct ListItem<'a> {
         reason = "a boxed UI callback; the closure signature is clearer spelled out than behind an alias"
     )]
     pub(crate) drawer: Option<std::sync::Arc<dyn Fn(&mut egui::Ui) + Send + Sync>>,
+    /// Custom UI in the leading slot, with the slot's size
+    pub(crate) leading_ui: Option<(Vec2, ListItemUi<'a>)>,
+    /// Custom UI replacing the leading, text and trailing content
+    pub(crate) content_ui: Option<ListItemUi<'a>>,
 }
