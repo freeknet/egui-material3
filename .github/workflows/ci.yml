@@ -25,7 +25,10 @@ env:
   # The features CI builds. The svg_* features download thousands of SVG
   # files from the GitHub API at build time (build.rs), and an
   # unauthenticated runner is rate-limited out of that, so they are left out.
-  FEATURES: ondemand,spreadsheet
+  # svg and system-theme are off by default; building them here keeps the
+  # resvg and dark-light paths compiled and tested, and the "default
+  # features" clippy step below covers the build without them.
+  FEATURES: ondemand,spreadsheet,svg,system-theme
 
 jobs:
   format:

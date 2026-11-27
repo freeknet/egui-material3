@@ -15,7 +15,7 @@ mod support;
 use egui::{Color32, FontFamily, FontId, TextStyle};
 use egui_kittest::{Harness, SnapshotError, SnapshotOptions};
 use egui_material3::fonts::{self, symbol_family_name, SymbolStyle};
-use egui_material3::icon::{resolve_symbol, Icon};
+use egui_material3::icon::resolve_symbol;
 use egui_material3::material_symbol::{get_material_symbol, ICON_HOME, ICON_NAMES};
 use egui_material3::tokens::typography::{text_styles_with, weight_family_name};
 use egui_material3::tokens::{ColorRole, LayoutDirection, TypeRole};
@@ -433,6 +433,7 @@ fn directional_icons_mirror_in_rtl() -> TestResult {
     Ok(())
 }
 
+#[cfg(feature = "svg")]
 #[test]
 fn monochrome_svg_takes_the_tint() -> TestResult {
     let _gpu = one_renderer_at_a_time();
@@ -445,7 +446,7 @@ fn monochrome_svg_takes_the_tint() -> TestResult {
             egui_material3::paint_icon(
                 ui.painter(),
                 rect,
-                &Icon::svg(SVG),
+                &egui_material3::icon::Icon::svg(SVG),
                 &Default::default(),
                 Color32::from_rgb(200, 0, 0),
             );

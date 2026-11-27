@@ -18,13 +18,13 @@ leak into pull requests sent there.
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy --locked --all-targets --features ondemand,spreadsheet -- -D warnings
+cargo clippy --locked --all-targets --features ondemand,spreadsheet,svg,system-theme -- -D warnings
 cargo clippy --locked --all-targets -- -D warnings
-cargo test --locked --features ondemand,spreadsheet --lib --tests
-cargo test --locked --features ondemand,spreadsheet --doc
-RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --features ondemand,spreadsheet
+cargo test --locked --features ondemand,spreadsheet,svg,system-theme --lib --tests
+cargo test --locked --features ondemand,spreadsheet,svg,system-theme --doc
+RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --features ondemand,spreadsheet,svg,system-theme
 cargo deny --all-features check
-cargo run --example stories --features spreadsheet   # the component gallery
+cargo run --example stories --features spreadsheet,svg,system-theme   # the component gallery
 ```
 
 All of these are clean on `freeknet` and enforced by CI
@@ -33,7 +33,12 @@ All of these are clean on `freeknet` and enforced by CI
 aggregate). A warning is a build failure. Set `CARGO_BUILD_JOBS=4` on
 shared machines.
 
-CI builds the `ondemand` and `spreadsheet` features. The `svg_*` features
+CI builds the `ondemand`, `spreadsheet`, `svg` and `system-theme`
+features, and clippy once more with none (no feature is on by default:
+`svg` and `system-theme` keep resvg and dark-light, and the unmaintained
+crates under them, out of downstream builds that do not ask for them;
+gate their code with `cfg(feature = ...)` and give the off path a
+documented fallback). The `svg_*` features
 are not built there: `build.rs` downloads thousands of SVG files from the
 GitHub API for them, which an unauthenticated runner is rate-limited out
 of. Build them locally when you touch `svg_emoji.rs` or `build.rs`.
