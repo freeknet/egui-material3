@@ -231,6 +231,24 @@ impl InputWindow {
             );
             ui.add_space(8.0);
         }
+        ui.label("Desktop densities -4 and -5 (28 and 24 dp, non-token values), an explicit height and font, and glyph icons:");
+        for density in [-4, -5] {
+            ui.add(
+                MaterialInput::outlined(&mut self.dense_name)
+                    .label(format!("Clip name (density {density})"))
+                    .leading_icon("search")
+                    .trailing_icon(egui_material3::Icon::from('\u{e5cd}'))
+                    .density(density),
+            );
+            ui.add_space(8.0);
+        }
+        ui.add(
+            MaterialInput::filled(&mut self.dense_name)
+                .label("Clip name (22 px, 12 pt)")
+                .height(22.0)
+                .font(egui::FontId::proportional(12.0)),
+        );
+        ui.add_space(8.0);
         ui.label("Number fields: drag sideways, Up/Down, Page Up/Down, or type");
         ui.horizontal(|ui| {
             ui.add(

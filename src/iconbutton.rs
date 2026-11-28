@@ -27,7 +27,11 @@
 //!
 //! Buttons smaller than 48 dp keep a 48 dp touch target (Compose's
 //! `minimumInteractiveComponentSize`): the response, and the space taken in
-//! the layout, is at least 48 x 48 with the container centred in it.
+//! the layout, is at least 48 x 48 with the container centred in it. Dense
+//! desktop rows can turn that off with
+//! [`MaterialIconButton::min_touch_target`] and shrink the glyph with
+//! [`MaterialIconButton::icon_size`] (16 dp in a 24 dp button, say); both
+//! are pointer-only desktop choices outside the M3 tokens.
 //!
 //! An icon-only button has nothing for a screen reader to announce but its
 //! label: give every button a [`MaterialIconButton::label`]. When there is
@@ -453,6 +457,8 @@ pub struct MaterialIconButton<'a> {
     width: IconButtonWidth,
     shape: IconButtonShape,
     icon_color_override: Option<Color32>,
+    icon_size: Option<f32>,
+    min_touch_target: bool,
     action: Option<Box<dyn Fn() + 'a>>,
 }
 
@@ -470,6 +476,8 @@ impl<'a> MaterialIconButton<'a> {
             width: IconButtonWidth::Default,
             shape: IconButtonShape::Round,
             icon_color_override: None,
+            icon_size: None,
+            min_touch_target: true,
             action: None,
         }
     }
@@ -569,6 +577,40 @@ impl<'a> MaterialIconButton<'a> {
         self
     }
 
+    /// The glyph size in points, overriding the size's `IconSize` token
+    /// (20, 24, 32 or 40 dp), such as 16 for a dense toolbar. The
+    /// container keeps its size; the icon is never drawn larger than the
+    /// container. Non-finite or negative values are ignored.
+    ///
+    /// ```
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::MaterialIconButton;
+    ///
+    /// ui.add(
+    ///     MaterialIconButton::standard("play_arrow")
+    ///         .size(24.0)
+    ///         .icon_size(16.0)
+    ///         .min_touch_target(false)
+    ///         .label("Play"),
+    /// );
+    /// # });
+    /// ```
+    pub fn icon_size(mut self, size: f32) -> Self {
+        self.icon_size = (size.is_finite() && size >= 0.0).then_some(size);
+        self
+    }
+
+    /// Whether a button smaller than [`MIN_TOUCH_TARGET`] (48 dp) still
+    /// takes a 48 x 48 response and layout slot around its container
+    /// (`minimumInteractiveComponentSize`; default `true`). Turn it off in
+    /// dense desktop rows driven by a mouse, where the target would overlap
+    /// its neighbours: the button then takes exactly its container's size.
+    /// Keep it on for touch.
+    pub fn min_touch_target(mut self, enabled: bool) -> Self {
+        self.min_touch_target = enabled;
+        self
+    }
+
     /// Runs `f` when the button is clicked.
     pub fn on_click<F>(mut self, f: F) -> Self
     where
@@ -583,7 +625,11 @@ impl Widget for MaterialIconButton<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let metrics = self.size.metrics();
         let visual = Vec2::new(metrics.width(self.width), metrics.height);
-        let target = visual.max(Vec2::splat(MIN_TOUCH_TARGET));
+        let target = if self.min_touch_target {
+            visual.max(Vec2::splat(MIN_TOUCH_TARGET))
+        } else {
+            visual
+        };
         let (outer, mut response) =
             ui.allocate_exact_size(target, crate::a11y::sense(self.enabled, Sense::click()));
         let rect = Rect::from_center_size(outer.center(), visual);
@@ -663,7 +709,11 @@ impl Widget for MaterialIconButton<'_> {
         }
         crate::paint::paint_state_layer(painter, rect, corner_radius, colors.content, interaction);
 
-        let icon_rect = Rect::from_center_size(rect.center(), Vec2::splat(metrics.icon_size));
+        let icon_size = self
+            .icon_size
+            .unwrap_or(metrics.icon_size)
+            .min(rect.width().min(rect.height()));
+        let icon_rect = Rect::from_center_size(rect.center(), Vec2::splat(icon_size));
         paint_widget_icon(
             painter,
             icon_rect,

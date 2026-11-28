@@ -33,6 +33,7 @@ pub(crate) struct SearchWindow {
     full_screen: bool,
     with_actions: bool,
     dense: bool,
+    sections: bool,
     last_event: String,
 }
 
@@ -44,6 +45,7 @@ impl Default for SearchWindow {
             full_screen: false,
             with_actions: true,
             dense: false,
+            sections: true,
             last_event: "Nothing yet".to_owned(),
         }
     }
@@ -64,6 +66,7 @@ impl SearchWindow {
             ui.checkbox(&mut self.full_screen, "Full-screen view");
             ui.checkbox(&mut self.with_actions, "Trailing actions");
             ui.checkbox(&mut self.dense, "Dense (36 dp, shortcut chip)");
+            ui.checkbox(&mut self.sections, "Sections");
         });
         ui.label("Click the bar or Tab into it. Up/Down move through the suggestions, Enter picks, Escape closes.");
         ui.add_space(12.0);
@@ -82,7 +85,16 @@ impl SearchWindow {
         let mut search = MaterialSearch::new("search_story", &mut self.query)
             .placeholder("Search fruit")
             .mode(mode)
-            .suggestions(suggestions.clone());
+            .empty_text("No fruit matches");
+        // Sections keep the suggestions' order, so picked indices still
+        // index `suggestions`.
+        search = if self.sections {
+            search
+                .section("Recent", suggestions.iter().take(3).cloned())
+                .section("All fruit", suggestions.iter().skip(3).cloned())
+        } else {
+            search.suggestions(suggestions.clone())
+        };
         if self.dense {
             search = search.height(36.0).trailing_content(|ui| {
                 ui.label(egui::RichText::new("Ctrl+K").weak());

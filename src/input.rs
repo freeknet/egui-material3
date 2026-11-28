@@ -28,9 +28,17 @@
 //! - **Caret**: `primary`, `error` in error.
 //! - **Density**: [`MaterialInput::density`] (`0` to `-3`) or
 //!   [`MaterialInput::compact`] shorten the container to as little as 32 dp
-//!   for tables and toolbars; a dense field paints no floating label (the
-//!   label becomes the placeholder) but keeps it as the accessible name.
+//!   for tables and toolbars, and the desktop steps `-4` and `-5` to 28 and
+//!   24 dp (non-token values for dense desktop panels; see
+//!   [`MIN_DESKTOP_DENSITY`]). [`MaterialInput::height`] sets the container
+//!   height directly and [`MaterialInput::font`] the text font. A dense
+//!   field paints no floating label (the label becomes the placeholder)
+//!   but keeps it as the accessible name, and its icons shrink to fit.
+//! - **Icons**: the leading and trailing slots take any [`Icon`]: a
+//!   Material Symbol name, an SVG, a texture, or a glyph from the app's
+//!   own icon font ([`Icon::glyph`]).
 
+use crate::icon::Icon;
 use crate::paint::paint_state_layer;
 use crate::tokens::motion::DURATION_SHORT3;
 use crate::tokens::state::DISABLED_CONTENT_OPACITY;
@@ -73,8 +81,23 @@ const NOTCH_PADDING: f32 = 4.0;
 const SUPPORTING_TOP_PADDING: f32 = 4.0;
 /// Space between a prefix or suffix and the text.
 const PREFIX_SUFFIX_PADDING: f32 = 2.0;
-/// The densest density step [`MaterialInput::density`] accepts.
+/// The densest step of the 8 dp density scale (32 dp), the one
+/// [`MaterialInput::compact`] and the number field's `compact` use.
 pub const MIN_DENSITY: i8 = -3;
+/// The densest density [`MaterialInput::density`] accepts. Below
+/// [`MIN_DENSITY`] come two desktop steps, `-4` (28 dp) and `-5` (24 dp),
+/// for dense desktop panels and inspectors driven by a mouse. They are
+/// not Material 3 token values (no M3 text field is shorter than the
+/// 32 dp compact one) and are too small for touch.
+pub const MIN_DESKTOP_DENSITY: i8 = -5;
+/// The container height at density `-4`: a desktop value, not a token.
+pub const DESKTOP_DENSITY_28: f32 = 28.0;
+/// The container height at density `-5`: a desktop value, not a token.
+pub const DESKTOP_DENSITY_24: f32 = 24.0;
+/// The space a dense field's icon leaves above and below it: the icon
+/// shrinks from 24 dp once the container is shorter than 32 dp (20 dp in
+/// a 28 dp field, 16 dp in a 24 dp one).
+const DENSE_ICON_INSET: f32 = 4.0;
 /// How much each density step below zero takes off the container height:
 /// 56 dp at 0, 48, 40, and 32 dp at -3 (the 32 dp of
 /// `MaterialSelect::compact`). Compose's text fields have no density
@@ -83,9 +106,22 @@ pub const MIN_DENSITY: i8 = -3;
 pub const DENSITY_STEP: f32 = 8.0;
 
 /// The container height of a one-line field at `density` (clamped to
-/// [`MIN_DENSITY`]`..=0`).
+/// [`MIN_DESKTOP_DENSITY`]`..=0`): 56, 48, 40 and 32 dp for `0` to `-3`,
+/// then the desktop values 28 and 24 dp for `-4` and `-5`.
 pub fn container_height_for_density(density: i8) -> f32 {
-    CONTAINER_HEIGHT + DENSITY_STEP * f32::from(density.clamp(MIN_DENSITY, 0))
+    match density.clamp(MIN_DESKTOP_DENSITY, 0) {
+        -5 => DESKTOP_DENSITY_24,
+        -4 => DESKTOP_DENSITY_28,
+        density => CONTAINER_HEIGHT + DENSITY_STEP * f32::from(density),
+    }
+}
+
+/// The icon size in a field whose container is `container_height` tall:
+/// the 24 dp `LeadingIconSize`, less in a container under 32 dp.
+fn icon_size_for(container_height: f32) -> f32 {
+    ICON_SIZE
+        .min(container_height - 2.0 * DENSE_ICON_INSET)
+        .max(0.0)
 }
 
 /// Material Design text input field following Material Design 3 specifications
@@ -135,8 +171,8 @@ pub struct MaterialInput<'a> {
     placeholder: Option<String>,
     helper_text: Option<String>,
     error_text: Option<String>,
-    leading_icon: Option<String>,
-    trailing_icon: Option<String>,
+    leading_icon: Option<Icon>,
+    trailing_icon: Option<Icon>,
     trailing_icon_label: Option<String>,
     prefix: Option<String>,
     suffix: Option<String>,
@@ -151,6 +187,8 @@ pub struct MaterialInput<'a> {
     width: Option<f32>,
     fill_width: bool,
     density: i8,
+    height: Option<f32>,
+    font: Option<FontId>,
     id_salt: Option<egui::IdSalt>,
 }
 
@@ -209,6 +247,8 @@ impl<'a> MaterialInput<'a> {
             width: None,
             fill_width: false,
             density: 0,
+            height: None,
+            font: None,
             id_salt: None,
         }
     }
@@ -245,14 +285,28 @@ impl<'a> MaterialInput<'a> {
         self
     }
 
-    /// Set the leading icon (Material Symbol name)
-    pub fn leading_icon(mut self, icon: impl Into<String>) -> Self {
+    /// Set the leading icon: a Material Symbol name, or any [`Icon`] (an
+    /// SVG, a texture, or a glyph from the app's own icon font).
+    ///
+    /// ```rust
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::{Icon, MaterialInput};
+    ///
+    /// let mut filter = String::new();
+    /// // A glyph from a font the app registered as "app-icons".
+    /// let funnel = Icon::glyph('\u{e900}', egui::FontFamily::Name("app-icons".into()));
+    /// # let funnel = Icon::from("filter_list");
+    /// ui.add(MaterialInput::outlined(&mut filter).density(-4).leading_icon(funnel));
+    /// # });
+    /// ```
+    pub fn leading_icon(mut self, icon: impl Into<Icon>) -> Self {
         self.leading_icon = Some(icon.into());
         self
     }
 
-    /// Set the trailing icon (Material Symbol name), drawn as decoration.
-    pub fn trailing_icon(mut self, icon: impl Into<String>) -> Self {
+    /// Set the trailing icon (a Material Symbol name, or any [`Icon`]),
+    /// drawn as decoration.
+    pub fn trailing_icon(mut self, icon: impl Into<Icon>) -> Self {
         self.trailing_icon = Some(icon.into());
         self
     }
@@ -260,11 +314,7 @@ impl<'a> MaterialInput<'a> {
     /// Set a clickable trailing icon: a button named `label` for screen
     /// readers. [`TextFieldResponse::trailing_icon_clicked`] reports clicks
     /// (use [`Self::show`] instead of `ui.add`).
-    pub fn trailing_icon_button(
-        mut self,
-        icon: impl Into<String>,
-        label: impl Into<String>,
-    ) -> Self {
+    pub fn trailing_icon_button(mut self, icon: impl Into<Icon>, label: impl Into<String>) -> Self {
         self.trailing_icon = Some(icon.into());
         self.trailing_icon_label = Some(label.into());
         self
@@ -353,12 +403,51 @@ impl<'a> MaterialInput<'a> {
     }
 
     /// Density from `0` (the 56 dp default) down to `-3` (32 dp), each step
-    /// 8 dp shorter; values outside the range are clamped. Below zero the
-    /// label is not painted: it becomes the placeholder (unless one is set)
-    /// and stays the field's accessible name. Focus, error and disabled
-    /// colours are unchanged.
+    /// 8 dp shorter, then the desktop steps `-4` (28 dp) and `-5` (24 dp),
+    /// which are not Material 3 token values (see [`MIN_DESKTOP_DENSITY`]);
+    /// values outside the range are clamped. Below zero the label is not
+    /// painted: it becomes the placeholder (unless one is set) and stays
+    /// the field's accessible name. Focus, error and disabled colours are
+    /// unchanged. Under 32 dp the icons shrink to leave 4 dp above and
+    /// below; pair the desktop steps with a smaller [`font`](Self::font)
+    /// if the 24 dp `BodyLarge` line is too tall.
     pub fn density(mut self, density: i8) -> Self {
-        self.density = density.clamp(MIN_DENSITY, 0);
+        self.density = density.clamp(MIN_DESKTOP_DENSITY, 0);
+        self
+    }
+
+    /// An explicit container height in points, overriding
+    /// [`density`](Self::density). Below 56 dp the field is dense (no
+    /// floating label, as with a negative density). A one-line field is
+    /// exactly this tall, with the text centred and clipped to it; a
+    /// multi-line field grows with its text from here. Like the desktop
+    /// densities this is not a token value. Non-finite values are ignored
+    /// and the height is at least 1.
+    ///
+    /// ```rust
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::MaterialInput;
+    ///
+    /// let mut name = String::from("Track 1");
+    /// ui.add(
+    ///     MaterialInput::filled(&mut name)
+    ///         .height(22.0)
+    ///         .font(egui::FontId::proportional(12.0))
+    ///         .label("Track name"),
+    /// );
+    /// # });
+    /// ```
+    pub fn height(mut self, height: f32) -> Self {
+        self.height = height.is_finite().then(|| height.max(1.0));
+        self
+    }
+
+    /// The font of the text, placeholder, prefix and suffix, instead of
+    /// `BodyLarge` (16 / 24 dp). The line height follows the font, so a
+    /// smaller font centres in a dense container. The floating label keeps
+    /// its `BodyLarge`/`BodySmall` sizes.
+    pub fn font(mut self, font: FontId) -> Self {
+        self.font = Some(font);
         self
     }
 
@@ -404,6 +493,8 @@ impl<'a> MaterialInput<'a> {
             width,
             fill_width,
             density,
+            height,
+            font,
             id_salt,
         } = self;
 
@@ -411,31 +502,40 @@ impl<'a> MaterialInput<'a> {
         let theme = MaterialTheme::of(&ctx);
         let enabled = enabled && ui.is_enabled();
         let body = TypeRole::BodyLarge.style();
-        let font = body.font_id(&ctx);
+        let (font, line_height) = match font {
+            Some(font) => {
+                let line_height = ctx.fonts_mut(|f| f.row_height(&font));
+                (font, line_height)
+            }
+            None => (body.font_id(&ctx), body.line_height),
+        };
 
         // A dense field has no room for a floating label: the label is the
         // placeholder instead, and the accessible name either way.
-        let dense = density < 0;
+        let min_container_height = height.unwrap_or_else(|| container_height_for_density(density));
+        let dense = density < 0 || min_container_height < CONTAINER_HEIGHT;
         let accessible_name = label.clone();
         let (label, placeholder) = if dense {
             (None, placeholder.or(label))
         } else {
             (label, placeholder)
         };
-        let min_container_height = container_height_for_density(density);
 
         // Horizontal layout: icons push the text in to 52 dp.
         let width = match width {
             Some(width) if !fill_width => width,
             Some(_) | None => ui.available_width(),
         };
+        let icon_size = icon_size_for(min_container_height);
+        // 52 dp at the full icon size; less beside a shrunken one.
+        let text_padding_with_icon = TEXT_PADDING_WITH_ICON - (ICON_SIZE - icon_size);
         let text_start = if leading_icon.is_some() {
-            TEXT_PADDING_WITH_ICON
+            text_padding_with_icon
         } else {
             HORIZONTAL_PADDING
         };
         let text_end = if trailing_icon.is_some() {
-            TEXT_PADDING_WITH_ICON
+            text_padding_with_icon
         } else {
             HORIZONTAL_PADDING
         };
@@ -458,10 +558,17 @@ impl<'a> MaterialInput<'a> {
         // centred with 16 dp above and below.
         let has_label = label.is_some();
         // A dense field centres one line in its shorter container.
+        // A one-line field of an explicit height is exactly that tall: its
+        // line shrinks to fit when the font's line is taller.
+        let fixed_height = height.filter(|_| !multiline);
+        let line_height = match fixed_height {
+            Some(height) => line_height.min(height),
+            None => line_height,
+        };
         let (top_padding, bottom_padding) = if variant == InputVariant::Filled && has_label {
             (24.0, 8.0)
         } else if dense {
-            let padding = ((min_container_height - body.line_height) / 2.0).max(0.0);
+            let padding = ((min_container_height - line_height) / 2.0).max(0.0);
             (padding, padding)
         } else {
             (16.0, 16.0)
@@ -474,12 +581,14 @@ impl<'a> MaterialInput<'a> {
                 .painter()
                 .layout_no_wrap("A".into(), font.clone(), Color32::WHITE);
             let rows = galley.rows.len().max(min_lines) as f32;
-            (rows * row.size().y).max(body.line_height)
+            (rows * row.size().y).max(line_height)
         } else {
-            body.line_height
+            line_height
         };
-        let container_height =
-            (top_padding + input_height + bottom_padding).max(min_container_height);
+        let container_height = match fixed_height {
+            Some(height) => height,
+            None => (top_padding + input_height + bottom_padding).max(min_container_height),
+        };
 
         let supporting = if is_error {
             error_text.or(helper_text)
@@ -550,6 +659,14 @@ impl<'a> MaterialInput<'a> {
         let text_response = {
             // A child that does not allocate: the field already holds its space.
             let mut child = ui.new_child(egui::UiBuilder::new().max_rect(input_rect));
+            if fixed_height.is_some() {
+                // A fixed-height field clips text taller than its container.
+                child.set_clip_rect(container_rect.intersect(child.clip_rect()));
+            }
+            // A one-line TextEdit is at least `interact_size.y` (20) tall;
+            // a line shorter than that must not push past the container.
+            let interact = &mut child.spacing_mut().interact_size.y;
+            *interact = interact.min(input_rect.height());
             let ui = &mut child;
             let visuals = ui.visuals_mut();
             visuals.text_cursor.stroke.color = base.caret;
@@ -588,11 +705,11 @@ impl<'a> MaterialInput<'a> {
 
         let painter = ui.painter().clone();
         let leading_center = Pos2::new(
-            container_rect.left() + ICON_PADDING + ICON_SIZE / 2.0,
+            container_rect.left() + ICON_PADDING + icon_size / 2.0,
             container_rect.center().y,
         );
         let trailing_center = Pos2::new(
-            container_rect.right() - ICON_PADDING - ICON_SIZE / 2.0,
+            container_rect.right() - ICON_PADDING - icon_size / 2.0,
             container_rect.center().y,
         );
 
@@ -600,7 +717,11 @@ impl<'a> MaterialInput<'a> {
         let mut trailing_hovered = false;
         let trailing_button = match (&trailing_icon, &trailing_icon_label) {
             (Some(_), Some(button_label)) => {
-                let rect = Rect::from_center_size(trailing_center, Vec2::splat(40.0));
+                // The 40 dp icon-button state layer, no taller than the field.
+                let rect = Rect::from_center_size(
+                    trailing_center,
+                    Vec2::splat(40.0_f32.min(container_height)),
+                );
                 let response = ui.interact(
                     rect,
                     id.with("trailing_icon"),
@@ -689,20 +810,37 @@ impl<'a> MaterialInput<'a> {
             );
         }
 
+        let direction = theme.layout_direction;
+        let icon_rect = |center: Pos2| Rect::from_center_size(center, Vec2::splat(icon_size));
         if let Some(icon) = &leading_icon {
-            paint_icon(&painter, leading_center, icon, colors.leading_icon);
+            crate::iconbutton::paint_widget_icon(
+                &painter,
+                icon_rect(leading_center),
+                icon,
+                false,
+                colors.leading_icon,
+                direction,
+            );
         }
         if let Some(icon) = &trailing_icon {
             if let Some(button) = &trailing_button {
+                let radius = (button.rect.height() / 2.0).round().clamp(0.0, 255.0) as u8;
                 paint_state_layer(
                     &painter,
                     button.rect,
-                    20,
+                    radius,
                     colors.trailing_icon,
                     InteractionState::from_response(button),
                 );
             }
-            paint_icon(&painter, trailing_center, icon, colors.trailing_icon);
+            crate::iconbutton::paint_widget_icon(
+                &painter,
+                icon_rect(trailing_center),
+                icon,
+                false,
+                colors.trailing_icon,
+                direction,
+            );
         }
 
         if supporting_height > 0.0 {

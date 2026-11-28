@@ -411,7 +411,7 @@ pub use {
     input::{InputVariant, MaterialInput},
     layoutgrid::{debug_layout_grid, layout_grid, GridTile, GridTileBar, MaterialLayoutGrid},
     list::{
-        list, list_item, ListItem, ListLeading, ListResponse, ListTileStyle,
+        list, list_item, ListItem, ListLeading, ListResponse, ListRowsResponse, ListTileStyle,
         ListTileTitleAlignment, MaterialList, MaterialListState, VisualDensity,
     },
     loading_indicator::LoadingIndicator,
@@ -463,7 +463,7 @@ pub use {
     },
     tooltip::{
         show_tooltip_on_hover, show_tooltip_on_hover_custom, tooltip, with_tooltip,
-        MaterialTooltip, RichTooltip, RichTooltipResponse, TooltipPosition,
+        MaterialTooltip, RichTooltip, RichTooltipResponse, TooltipAnchor, TooltipPosition,
     },
     topappbar::{
         center_aligned_top_app_bar, large_flexible_top_app_bar, large_top_app_bar,

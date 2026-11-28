@@ -50,7 +50,35 @@ impl TooltipWindow {
         ui.label("Hover over elements to see tooltips appear:");
     }
 
+    /// A pointer-anchored tooltip over a timeline: it follows the pointer
+    /// and shows the time under it.
+    fn render_pointer_timeline(&mut self, ui: &mut Ui) {
+        ui.heading("Pointer-anchored tooltip (timeline)");
+        ui.label("Hover the timeline and move along it: the tooltip follows the pointer");
+        let width = ui.available_width().min(600.0);
+        let (rect, response) =
+            ui.allocate_exact_size(egui::vec2(width, 32.0), egui::Sense::hover());
+        let theme = egui_material3::MaterialTheme::of(ui.ctx());
+        ui.painter().rect_filled(
+            rect,
+            4.0,
+            theme.color(egui_material3::tokens::ColorRole::SurfaceContainerHighest),
+        );
+        let seconds = 120.0;
+        egui_material3::MaterialTooltip::new("Timeline position")
+            .anchor(egui_material3::TooltipAnchor::Pointer)
+            .show_for_with(&response, |ui| {
+                if let Some(pos) = response.hover_pos() {
+                    let t = ((pos.x - rect.left()) / rect.width()).clamp(0.0, 1.0) * seconds;
+                    ui.label(format!("{:01}:{:04.1}", (t / 60.0).floor(), t % 60.0));
+                }
+            });
+    }
+
     fn render_examples(&mut self, ui: &mut Ui) {
+        self.render_pointer_timeline(ui);
+        ui.add_space(20.0);
+
         // Basic Tooltips on Buttons
         ui.heading("Basic Tooltips on Buttons");
         ui.label("Hover over buttons to see tooltips:");

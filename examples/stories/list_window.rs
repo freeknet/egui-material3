@@ -65,6 +65,8 @@ pub(crate) struct ListWindow {
     edit_drawer_title: String,
     edit_drawer_department: String,
     edit_drawer_description: String,
+    // Virtualised list selection
+    virtual_selected: Option<usize>,
 }
 
 impl Default for ListWindow {
@@ -139,6 +141,7 @@ impl Default for ListWindow {
             edit_drawer_title: String::new(),
             edit_drawer_department: String::new(),
             edit_drawer_description: String::new(),
+            virtual_selected: None,
         }
     }
 }
@@ -152,6 +155,8 @@ impl ListWindow {
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     self.render_m3_leading_and_segmented(ui);
+                    ui.add_space(20.0);
+                    self.render_desktop_rows(ui);
                     ui.add_space(20.0);
                     self.render_controls(ui);
                     ui.add_space(20.0);
@@ -186,6 +191,65 @@ impl ListWindow {
         self.show_edit_dialog(ctx);
         self.show_delete_dialog(ctx);
         self.show_edit_drawer_dialog(ctx);
+    }
+
+    /// Desktop rows: 28 dp rows shorter than the text default, and a
+    /// virtualised list of 100 000 rows that builds only the rows in view.
+    fn render_desktop_rows(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Desktop rows: 28 dp and virtualised");
+        ui.label("28 dp rows (ListItem::row_height, a non-token desktop value):");
+        ui.add(
+            MaterialList::new()
+                .id(egui::Id::unique("desktop_rows_28"))
+                .dividers(false)
+                .item(
+                    ListItem::new("kick.wav")
+                        .dense(true)
+                        .leading_icon("graphic_eq")
+                        .row_height(28.0),
+                )
+                .item(
+                    ListItem::new("snare.wav")
+                        .dense(true)
+                        .leading_icon("graphic_eq")
+                        .row_height(28.0)
+                        .selected(true),
+                )
+                .item(
+                    ListItem::new("hat.wav")
+                        .dense(true)
+                        .leading_icon("graphic_eq")
+                        .row_height(28.0),
+                ),
+        );
+        ui.add_space(8.0);
+        ui.label("100 000 rows with MaterialList::show_rows in ScrollArea::show_viewport. Click to select; Tab in, then Up/Down:");
+        let selected = self.virtual_selected;
+        let mut clicked = None;
+        egui::ScrollArea::vertical()
+            .id_salt("virtual_rows_story")
+            .max_height(240.0)
+            .auto_shrink([false, true])
+            .show_viewport(ui, |ui, viewport| {
+                let shown = MaterialList::new()
+                    .id(egui::Id::unique("virtual_rows"))
+                    .dividers(false)
+                    .show_rows(ui, viewport, 100_000, 28.0, |index| {
+                        ListItem::new(format!("clip-{index:06}.mp4"))
+                            .dense(true)
+                            .trailing_text(format!("{}:{:02}", index / 60 % 60, index % 60))
+                            .selected(selected == Some(index))
+                    });
+                for (index, row) in &shown.rows {
+                    if row.clicked() {
+                        clicked = Some(*index);
+                    }
+                }
+            });
+        if clicked.is_some() {
+            self.virtual_selected = clicked;
+        }
+        ui.label(format!("Selected: {:?}", self.virtual_selected));
     }
 
     /// M3 leading elements (avatar, checkbox, radio), selection, a dragged

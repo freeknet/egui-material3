@@ -77,6 +77,8 @@ impl IconButtonWindow {
                     self.render_sizes(ui);
                     ui.add_space(16.0);
                     self.render_toggles(ui);
+                    ui.add_space(16.0);
+                    self.render_dense(ui);
                 });
             });
         self.open = open;
@@ -161,6 +163,32 @@ impl IconButtonWindow {
                 }
             });
         }
+    }
+
+    /// A dense transport row: 24 dp buttons with 16 dp glyphs and no 48 dp
+    /// touch target (pointer-only desktop values, not tokens).
+    fn render_dense(&mut self, ui: &mut Ui) {
+        ui.heading("Dense desktop row");
+        ui.label("24 dp buttons, icon_size(16), min_touch_target(false): next to each other, not 48 dp apart");
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 2.0;
+            for (icon, label) in [
+                ("skip_previous", "Previous"),
+                ("play_arrow", "Play"),
+                ("stop", "Stop"),
+                ("skip_next", "Next"),
+                ("repeat", "Loop"),
+            ] {
+                ui.add(
+                    MaterialIconButton::standard(icon)
+                        .size(24.0)
+                        .icon_size(16.0)
+                        .min_touch_target(false)
+                        .enabled(self.enabled)
+                        .label(label),
+                );
+            }
+        });
     }
 
     fn render_toggles(&mut self, ui: &mut Ui) {
