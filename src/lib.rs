@@ -411,7 +411,7 @@ pub use {
     input::{InputVariant, MaterialInput},
     layoutgrid::{debug_layout_grid, layout_grid, GridTile, GridTileBar, MaterialLayoutGrid},
     list::{
-        list, list_item, ListItem, ListLeading, ListResponse, ListTileStyle,
+        list, list_item, ListItem, ListLeading, ListResponse, ListRowsResponse, ListTileStyle,
         ListTileTitleAlignment, MaterialList, MaterialListState, VisualDensity,
     },
     loading_indicator::LoadingIndicator,

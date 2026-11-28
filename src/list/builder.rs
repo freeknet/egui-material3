@@ -192,6 +192,7 @@ impl<'a> ListItem<'a> {
             min_vertical_padding: None,
             min_leading_width: None,
             min_tile_height: None,
+            row_height: None,
             tile_color: None,
             selected_tile_color: None,
             selected_color: None,
@@ -636,6 +637,32 @@ impl<'a> ListItem<'a> {
     /// ```
     pub fn min_tile_height(mut self, height: f32) -> Self {
         self.min_tile_height = Some(height);
+        self
+    }
+
+    /// An exact row height in points, overriding both the token heights
+    /// (56/72/88 dp, set with [`min_tile_height`](Self::min_tile_height))
+    /// and the floor the text and leading media would otherwise impose, so
+    /// rows can be shorter than the primary text's default: 28 dp desktop
+    /// rows, say. This is not a Material 3 token value; pick a
+    /// [`dense`](Self::dense) item (`BodyMedium`, a 20 dp line) for rows
+    /// under 44 dp. The text stays vertically centred and is clipped to the
+    /// row; leading and trailing elements stay centred. Non-finite values
+    /// are ignored and the height is at least 1.
+    ///
+    /// ```rust
+    /// # use egui_material3::*;
+    /// # egui::__run_test_ui(|ui| {
+    /// ui.add(
+    ///     MaterialList::new()
+    ///         .dividers(false)
+    ///         .item(ListItem::new("clip-01.mp4").dense(true).row_height(28.0))
+    ///         .item(ListItem::new("clip-02.mp4").dense(true).row_height(28.0)),
+    /// );
+    /// # });
+    /// ```
+    pub fn row_height(mut self, height: f32) -> Self {
+        self.row_height = height.is_finite().then(|| height.max(1.0));
         self
     }
 

@@ -171,6 +171,34 @@ impl ListResponse {
     }
 }
 
+/// What [`MaterialList::show_rows`] reports: the list's own response, the
+/// rows the viewport shows, and one response per row that was built.
+///
+/// `rows` holds the visible rows in order, plus the focused row and the
+/// row keyboard roving moved to when they are outside the viewport (they
+/// are laid out so they keep focus, and scrolled to). Each response is the
+/// whole row, with the row's id, as in [`ListResponse`].
+#[derive(Debug, Clone)]
+pub struct ListRowsResponse {
+    /// The whole list, `row_count` rows tall.
+    pub response: Response,
+    /// The rows inside the viewport.
+    pub visible: std::ops::Range<usize>,
+    /// `(row index, response)` for every row built this frame, by index.
+    pub rows: Vec<(usize, Response)>,
+}
+
+impl ListRowsResponse {
+    /// The response of row `index`, if it was built this frame.
+    pub fn row(&self, index: usize) -> Option<&Response> {
+        self.rows
+            .binary_search_by_key(&index, |(i, _)| *i)
+            .ok()
+            .and_then(|position| self.rows.get(position))
+            .map(|(_, response)| response)
+    }
+}
+
 /// What a list item shows at its start, besides a plain icon.
 ///
 /// Sizes and shapes from Compose's `ListTokens.kt`.
@@ -293,6 +321,8 @@ pub struct ListItem<'a> {
     pub(crate) min_leading_width: Option<f32>,
     /// The minimum height allocated for the list tile widget
     pub(crate) min_tile_height: Option<f32>,
+    /// An exact row height, below the text's natural height if need be
+    pub(crate) row_height: Option<f32>,
     /// Background color when selected is false
     pub(crate) tile_color: Option<Color32>,
     /// Background color when selected is true

@@ -37,8 +37,8 @@ use crate::material_theme::MaterialTheme;
 use crate::tokens::state::{DISABLED_CONTENT_OPACITY, DRAGGED_OPACITY};
 use crate::tokens::{ColorRole, Elevation, InteractionState, LayoutDirection, TypeRole, TypeStyle};
 use egui::{
-    ecolor::Color32, CornerRadius, EventFilter, Galley, Key, Pos2, Rect, Response, Sense, Ui, Vec2,
-    Widget,
+    ecolor::Color32, CornerRadius, EventFilter, Galley, Id, Key, Pos2, Rect, Response, Sense, Ui,
+    Vec2, Widget,
 };
 
 /// `ListTokens.ItemLeadingSpace` (`MeasurementTokens.Space200`).
@@ -242,10 +242,13 @@ fn item_layout(ui: &Ui, item: &ListItem<'_>, width: f32, drawer: bool) -> ItemLa
     let base = base + extra_lines;
     let media = leading.map_or(0.0, |s| s.y) + 2.0 * MEDIA_VERTICAL_PADDING;
     let natural = (block + 2.0 * VERTICAL_SPACE).max(media);
-    let height = item
-        .min_tile_height
-        .unwrap_or(base + density_adjustment)
-        .max(natural);
+    let height = match item.row_height {
+        Some(exact) => exact,
+        None => item
+            .min_tile_height
+            .unwrap_or(base + density_adjustment)
+            .max(natural),
+    };
     ItemLayout {
         height,
         text_width,
@@ -433,13 +436,446 @@ impl<'a> Widget for MaterialList<'a> {
     }
 }
 
+/// What every row of one list shares.
+struct RowEnv<'t> {
+    theme: &'t MaterialTheme,
+    direction: LayoutDirection,
+    segmented: bool,
+    allow_drawer: bool,
+    row_sense: Sense,
+    list_id: Id,
+}
+
+/// The id of row `index` of the list `list_id`.
+fn row_id(list_id: Id, index: usize) -> Id {
+    list_id.with(("item", index))
+}
+
+/// Up and Down move focus from row `current` to the next enabled row of
+/// `count`; returns the row focus moved to, if it moved.
+fn rove(
+    ui: &Ui,
+    list_id: Id,
+    current: usize,
+    count: usize,
+    mut enabled: impl FnMut(usize) -> bool,
+) -> Option<usize> {
+    ui.memory_mut(|m| {
+        m.set_focus_lock_filter(
+            row_id(list_id, current),
+            EventFilter {
+                vertical_arrows: true,
+                ..Default::default()
+            },
+        );
+    });
+    let none = egui::Modifiers::NONE;
+    let (down, up) = ui.input_mut(|i| {
+        (
+            i.consume_key(none, Key::ArrowDown),
+            i.consume_key(none, Key::ArrowUp),
+        )
+    });
+    let target = if down {
+        (current.saturating_add(1)..count).find(|&i| enabled(i))
+    } else if up {
+        (0..current).rev().find(|&i| enabled(i))
+    } else {
+        None
+    };
+    if let Some(target) = target {
+        ui.memory_mut(|m| m.request_focus(row_id(list_id, target)));
+    }
+    target
+}
+
+/// Where one row goes: its rect and its place among the list's rows.
+#[derive(Clone, Copy)]
+struct RowSlot {
+    rect: Rect,
+    index: usize,
+    count: usize,
+}
+
+/// Lays out, paints and wires up one row (without its drawer content) in
+/// `slot`, and returns its response. Click actions are queued in
+/// `pending`; drawer toggles go to `state`.
+fn show_row<'a>(
+    ui: &mut Ui,
+    env: &RowEnv<'_>,
+    mut item: ListItem<'a>,
+    layout: ItemLayout,
+    slot: RowSlot,
+    state: &mut MaterialListState,
+    pending: &mut Vec<Box<dyn Fn() + 'a>>,
+) -> Response {
+    let RowSlot {
+        rect: item_rect,
+        index,
+        count,
+    } = slot;
+    let theme = env.theme;
+    let direction = env.direction;
+    let segmented = env.segmented;
+    let has_drawer = env.allow_drawer && item.drawer.is_some();
+    let item_response = ui.interact(
+        item_rect,
+        row_id(env.list_id, index),
+        crate::a11y::sense(item.enabled, Sense::click() | env.row_sense),
+    );
+    match &item.leading {
+        Some(ListLeading::Checkbox(checked)) => crate::a11y::toggle(
+            &item_response,
+            egui::Role::CheckBox,
+            item.enabled,
+            &item.primary_text,
+            *checked,
+        ),
+        Some(ListLeading::Radio(selected)) => crate::a11y::toggle(
+            &item_response,
+            egui::Role::RadioButton,
+            item.enabled,
+            &item.primary_text,
+            *selected,
+        ),
+        Some(ListLeading::Avatar(_) | ListLeading::Image(_) | ListLeading::Video { .. }) | None => {
+            crate::a11y::toggle(
+                &item_response,
+                egui::Role::ListItem,
+                item.enabled,
+                &item.primary_text,
+                item.selected,
+            )
+        }
+    }
+
+    let colors = item_colors(theme, &item, segmented);
+    let corners = item_corners(item.selected, segmented, index, count);
+    let owned_painter = ui.painter().clone();
+    let painter = &owned_painter;
+
+    if item.dragged && item.enabled {
+        crate::paint::paint_elevation(
+            painter,
+            item_rect,
+            corners,
+            Elevation::Level4,
+            theme.color(ColorRole::Shadow),
+        );
+    }
+    if colors.container != Color32::TRANSPARENT {
+        painter.rect_filled(item_rect, corners, colors.container);
+    }
+    let mut interaction = InteractionState::from_response(&item_response);
+    interaction.dragged |= item.dragged && item.enabled;
+    let opacity = if interaction.dragged {
+        DRAGGED_OPACITY
+    } else {
+        interaction.opacity()
+    };
+    if opacity > 0.0 {
+        painter.rect_filled(item_rect, corners, colors.label.gamma_multiply(opacity));
+    }
+    if item_response.has_focus() {
+        // Items touch their neighbours, so the ring goes inside.
+        let ring =
+            item_rect.shrink(crate::paint::FOCUS_RING_OFFSET + crate::paint::FOCUS_RING_WIDTH);
+        crate::paint::paint_focus_ring(painter, ring, corners, theme.color(ColorRole::Secondary));
+    }
+
+    // Handle click - drawer toggle takes priority over action callback
+    if item_response.clicked() && item.enabled {
+        if has_drawer {
+            if !state.drawer_open_items.remove(&index) {
+                state.drawer_open_items.insert(index);
+            }
+        } else if let Some(action) = item.action.take() {
+            pending.push(action);
+        }
+    }
+
+    // Vertical anchor of leading/trailing elements: centred, or at
+    // the top for three-line items (ListTileTitleAlignment::ThreeLine).
+    let three_line = layout.height >= 88.0 - 0.5;
+    let top_padding = item.min_vertical_padding.unwrap_or(VERTICAL_SPACE);
+    let align_top = match item
+        .title_alignment
+        .unwrap_or(ListTileTitleAlignment::ThreeLine)
+    {
+        ListTileTitleAlignment::ThreeLine | ListTileTitleAlignment::TitleHeight => three_line,
+        ListTileTitleAlignment::Top => true,
+        ListTileTitleAlignment::Center | ListTileTitleAlignment::Bottom => false,
+    };
+    let align_bottom = item.title_alignment == Some(ListTileTitleAlignment::Bottom);
+    let place_v = |height: f32| -> f32 {
+        if align_top {
+            item_rect.min.y + top_padding
+        } else if align_bottom {
+            item_rect.max.y - top_padding - height
+        } else {
+            item_rect.center().y - height / 2.0
+        }
+    };
+
+    let custom_state = ListItemState {
+        rect: item_rect,
+        enabled: item.enabled,
+        selected: item.selected,
+        hovered: interaction.hovered,
+        pressed: interaction.pressed,
+        focused: item_response.has_focus(),
+        label_color: colors.label,
+        supporting_color: colors.supporting,
+        icon_color: colors.icon,
+    };
+    if let Some(content_ui) = item.content_ui.take() {
+        let content_rect = Rect::from_min_max(
+            Pos2::new(item_rect.min.x + LEADING_SPACE, item_rect.min.y),
+            Pos2::new(item_rect.max.x - TRAILING_SPACE, item_rect.max.y),
+        );
+        let layout_dir = match direction {
+            LayoutDirection::Ltr => egui::Layout::left_to_right(egui::Align::Center),
+            LayoutDirection::Rtl => egui::Layout::right_to_left(egui::Align::Center),
+        };
+        let mut child = ui.new_child(
+            egui::UiBuilder::new()
+                .id_salt(("list_item_content", index))
+                .max_rect(content_rect)
+                .layout(layout_dir),
+        );
+        child.set_clip_rect(item_rect.intersect(ui.clip_rect()));
+        if !item.enabled {
+            child.disable();
+        }
+        content_ui(&mut child, &custom_state);
+    } else {
+        // Leading.
+        let mut content_x = item_rect.min.x + LEADING_SPACE;
+        let leading_ui = item.leading_ui.take();
+        if let Some((size, add_contents)) = leading_ui {
+            let lead_rect = mirror(
+                Rect::from_min_size(Pos2::new(content_x, place_v(size.y)), size),
+                item_rect,
+                direction,
+            );
+            let mut child = ui.new_child(
+                egui::UiBuilder::new()
+                    .id_salt(("list_item_leading", index))
+                    .max_rect(lead_rect)
+                    .layout(egui::Layout::top_down(egui::Align::Center)),
+            );
+            child.set_clip_rect(lead_rect.intersect(ui.clip_rect()));
+            if !item.enabled {
+                child.disable();
+            }
+            add_contents(&mut child, &custom_state);
+            content_x += size.x + title_gap(&item);
+        } else if let Some(size) = leading_size(&item) {
+            let lead_rect = mirror(
+                Rect::from_min_size(Pos2::new(content_x, place_v(size.y)), size),
+                item_rect,
+                direction,
+            );
+            match &item.leading {
+                Some(ListLeading::Avatar(text)) => {
+                    // ListTokens.ItemLeadingAvatar*.
+                    painter.circle_filled(
+                        lead_rect.center(),
+                        AVATAR_SIZE / 2.0,
+                        theme.color(ColorRole::PrimaryContainer),
+                    );
+                    let galley = layout_text_ctx(ui, &TypeRole::TitleMedium.style(), text);
+                    let at = lead_rect.center() - galley.size() / 2.0;
+                    painter.galley(at, galley, theme.color(ColorRole::OnPrimaryContainer));
+                }
+                Some(ListLeading::Image(source)) => {
+                    egui::Image::new(source.clone())
+                        .corner_radius(0)
+                        .paint_at(ui, lead_rect);
+                }
+                Some(ListLeading::Video { source, .. }) => {
+                    egui::Image::new(source.clone())
+                        .corner_radius(CORNER_SMALL)
+                        .paint_at(ui, lead_rect);
+                }
+                Some(ListLeading::Checkbox(checked)) => {
+                    paint_checkbox(painter, lead_rect, *checked, theme, item.enabled);
+                }
+                Some(ListLeading::Radio(selected)) => {
+                    paint_radio(painter, lead_rect, *selected, theme, item.enabled);
+                }
+                None => {
+                    if let Some(icon_name) = &item.leading_icon {
+                        let (icon_center, label) = match &item.leading_icon_label {
+                            Some(label) => (lead_rect.center() - Vec2::new(0.0, 12.0), Some(label)),
+                            None => (lead_rect.center(), None),
+                        };
+                        painter.text(
+                            icon_center,
+                            egui::Align2::CENTER_CENTER,
+                            material_symbol_text(icon_name),
+                            egui::FontId::proportional(ICON_SIZE),
+                            colors.icon,
+                        );
+                        if let Some(label) = label {
+                            let galley = layout_text_ctx(ui, &TypeRole::LabelSmall.style(), label);
+                            let at = Pos2::new(
+                                lead_rect.center().x - galley.size().x / 2.0,
+                                lead_rect.center().y + 4.0,
+                            );
+                            painter.galley(at, galley, colors.supporting);
+                        }
+                    }
+                }
+            }
+            content_x += size.x + title_gap(&item);
+        }
+
+        // Text block, centred vertically.
+        let block = layout.overline.as_ref().map_or(0.0, |g| g.size().y)
+            + layout.primary.size().y
+            + layout.secondary.as_ref().map_or(0.0, |g| g.size().y);
+        let mut text_y = (item_rect.center().y - block / 2.0).max(item_rect.min.y);
+        let text_clip = mirror(
+            Rect::from_min_size(
+                Pos2::new(content_x, item_rect.min.y),
+                Vec2::new(layout.text_width, item_rect.height()),
+            ),
+            item_rect,
+            direction,
+        );
+        let text_painter = painter.with_clip_rect(text_clip.intersect(painter.clip_rect()));
+        let paint_galley = |galley: Arc<Galley>, color: Color32, y: &mut f32| {
+            let size = galley.size();
+            let at = mirror(
+                Rect::from_min_size(Pos2::new(content_x, *y), size),
+                item_rect,
+                direction,
+            );
+            text_painter.galley(at.min, galley, color);
+            *y += size.y;
+        };
+        if let Some(overline) = layout.overline {
+            paint_galley(overline, colors.supporting, &mut text_y);
+        }
+        paint_galley(layout.primary, colors.label, &mut text_y);
+        if let Some(secondary) = layout.secondary {
+            paint_galley(secondary, colors.supporting, &mut text_y);
+        }
+
+        // Trailing elements, from the end inwards.
+        let mut end_x = item_rect.max.x - TRAILING_SPACE;
+        if let Some(icon_name) = &item.trailing_icon {
+            let slot = mirror(
+                Rect::from_min_size(
+                    Pos2::new(end_x - ICON_SIZE, place_v(ICON_SIZE)),
+                    Vec2::splat(ICON_SIZE),
+                ),
+                item_rect,
+                direction,
+            );
+            painter.text(
+                slot.center(),
+                egui::Align2::CENTER_CENTER,
+                material_symbol_text(icon_name),
+                egui::FontId::proportional(ICON_SIZE),
+                colors.icon,
+            );
+            end_x -= ICON_SIZE + BETWEEN_SPACE;
+        } else if has_drawer && item.trailing_text.is_none() && item.trailing_widget.is_none() {
+            let is_open = state.drawer_open_items.contains(&index);
+            let slot = mirror(
+                Rect::from_min_size(
+                    Pos2::new(end_x - EXPAND_CONTAINER, place_v(EXPAND_CONTAINER)),
+                    Vec2::splat(EXPAND_CONTAINER),
+                ),
+                item_rect,
+                direction,
+            );
+            let chevron_response = ui.interact(
+                slot,
+                row_id(env.list_id, index).with("drawer_chevron"),
+                Sense::click(),
+            );
+            crate::a11y::toggle(
+                &chevron_response,
+                egui::Role::Button,
+                true,
+                "Expand",
+                is_open,
+            );
+            if chevron_response.clicked() && !state.drawer_open_items.remove(&index) {
+                state.drawer_open_items.insert(index);
+            }
+            let is_open = state.drawer_open_items.contains(&index);
+            // ExpandedListTokens.*ItemTrailingIconContainerColor / IconColor.
+            let container = if is_open {
+                theme.color(ColorRole::SurfaceContainer)
+            } else {
+                theme.color(ColorRole::Surface)
+            };
+            let painter = ui.painter();
+            painter.circle_filled(slot.center(), EXPAND_CONTAINER / 2.0, container);
+            painter.text(
+                slot.center(),
+                egui::Align2::CENTER_CENTER,
+                material_symbol_text(if is_open {
+                    "expand_less"
+                } else {
+                    "expand_more"
+                }),
+                egui::FontId::proportional(ICON_SIZE),
+                if item.enabled {
+                    theme.color(ColorRole::OnSurface)
+                } else {
+                    colors.icon
+                },
+            );
+            end_x -= EXPAND_CONTAINER + BETWEEN_SPACE;
+        }
+        if let Some(widget_fn) = &item.trailing_widget {
+            let widget_height = 32.0;
+            let widget_rect = mirror(
+                Rect::from_min_size(
+                    Pos2::new(end_x - TRAILING_WIDGET_WIDTH, place_v(widget_height)),
+                    Vec2::new(TRAILING_WIDGET_WIDTH, widget_height),
+                ),
+                item_rect,
+                direction,
+            );
+            let layout_dir = match direction {
+                LayoutDirection::Ltr => egui::Layout::right_to_left(egui::Align::Center),
+                LayoutDirection::Rtl => egui::Layout::left_to_right(egui::Align::Center),
+            };
+            ui.scope_builder(egui::UiBuilder::new().max_rect(widget_rect), |ui| {
+                ui.with_layout(layout_dir, |ui| {
+                    widget_fn(ui);
+                });
+            });
+            end_x -= TRAILING_WIDGET_WIDTH + BETWEEN_SPACE;
+        }
+        if let Some(trailing_text) = &item.trailing_text {
+            // ListTokens.ItemTrailingSupportingTextFont / Color.
+            let galley = layout_text_ctx(ui, &TypeRole::LabelSmall.style(), trailing_text);
+            let size = galley.size();
+            let at = mirror(
+                Rect::from_min_size(Pos2::new(end_x - size.x, place_v(size.y)), size),
+                item_rect,
+                direction,
+            );
+            ui.painter().galley(at.min, galley, colors.supporting);
+        }
+    }
+
+    item_response
+}
+
 impl<'a> MaterialList<'a> {
     /// Shows the list and returns its response and one response per row
     /// (see [`ListResponse`]). `ui.add(list)` shows it the same way and
     /// returns only the list's response.
     pub fn show(self, ui: &mut Ui) -> ListResponse {
         let theme = MaterialTheme::of(ui.ctx());
-        let direction = theme.layout_direction;
         let segmented = self.segmented;
         let dividers = self.dividers && !segmented;
 
@@ -451,39 +887,15 @@ impl<'a> MaterialList<'a> {
         let mut state = ui
             .data_mut(|d| d.get_persisted::<MaterialListState>(state_id))
             .unwrap_or_default();
-        let item_id = |index: usize| list_id.with(("item", index));
         let count = self.items.len();
 
         // Keyboard: Up/Down move focus between enabled items.
         let focused = ui.memory(|m| m.focused());
-        if let Some(current) = (0..count).find(|&i| focused == Some(item_id(i))) {
-            ui.memory_mut(|m| {
-                m.set_focus_lock_filter(
-                    item_id(current),
-                    EventFilter {
-                        vertical_arrows: true,
-                        ..Default::default()
-                    },
-                );
+        if let Some(current) = (0..count).find(|&i| focused == Some(row_id(list_id, i))) {
+            let items = &self.items;
+            rove(ui, list_id, current, count, |i| {
+                items.get(i).is_some_and(|item| item.enabled)
             });
-            let none = egui::Modifiers::NONE;
-            let (down, up) = ui.input_mut(|i| {
-                (
-                    i.consume_key(none, Key::ArrowDown),
-                    i.consume_key(none, Key::ArrowUp),
-                )
-            });
-            let enabled = |i: usize| self.items.get(i).is_some_and(|item| item.enabled);
-            let target = if down {
-                (current + 1..count).find(|&i| enabled(i))
-            } else if up {
-                (0..current).rev().find(|&i| enabled(i))
-            } else {
-                None
-            };
-            if let Some(target) = target {
-                ui.memory_mut(|m| m.request_focus(item_id(target)));
-            }
         }
 
         // Width.
@@ -525,11 +937,7 @@ impl<'a> MaterialList<'a> {
             }
         }
         if count > 1 {
-            if dividers {
-                total_height += (count - 1) as f32;
-            } else if segmented {
-                total_height += (count - 1) as f32 * SEGMENTED_GAP;
-            }
+            total_height += (count - 1) as f32 * row_gap(dividers, segmented);
         }
 
         let (rect, response) =
@@ -540,382 +948,42 @@ impl<'a> MaterialList<'a> {
                 .rect_filled(rect, 0.0, theme.color(ColorRole::Surface));
         }
 
+        let env = RowEnv {
+            theme: &theme,
+            direction: theme.layout_direction,
+            segmented,
+            allow_drawer: self.allow_drawer,
+            row_sense: self.row_sense,
+            list_id,
+        };
         let mut current_y = rect.min.y;
         let mut pending_actions = Vec::new();
         let mut rows = Vec::with_capacity(count);
 
-        for (index, (mut item, layout)) in self.items.into_iter().zip(layouts).enumerate() {
+        for (index, (item, layout)) in self.items.into_iter().zip(layouts).enumerate() {
             let item_rect = Rect::from_min_size(
                 Pos2::new(rect.min.x, current_y),
                 Vec2::new(rect.width(), layout.height),
             );
-            let has_drawer = self.allow_drawer && item.drawer.is_some();
-            let item_response = ui.interact(
-                item_rect,
-                item_id(index),
-                crate::a11y::sense(item.enabled, Sense::click() | self.row_sense),
-            );
-            rows.push(item_response.clone());
-            match &item.leading {
-                Some(ListLeading::Checkbox(checked)) => crate::a11y::toggle(
-                    &item_response,
-                    egui::Role::CheckBox,
-                    item.enabled,
-                    &item.primary_text,
-                    *checked,
-                ),
-                Some(ListLeading::Radio(selected)) => crate::a11y::toggle(
-                    &item_response,
-                    egui::Role::RadioButton,
-                    item.enabled,
-                    &item.primary_text,
-                    *selected,
-                ),
-                Some(
-                    ListLeading::Avatar(_) | ListLeading::Image(_) | ListLeading::Video { .. },
-                )
-                | None => crate::a11y::toggle(
-                    &item_response,
-                    egui::Role::ListItem,
-                    item.enabled,
-                    &item.primary_text,
-                    item.selected,
-                ),
-            }
-
-            let colors = item_colors(&theme, &item, segmented);
-            let corners = item_corners(item.selected, segmented, index, count);
-            let owned_painter = ui.painter().clone();
-            let painter = &owned_painter;
-
-            if item.dragged && item.enabled {
-                crate::paint::paint_elevation(
-                    painter,
-                    item_rect,
-                    corners,
-                    Elevation::Level4,
-                    theme.color(ColorRole::Shadow),
-                );
-            }
-            if colors.container != Color32::TRANSPARENT {
-                painter.rect_filled(item_rect, corners, colors.container);
-            }
-            let mut interaction = InteractionState::from_response(&item_response);
-            interaction.dragged |= item.dragged && item.enabled;
-            let opacity = if interaction.dragged {
-                DRAGGED_OPACITY
-            } else {
-                interaction.opacity()
-            };
-            if opacity > 0.0 {
-                painter.rect_filled(item_rect, corners, colors.label.gamma_multiply(opacity));
-            }
-            if item_response.has_focus() {
-                // Items touch their neighbours, so the ring goes inside.
-                let ring = item_rect
-                    .shrink(crate::paint::FOCUS_RING_OFFSET + crate::paint::FOCUS_RING_WIDTH);
-                crate::paint::paint_focus_ring(
-                    painter,
-                    ring,
-                    corners,
-                    theme.color(ColorRole::Secondary),
-                );
-            }
-
-            // Handle click - drawer toggle takes priority over action callback
-            if item_response.clicked() && item.enabled {
-                if has_drawer {
-                    if !state.drawer_open_items.remove(&index) {
-                        state.drawer_open_items.insert(index);
-                    }
-                } else if let Some(action) = item.action.take() {
-                    pending_actions.push(action);
-                }
-            }
-
-            // Vertical anchor of leading/trailing elements: centred, or at
-            // the top for three-line items (ListTileTitleAlignment::ThreeLine).
-            let three_line = layout.height >= 88.0 - 0.5;
-            let top_padding = item.min_vertical_padding.unwrap_or(VERTICAL_SPACE);
-            let align_top = match item
-                .title_alignment
-                .unwrap_or(ListTileTitleAlignment::ThreeLine)
-            {
-                ListTileTitleAlignment::ThreeLine | ListTileTitleAlignment::TitleHeight => {
-                    three_line
-                }
-                ListTileTitleAlignment::Top => true,
-                ListTileTitleAlignment::Center | ListTileTitleAlignment::Bottom => false,
-            };
-            let align_bottom = item.title_alignment == Some(ListTileTitleAlignment::Bottom);
-            let place_v = |height: f32| -> f32 {
-                if align_top {
-                    item_rect.min.y + top_padding
-                } else if align_bottom {
-                    item_rect.max.y - top_padding - height
-                } else {
-                    item_rect.center().y - height / 2.0
-                }
-            };
-
-            let custom_state = ListItemState {
-                rect: item_rect,
-                enabled: item.enabled,
-                selected: item.selected,
-                hovered: interaction.hovered,
-                pressed: interaction.pressed,
-                focused: item_response.has_focus(),
-                label_color: colors.label,
-                supporting_color: colors.supporting,
-                icon_color: colors.icon,
-            };
-            if let Some(content_ui) = item.content_ui.take() {
-                let content_rect = Rect::from_min_max(
-                    Pos2::new(item_rect.min.x + LEADING_SPACE, item_rect.min.y),
-                    Pos2::new(item_rect.max.x - TRAILING_SPACE, item_rect.max.y),
-                );
-                let layout_dir = match direction {
-                    LayoutDirection::Ltr => egui::Layout::left_to_right(egui::Align::Center),
-                    LayoutDirection::Rtl => egui::Layout::right_to_left(egui::Align::Center),
-                };
-                let mut child = ui.new_child(
-                    egui::UiBuilder::new()
-                        .id_salt(("list_item_content", index))
-                        .max_rect(content_rect)
-                        .layout(layout_dir),
-                );
-                child.set_clip_rect(item_rect.intersect(ui.clip_rect()));
-                if !item.enabled {
-                    child.disable();
-                }
-                content_ui(&mut child, &custom_state);
-            } else {
-                // Leading.
-                let mut content_x = item_rect.min.x + LEADING_SPACE;
-                let leading_ui = item.leading_ui.take();
-                if let Some((size, add_contents)) = leading_ui {
-                    let lead_rect = mirror(
-                        Rect::from_min_size(Pos2::new(content_x, place_v(size.y)), size),
-                        item_rect,
-                        direction,
-                    );
-                    let mut child = ui.new_child(
-                        egui::UiBuilder::new()
-                            .id_salt(("list_item_leading", index))
-                            .max_rect(lead_rect)
-                            .layout(egui::Layout::top_down(egui::Align::Center)),
-                    );
-                    child.set_clip_rect(lead_rect.intersect(ui.clip_rect()));
-                    if !item.enabled {
-                        child.disable();
-                    }
-                    add_contents(&mut child, &custom_state);
-                    content_x += size.x + title_gap(&item);
-                } else if let Some(size) = leading_size(&item) {
-                    let lead_rect = mirror(
-                        Rect::from_min_size(Pos2::new(content_x, place_v(size.y)), size),
-                        item_rect,
-                        direction,
-                    );
-                    match &item.leading {
-                        Some(ListLeading::Avatar(text)) => {
-                            // ListTokens.ItemLeadingAvatar*.
-                            painter.circle_filled(
-                                lead_rect.center(),
-                                AVATAR_SIZE / 2.0,
-                                theme.color(ColorRole::PrimaryContainer),
-                            );
-                            let galley = layout_text_ctx(ui, &TypeRole::TitleMedium.style(), text);
-                            let at = lead_rect.center() - galley.size() / 2.0;
-                            painter.galley(at, galley, theme.color(ColorRole::OnPrimaryContainer));
-                        }
-                        Some(ListLeading::Image(source)) => {
-                            egui::Image::new(source.clone())
-                                .corner_radius(0)
-                                .paint_at(ui, lead_rect);
-                        }
-                        Some(ListLeading::Video { source, .. }) => {
-                            egui::Image::new(source.clone())
-                                .corner_radius(CORNER_SMALL)
-                                .paint_at(ui, lead_rect);
-                        }
-                        Some(ListLeading::Checkbox(checked)) => {
-                            paint_checkbox(painter, lead_rect, *checked, &theme, item.enabled);
-                        }
-                        Some(ListLeading::Radio(selected)) => {
-                            paint_radio(painter, lead_rect, *selected, &theme, item.enabled);
-                        }
-                        None => {
-                            if let Some(icon_name) = &item.leading_icon {
-                                let (icon_center, label) = match &item.leading_icon_label {
-                                    Some(label) => {
-                                        (lead_rect.center() - Vec2::new(0.0, 12.0), Some(label))
-                                    }
-                                    None => (lead_rect.center(), None),
-                                };
-                                painter.text(
-                                    icon_center,
-                                    egui::Align2::CENTER_CENTER,
-                                    material_symbol_text(icon_name),
-                                    egui::FontId::proportional(ICON_SIZE),
-                                    colors.icon,
-                                );
-                                if let Some(label) = label {
-                                    let galley =
-                                        layout_text_ctx(ui, &TypeRole::LabelSmall.style(), label);
-                                    let at = Pos2::new(
-                                        lead_rect.center().x - galley.size().x / 2.0,
-                                        lead_rect.center().y + 4.0,
-                                    );
-                                    painter.galley(at, galley, colors.supporting);
-                                }
-                            }
-                        }
-                    }
-                    content_x += size.x + title_gap(&item);
-                }
-
-                // Text block, centred vertically.
-                let block = layout.overline.as_ref().map_or(0.0, |g| g.size().y)
-                    + layout.primary.size().y
-                    + layout.secondary.as_ref().map_or(0.0, |g| g.size().y);
-                let mut text_y = (item_rect.center().y - block / 2.0).max(item_rect.min.y);
-                let text_clip = mirror(
-                    Rect::from_min_size(
-                        Pos2::new(content_x, item_rect.min.y),
-                        Vec2::new(layout.text_width, item_rect.height()),
-                    ),
-                    item_rect,
-                    direction,
-                );
-                let text_painter = painter.with_clip_rect(text_clip.intersect(painter.clip_rect()));
-                let paint_galley = |galley: Arc<Galley>, color: Color32, y: &mut f32| {
-                    let size = galley.size();
-                    let at = mirror(
-                        Rect::from_min_size(Pos2::new(content_x, *y), size),
-                        item_rect,
-                        direction,
-                    );
-                    text_painter.galley(at.min, galley, color);
-                    *y += size.y;
-                };
-                if let Some(overline) = layout.overline {
-                    paint_galley(overline, colors.supporting, &mut text_y);
-                }
-                paint_galley(layout.primary, colors.label, &mut text_y);
-                if let Some(secondary) = layout.secondary {
-                    paint_galley(secondary, colors.supporting, &mut text_y);
-                }
-
-                // Trailing elements, from the end inwards.
-                let mut end_x = item_rect.max.x - TRAILING_SPACE;
-                if let Some(icon_name) = &item.trailing_icon {
-                    let slot = mirror(
-                        Rect::from_min_size(
-                            Pos2::new(end_x - ICON_SIZE, place_v(ICON_SIZE)),
-                            Vec2::splat(ICON_SIZE),
-                        ),
-                        item_rect,
-                        direction,
-                    );
-                    painter.text(
-                        slot.center(),
-                        egui::Align2::CENTER_CENTER,
-                        material_symbol_text(icon_name),
-                        egui::FontId::proportional(ICON_SIZE),
-                        colors.icon,
-                    );
-                    end_x -= ICON_SIZE + BETWEEN_SPACE;
-                } else if has_drawer
-                    && item.trailing_text.is_none()
-                    && item.trailing_widget.is_none()
-                {
-                    let is_open = state.drawer_open_items.contains(&index);
-                    let slot = mirror(
-                        Rect::from_min_size(
-                            Pos2::new(end_x - EXPAND_CONTAINER, place_v(EXPAND_CONTAINER)),
-                            Vec2::splat(EXPAND_CONTAINER),
-                        ),
-                        item_rect,
-                        direction,
-                    );
-                    let chevron_response =
-                        ui.interact(slot, item_id(index).with("drawer_chevron"), Sense::click());
-                    crate::a11y::toggle(
-                        &chevron_response,
-                        egui::Role::Button,
-                        true,
-                        "Expand",
-                        is_open,
-                    );
-                    if chevron_response.clicked() && !state.drawer_open_items.remove(&index) {
-                        state.drawer_open_items.insert(index);
-                    }
-                    let is_open = state.drawer_open_items.contains(&index);
-                    // ExpandedListTokens.*ItemTrailingIconContainerColor / IconColor.
-                    let container = if is_open {
-                        theme.color(ColorRole::SurfaceContainer)
-                    } else {
-                        theme.color(ColorRole::Surface)
-                    };
-                    let painter = ui.painter();
-                    painter.circle_filled(slot.center(), EXPAND_CONTAINER / 2.0, container);
-                    painter.text(
-                        slot.center(),
-                        egui::Align2::CENTER_CENTER,
-                        material_symbol_text(if is_open {
-                            "expand_less"
-                        } else {
-                            "expand_more"
-                        }),
-                        egui::FontId::proportional(ICON_SIZE),
-                        if item.enabled {
-                            theme.color(ColorRole::OnSurface)
-                        } else {
-                            colors.icon
-                        },
-                    );
-                    end_x -= EXPAND_CONTAINER + BETWEEN_SPACE;
-                }
-                if let Some(widget_fn) = &item.trailing_widget {
-                    let widget_height = 32.0;
-                    let widget_rect = mirror(
-                        Rect::from_min_size(
-                            Pos2::new(end_x - TRAILING_WIDGET_WIDTH, place_v(widget_height)),
-                            Vec2::new(TRAILING_WIDGET_WIDTH, widget_height),
-                        ),
-                        item_rect,
-                        direction,
-                    );
-                    let layout_dir = match direction {
-                        LayoutDirection::Ltr => egui::Layout::right_to_left(egui::Align::Center),
-                        LayoutDirection::Rtl => egui::Layout::left_to_right(egui::Align::Center),
-                    };
-                    ui.scope_builder(egui::UiBuilder::new().max_rect(widget_rect), |ui| {
-                        ui.with_layout(layout_dir, |ui| {
-                            widget_fn(ui);
-                        });
-                    });
-                    end_x -= TRAILING_WIDGET_WIDTH + BETWEEN_SPACE;
-                }
-                if let Some(trailing_text) = &item.trailing_text {
-                    // ListTokens.ItemTrailingSupportingTextFont / Color.
-                    let galley = layout_text_ctx(ui, &TypeRole::LabelSmall.style(), trailing_text);
-                    let size = galley.size();
-                    let at = mirror(
-                        Rect::from_min_size(Pos2::new(end_x - size.x, place_v(size.y)), size),
-                        item_rect,
-                        direction,
-                    );
-                    ui.painter().galley(at.min, galley, colors.supporting);
-                }
-            }
-
             current_y += layout.height;
+            let drawer = item.drawer.clone();
+            let slot = RowSlot {
+                rect: item_rect,
+                index,
+                count,
+            };
+            rows.push(show_row(
+                ui,
+                &env,
+                item,
+                layout,
+                slot,
+                &mut state,
+                &mut pending_actions,
+            ));
 
             // Render expanded drawer content if open
-            if let Some(drawer_fn) = item
-                .drawer
+            if let Some(drawer_fn) = drawer
                 .as_ref()
                 .filter(|_| self.allow_drawer && state.drawer_open_items.contains(&index))
             {
@@ -942,18 +1010,9 @@ impl<'a> MaterialList<'a> {
 
             if index + 1 < count {
                 if dividers {
-                    // ListTokens.DividerLeadingSpace / DividerTrailingSpace;
-                    // DividerTokens.Thickness and Color.
-                    let line = Rect::from_min_max(
-                        Pos2::new(rect.min.x + 16.0, current_y),
-                        Pos2::new(rect.max.x - 16.0, current_y + 1.0),
-                    );
-                    ui.painter()
-                        .rect_filled(line, 0.0, theme.color(ColorRole::OutlineVariant));
-                    current_y += 1.0;
-                } else if segmented {
-                    current_y += SEGMENTED_GAP;
+                    paint_divider(ui, &theme, rect, current_y);
                 }
+                current_y += row_gap(dividers, segmented);
             }
         }
 
@@ -970,6 +1029,245 @@ impl<'a> MaterialList<'a> {
             items: rows,
         }
     }
+
+    /// The rows of a [`show_rows`](Self::show_rows) list that fall inside
+    /// `viewport`: the vertical span shown, in points from the list's top.
+    /// Rows are `row_height` apart, plus the 1 dp divider or the 2 dp
+    /// segmented gap this list puts between them.
+    ///
+    /// ```rust
+    /// use egui_material3::MaterialList;
+    ///
+    /// let list = MaterialList::new().dividers(false);
+    /// let rows = list.visible_row_range(egui::Rangef::new(280.0, 480.0), 10_000, 28.0);
+    /// assert_eq!(rows, 10..18);
+    /// ```
+    pub fn visible_row_range(
+        &self,
+        viewport: egui::Rangef,
+        row_count: usize,
+        row_height: f32,
+    ) -> std::ops::Range<usize> {
+        let stride = sanitize_row_height(row_height)
+            + row_gap(self.dividers && !self.segmented, self.segmented);
+        let row_at = |y: f32| {
+            if y.is_finite() {
+                // Truncation is the point; negative and huge values clamp.
+                ((y / stride).max(0.0) as usize).min(row_count)
+            } else if y > 0.0 {
+                row_count
+            } else {
+                0
+            }
+        };
+        let first = row_at(viewport.min);
+        let end = row_at(viewport.max).saturating_add(1).min(row_count);
+        let end = if viewport.max <= viewport.min {
+            first
+        } else {
+            end
+        };
+        first..end.max(first)
+    }
+
+    /// Shows `row_count` rows of `row_height` points but lays out only those
+    /// inside `viewport`, for long lists in a [`egui::ScrollArea`]: pass the
+    /// `ui` and viewport `ScrollArea::show_viewport` gives its closure.
+    /// `build_row(index)` makes row `index`'s [`ListItem`]; it is called for
+    /// the visible rows only (plus the focused row and the row the keyboard
+    /// moves to, and while roving to find the next enabled row), so a row's
+    /// state (selection, enabled) comes from the caller's data each frame.
+    ///
+    /// Each row is exactly `row_height` tall (as with
+    /// [`ListItem::row_height`]), the list fills the available width, and
+    /// rows keep everything [`show`](Self::show) gives them: responses (in
+    /// [`ListRowsResponse::rows`]), selection colours, focus rings, Tab and
+    /// Up/Down roving (the list scrolls to the row focus moves to), and an
+    /// AccessKit node per built row with its position in the set of
+    /// `row_count`. Items added with [`item`](Self::item) and drawers are
+    /// not shown: a virtualised list needs uniform rows.
+    ///
+    /// ```rust
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::{ListItem, MaterialList};
+    ///
+    /// let mut selected = Some(3);
+    /// egui::ScrollArea::vertical().max_height(300.0).show_viewport(ui, |ui, viewport| {
+    ///     let shown = MaterialList::new()
+    ///         .id(egui::Id::unique("clips"))
+    ///         .dividers(false)
+    ///         .show_rows(ui, viewport, 100_000, 28.0, |index| {
+    ///             ListItem::new(format!("clip-{index:05}.mp4"))
+    ///                 .dense(true)
+    ///                 .selected(selected == Some(index))
+    ///         });
+    ///     for (index, row) in &shown.rows {
+    ///         if row.clicked() {
+    ///             selected = Some(*index);
+    ///         }
+    ///     }
+    /// });
+    /// # });
+    /// ```
+    pub fn show_rows(
+        self,
+        ui: &mut Ui,
+        viewport: Rect,
+        row_count: usize,
+        row_height: f32,
+        mut build_row: impl FnMut(usize) -> ListItem<'a>,
+    ) -> ListRowsResponse {
+        let theme = MaterialTheme::of(ui.ctx());
+        let segmented = self.segmented;
+        let dividers = self.dividers && !segmented;
+        let row_height = sanitize_row_height(row_height);
+        let gap = row_gap(dividers, segmented);
+        let stride = row_height + gap;
+        let list_id = self
+            .id
+            .unwrap_or_else(|| ui.scope_id().with("material_list"));
+
+        // The viewport is in the scroll content's coordinates, whose origin
+        // is the top of the content ui; the list may start below it.
+        let origin = ui.max_rect().min;
+        let list_top = ui.cursor().min.y - origin.y;
+        let visible = self.visible_row_range(
+            egui::Rangef::new(viewport.min.y - list_top, viewport.max.y - list_top),
+            row_count,
+            row_height,
+        );
+
+        let total_height = if row_count == 0 {
+            0.0
+        } else {
+            row_count as f32 * stride - gap
+        };
+        let width = ui.available_width();
+        let (rect, response) =
+            ui.allocate_exact_size(Vec2::new(width, total_height), Sense::hover());
+        let row_rect = |index: usize| {
+            Rect::from_min_size(
+                Pos2::new(rect.min.x, rect.min.y + index as f32 * stride),
+                Vec2::new(width, row_height),
+            )
+        };
+
+        // Keyboard roving. The focused row is remembered by index, so it is
+        // found without walking every row, and is always built: egui drops
+        // focus from a widget that is not shown.
+        let focus_key = list_id.with("focused_row");
+        let focused = ui
+            .data(|d| d.get_temp::<usize>(focus_key))
+            .filter(|&i| i < row_count && ui.memory(|m| m.has_focus(row_id(list_id, i))));
+        let target = focused
+            .and_then(|current| rove(ui, list_id, current, row_count, |i| build_row(i).enabled));
+
+        let mut indices: Vec<usize> = visible.clone().collect();
+        indices.extend(focused);
+        indices.extend(target);
+        indices.sort_unstable();
+        indices.dedup();
+
+        if !segmented {
+            // ListTokens.ItemContainerColor, over the part on screen only.
+            let painted = rect.intersect(ui.clip_rect());
+            if painted.is_positive() {
+                ui.painter()
+                    .rect_filled(painted, 0.0, theme.color(ColorRole::Surface));
+            }
+        }
+
+        let env = RowEnv {
+            theme: &theme,
+            direction: theme.layout_direction,
+            segmented,
+            allow_drawer: false,
+            row_sense: self.row_sense,
+            list_id,
+        };
+        let mut state = MaterialListState::default();
+        let mut pending_actions = Vec::new();
+        let mut rows = Vec::with_capacity(indices.len());
+        for index in indices {
+            let mut item = build_row(index);
+            item.row_height = Some(row_height);
+            let layout = item_layout(ui, &item, width, false);
+            let item_rect = row_rect(index);
+            let slot = RowSlot {
+                rect: item_rect,
+                index,
+                count: row_count,
+            };
+            let row = show_row(
+                ui,
+                &env,
+                item,
+                layout,
+                slot,
+                &mut state,
+                &mut pending_actions,
+            );
+            ui.ctx().accesskit_node_builder(row.id, |node| {
+                node.set_position_in_set(index.saturating_add(1));
+                node.set_size_of_set(row_count);
+            });
+            if target == Some(index) {
+                ui.scroll_to_rect(item_rect, None);
+            }
+            if row.has_focus() {
+                ui.data_mut(|d| d.insert_temp(focus_key, index));
+            }
+            if dividers && index + 1 < row_count {
+                paint_divider(ui, &theme, rect, item_rect.max.y);
+            }
+            rows.push((index, row));
+        }
+
+        for action in pending_actions {
+            action();
+        }
+
+        ListRowsResponse {
+            response,
+            visible,
+            rows,
+        }
+    }
+}
+
+/// A usable row height: finite and at least one point (else 56 dp,
+/// `ListTokens.ItemOneLineContainerHeight`).
+fn sanitize_row_height(height: f32) -> f32 {
+    if height.is_finite() {
+        height.max(1.0)
+    } else {
+        56.0
+    }
+}
+
+/// The space between two rows: the 1 dp divider, the 2 dp segmented gap,
+/// or none.
+fn row_gap(dividers: bool, segmented: bool) -> f32 {
+    if dividers {
+        // DividerTokens.Thickness.
+        1.0
+    } else if segmented {
+        SEGMENTED_GAP
+    } else {
+        0.0
+    }
+}
+
+/// Paints the divider under the row ending at `y`, inset like
+/// `ListTokens.DividerLeadingSpace` / `DividerTrailingSpace` in
+/// `DividerTokens.Color`.
+fn paint_divider(ui: &Ui, theme: &MaterialTheme, list: Rect, y: f32) {
+    let line = Rect::from_min_max(
+        Pos2::new(list.min.x + 16.0, y),
+        Pos2::new(list.max.x - 16.0, y + 1.0),
+    );
+    ui.painter()
+        .rect_filled(line, 0.0, theme.color(ColorRole::OutlineVariant));
 }
 
 fn layout_text_ctx(ui: &Ui, style: &TypeStyle, text: &str) -> Arc<Galley> {
