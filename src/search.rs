@@ -20,7 +20,10 @@
 //! view, Enter, or picking a suggestion collapse it again.
 //!
 //! The caller owns the query string and filters the suggestions; the widget
-//! reports what happened in a [`SearchOutput`].
+//! reports what happened in a [`SearchOutput`]. Suggestions can be grouped
+//! under section headings ([`MaterialSearch::section`], such as "Recent"
+//! and "Commands"), and [`MaterialSearch::empty_text`] puts a line in the
+//! view when no suggestion matches.
 //!
 //! Keyboard: Up and Down move a highlight through the suggestions while the
 //! text field keeps focus, Enter picks the highlighted suggestion (or
@@ -108,6 +111,11 @@ const ROW_EDGE_SPACE: f32 = 16.0;
 const ROW_BETWEEN_SPACE: f32 = 12.0;
 /// The divider between the view's header and its results (1 dp, `HorizontalDivider`).
 const DIVIDER_THICKNESS: f32 = 1.0;
+/// A section heading row: a `TitleSmall` line (20 dp) with
+/// `ListTokens.ItemTopSpace` / `ItemBottomSpace` (10 dp) above and below.
+/// Compose's search view has no section headings; the row follows the
+/// list item spacing.
+const HEADING_HEIGHT: f32 = 40.0;
 
 /// How the search view opens when the bar expands.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -266,6 +274,8 @@ pub struct MaterialSearch<'a> {
     placeholder: String,
     mode: SearchViewMode,
     suggestions: Vec<Suggestion>,
+    headings: Vec<(usize, String)>,
+    empty_text: Option<String>,
     leading_icon: Icon,
     trailing: Vec<TrailingAction>,
     clear_button: bool,
@@ -284,6 +294,8 @@ impl<'a> MaterialSearch<'a> {
             placeholder: "Search".to_owned(),
             mode: SearchViewMode::default(),
             suggestions: Vec::new(),
+            headings: Vec::new(),
+            empty_text: None,
             leading_icon: Icon::from("search"),
             trailing: Vec::new(),
             clear_button: true,
@@ -307,11 +319,57 @@ impl<'a> MaterialSearch<'a> {
     }
 
     /// The suggestions shown in the view, already filtered for the query.
+    /// Replaces any suggestions and sections added before.
     pub fn suggestions<S: Into<Suggestion>>(
         mut self,
         suggestions: impl IntoIterator<Item = S>,
     ) -> Self {
         self.suggestions = suggestions.into_iter().map(Into::into).collect();
+        self.headings.clear();
+        self
+    }
+
+    /// Appends a section: a `heading` row, then `suggestions`. Headings are
+    /// labels, not options: the highlight, Tab and clicks skip them, and
+    /// suggestion indices ([`SearchOutput::selected`]) count suggestions
+    /// only, across all sections in the order they were added. A section
+    /// with no suggestions (after the caller's filtering) shows no heading.
+    /// Headings are `TitleSmall` in `onSurfaceVariant` (as
+    /// `NavigationDrawerTokens.HeadlineFont` / `HeadlineColor` section
+    /// headlines) and are AccessKit headings.
+    ///
+    /// ```rust
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::search::MaterialSearch;
+    /// let mut query = String::new();
+    /// let out = MaterialSearch::new("command_palette", &mut query)
+    ///     .section("Recent", ["Open project", "Export"])
+    ///     .section("Commands", ["New track", "Split clip"])
+    ///     .empty_text("No matching commands")
+    ///     .show(ui);
+    /// if out.selected == Some(2) {
+    ///     // "New track", the first suggestion of the second section
+    /// }
+    /// # });
+    /// ```
+    pub fn section<S: Into<Suggestion>>(
+        mut self,
+        heading: impl Into<String>,
+        suggestions: impl IntoIterator<Item = S>,
+    ) -> Self {
+        self.headings.push((self.suggestions.len(), heading.into()));
+        self.suggestions
+            .extend(suggestions.into_iter().map(Into::into));
+        self
+    }
+
+    /// A line the view shows in place of the suggestions when there are
+    /// none, such as "No results". It is `BodyMedium` in `onSurfaceVariant`
+    /// (`ListTokens.ItemSupportingTextFont` / `ItemSupportingTextColor`) in
+    /// a 56 dp row, and an AccessKit label inside the suggestion list box.
+    /// Without it an empty view shows nothing below the header.
+    pub fn empty_text(mut self, text: impl Into<String>) -> Self {
+        self.empty_text = Some(text.into());
         self
     }
 
@@ -386,6 +444,8 @@ impl<'a> MaterialSearch<'a> {
             placeholder,
             mode,
             suggestions,
+            headings,
+            empty_text,
             leading_icon,
             trailing,
             clear_button,
@@ -393,6 +453,7 @@ impl<'a> MaterialSearch<'a> {
             height,
             trailing_content,
         } = self;
+        let headings = shown_headings(&headings, suggestions.len());
         let ctx = ui.ctx().clone();
         let theme = MaterialTheme::of(&ctx);
         let text_id = id.with("input");
@@ -451,6 +512,8 @@ impl<'a> MaterialSearch<'a> {
                 field,
                 mode,
                 suggestions: &suggestions,
+                headings: &headings,
+                empty_text: empty_text.as_deref(),
                 trailing: &trailing,
                 clear_button,
                 bar_rect,
@@ -525,6 +588,23 @@ impl<'a> MaterialSearch<'a> {
         store_state(&ctx, id, state);
         out
     }
+}
+
+/// The headings that show, in order: those with at least one suggestion
+/// before the next heading. A section left empty by filtering has none.
+fn shown_headings(headings: &[(usize, String)], suggestions: usize) -> Vec<(usize, &str)> {
+    let mut shown: Vec<(usize, &str)> = Vec::with_capacity(headings.len());
+    for (at, heading) in headings {
+        if *at >= suggestions {
+            continue;
+        }
+        // A later heading at the same place means this section was empty.
+        if shown.last().is_some_and(|(last, _)| last == at) {
+            shown.pop();
+        }
+        shown.push((*at, heading.as_str()));
+    }
+    shown
 }
 
 fn select(query: &mut String, suggestions: &[Suggestion], index: usize, out: &mut SearchOutput) {
@@ -801,6 +881,8 @@ struct View<'t> {
     field: Field<'t>,
     mode: SearchViewMode,
     suggestions: &'t [Suggestion],
+    headings: &'t [(usize, &'t str)],
+    empty_text: Option<&'t str>,
     trailing: &'t [TrailingAction],
     clear_button: bool,
     bar_rect: Rect,
@@ -837,7 +919,13 @@ impl View<'_> {
                 0.0,
             ),
         };
-        let rows_height: f32 = self.suggestions.iter().map(row_height).sum();
+        let rows_height: f32 = self.suggestions.iter().map(row_height).sum::<f32>()
+            + self.headings.len() as f32 * HEADING_HEIGHT
+            + if self.suggestions.is_empty() && self.empty_text.is_some() {
+                ROW_ONE_LINE_HEIGHT
+            } else {
+                0.0
+            };
         let results_height = match self.mode {
             SearchViewMode::Docked => {
                 let max = (screen.height() * DOCKED_RESULTS_MAX_SCREEN_RATIO
@@ -989,8 +1077,17 @@ impl View<'_> {
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
                     ui.spacing_mut().item_spacing = Vec2::ZERO;
+                    if self.suggestions.is_empty() {
+                        if let Some(text) = self.empty_text {
+                            self.empty_row(ui, text);
+                        }
+                    }
+                    let mut headings = self.headings.iter().peekable();
                     let last = self.suggestions.len().saturating_sub(1);
                     for (i, suggestion) in self.suggestions.iter().enumerate() {
+                        while let Some((_, heading)) = headings.next_if(|(at, _)| *at == i) {
+                            self.heading_row(ui, i, heading);
+                        }
                         let row_corner = if i == last {
                             bottom_corners
                         } else {
@@ -1093,6 +1190,55 @@ impl View<'_> {
     }
 }
 
+impl View<'_> {
+    /// A section heading above suggestion `before`.
+    fn heading_row(&self, ui: &mut Ui, before: usize, heading: &str) {
+        let theme = self.field.theme;
+        let size = Vec2::new(ui.available_width(), HEADING_HEIGHT);
+        let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+        let response = ui.interact(
+            rect,
+            self.field.id.with(("heading", before)),
+            Sense::hover(),
+        );
+        crate::a11y::describe(&response, Role::Heading, true, heading, None);
+        // `NavigationDrawerTokens.HeadlineFont` / `HeadlineColor`.
+        let color = theme.color(ColorRole::OnSurfaceVariant);
+        self.paint_line(ui, rect, TypeRole::TitleSmall, heading, color);
+    }
+
+    /// The line shown when there are no suggestions.
+    fn empty_row(&self, ui: &mut Ui, text: &str) {
+        let theme = self.field.theme;
+        let size = Vec2::new(ui.available_width(), ROW_ONE_LINE_HEIGHT);
+        let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+        let response = ui.interact(rect, self.field.id.with("empty"), Sense::hover());
+        crate::a11y::describe(&response, Role::Label, true, text, None);
+        // `ListTokens.ItemSupportingTextFont` / `ItemSupportingTextColor`.
+        let color = theme.color(ColorRole::OnSurfaceVariant);
+        self.paint_line(ui, rect, TypeRole::BodyMedium, text, color);
+    }
+
+    /// One line of `role` text at the row's 16 dp start, vertically
+    /// centred, cut with an ellipsis.
+    fn paint_line(&self, ui: &Ui, rect: Rect, role: TypeRole, text: &str, color: Color32) {
+        let dir = self.field.theme.layout_direction;
+        let width = (rect.width() - 2.0 * ROW_EDGE_SPACE).max(0.0);
+        let span = from_start(rect, ROW_EDGE_SPACE, width, dir);
+        let job = one_line(
+            role.style().layout_job(ui.ctx(), text.to_owned(), color),
+            width,
+        );
+        let galley = ui.painter().layout_job(job);
+        let x = match dir {
+            LayoutDirection::Ltr => span.left(),
+            LayoutDirection::Rtl => span.right() - galley.size().x,
+        };
+        let y = rect.center().y - galley.size().y / 2.0;
+        ui.painter().galley(egui::pos2(x, y), galley, color);
+    }
+}
+
 fn row_height(suggestion: &Suggestion) -> f32 {
     if suggestion.supporting_text.is_some() {
         ROW_TWO_LINE_HEIGHT
@@ -1133,6 +1279,22 @@ mod tests {
         );
         let end = from_end(outer, 16.0, 24.0, LayoutDirection::Ltr);
         assert_eq!(end.x_range(), rtl.x_range(), "LTR end is RTL start");
+    }
+
+    #[test]
+    fn empty_sections_show_no_heading() {
+        let headings = vec![
+            (0, "Recent".to_owned()),
+            (2, "Empty".to_owned()),
+            (2, "Commands".to_owned()),
+            (4, "Trailing".to_owned()),
+        ];
+        let shown = shown_headings(&headings, 4);
+        assert_eq!(
+            shown,
+            vec![(0, "Recent"), (2, "Commands")],
+            "a section with no suggestions, inside or at the end, has no heading"
+        );
     }
 
     #[test]
