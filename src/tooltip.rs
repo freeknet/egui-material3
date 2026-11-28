@@ -21,6 +21,17 @@
 //! maximum width 320, a 4 dp gap to the anchor (`GapTrigger`), and no
 //! shadow (`PlainTooltip`'s `shadowElevation` is 0).
 //!
+//! # Pointer-anchored tooltips
+//!
+//! [`MaterialTooltip::anchor`] with [`TooltipAnchor::Pointer`] places the
+//! plain tooltip at the pointer instead of beside the widget, and moves it
+//! with the pointer, for wide targets where the value depends on where the
+//! pointer is: a timeline, a transport, a waveform. The hover delay, the
+//! container and the accessible name are those of the widget-anchored
+//! tooltip. Compose anchors tooltips to their widget only; the 12 dp
+//! pointer gap is egui's (`Response::on_hover_ui_at_pointer`), so the
+//! cursor does not cover the text.
+//!
 //! # Rich tooltip
 //!
 //! From Compose's `RichTooltipTokens.kt` and `Tooltip.kt`: container
@@ -48,6 +59,10 @@ const MIN_WIDTH: f32 = 40.0;
 const MIN_HEIGHT: f32 = 24.0;
 /// `PlainTooltipTokens.GapTrigger`: the gap between anchor and tooltip.
 const GAP: f32 = 4.0;
+/// The gap between the pointer and a pointer-anchored tooltip: egui's
+/// `Response::on_hover_ui_at_pointer` gap, room for the cursor. Not a
+/// Compose token (Compose has no pointer-anchored tooltip).
+const POINTER_GAP: f32 = 12.0;
 /// `PlainTooltipTokens.PaddingHorizontal` / `PaddingVertical`.
 const PLAIN_PADDING: Vec2 = Vec2::new(8.0, 4.0);
 /// `Tooltip.kt` `RichTooltipHorizontalPadding`.
@@ -96,6 +111,17 @@ impl TooltipPosition {
     }
 }
 
+/// What a [`MaterialTooltip`] is placed next to.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum TooltipAnchor {
+    /// The widget's rect, 4 dp away (`PlainTooltipTokens.GapTrigger`).
+    #[default]
+    Widget,
+    /// The pointer, 12 points away, following it while it moves over the
+    /// widget: for timelines, transports and other wide targets.
+    Pointer,
+}
+
 /// Places `tooltip` on the requested side, if any (egui still flips it when
 /// there is no room).
 fn place(mut tooltip: Tooltip<'_>, position: TooltipPosition) -> Tooltip<'_> {
@@ -140,6 +166,7 @@ fn margin_i8(v: f32) -> i8 {
 pub struct MaterialTooltip {
     text: String,
     position: TooltipPosition,
+    anchor: TooltipAnchor,
     max_width: f32,
     padding: Vec2,
     font_size: Option<f32>,
@@ -151,6 +178,7 @@ impl MaterialTooltip {
         Self {
             text: text.into(),
             position: TooltipPosition::Auto,
+            anchor: TooltipAnchor::Widget,
             max_width: MAX_WIDTH,
             padding: PLAIN_PADDING,
             font_size: None,
@@ -160,6 +188,35 @@ impl MaterialTooltip {
     /// Set the tooltip position
     pub fn position(mut self, position: TooltipPosition) -> Self {
         self.position = position;
+        self
+    }
+
+    /// Place the tooltip next to the widget (the default) or at the pointer.
+    /// A pointer-anchored tooltip follows the pointer across the widget and
+    /// keeps the hover delay, the container and the accessible name; with
+    /// [`show_for_with`](Self::show_for_with) its content can show the value
+    /// under the pointer. [`show`](Self::show) (always open, at a rect)
+    /// ignores the anchor.
+    ///
+    /// ```rust
+    /// # egui::__run_test_ui(|ui| {
+    /// use egui_material3::{MaterialTooltip, TooltipAnchor};
+    ///
+    /// let (rect, timeline) =
+    ///     ui.allocate_exact_size(egui::vec2(400.0, 32.0), egui::Sense::hover());
+    /// let seconds_per_point = 0.25;
+    /// MaterialTooltip::new("Playhead position")
+    ///     .anchor(TooltipAnchor::Pointer)
+    ///     .show_for_with(&timeline, |ui| {
+    ///         if let Some(pos) = timeline.hover_pos() {
+    ///             let seconds = (pos.x - rect.left()) * seconds_per_point;
+    ///             ui.label(format!("{seconds:.1} s"));
+    ///         }
+    ///     });
+    /// # });
+    /// ```
+    pub fn anchor(mut self, anchor: TooltipAnchor) -> Self {
+        self.anchor = anchor;
         self
     }
 
@@ -217,7 +274,11 @@ impl MaterialTooltip {
         let open = Tooltip::should_show_tooltip(response, false);
         let mut tooltip = Tooltip::for_widget(response);
         tooltip.popup = tooltip.popup.open(open);
-        self.show_tooltip(tooltip, add_contents)
+        let (tooltip, gap) = match self.anchor {
+            TooltipAnchor::Widget => (tooltip, GAP),
+            TooltipAnchor::Pointer => (tooltip.at_pointer(), POINTER_GAP),
+        };
+        self.show_tooltip(tooltip, gap, add_contents)
     }
 
     /// Show the tooltip at `target_rect` now, with no hover check or delay.
@@ -225,7 +286,7 @@ impl MaterialTooltip {
         let id = ui.next_auto_id().with("material_tooltip");
         let tooltip = Tooltip::always_open(ui.ctx().clone(), ui.layer_id(), id, target_rect);
         // Always open: whether it showed only depends on the anchor existing.
-        let _ = self.show_tooltip(tooltip, |ui| self.text_label(ui));
+        let _ = self.show_tooltip(tooltip, GAP, |ui| self.text_label(ui));
     }
 
     /// The tooltip's text as a wrapped `BodySmall` label.
@@ -247,6 +308,7 @@ impl MaterialTooltip {
     fn show_tooltip<R>(
         &self,
         tooltip: Tooltip<'_>,
+        gap: f32,
         add_contents: impl FnOnce(&mut Ui) -> R,
     ) -> Option<R> {
         let ctx = tooltip.popup.ctx().clone();
@@ -263,7 +325,7 @@ impl MaterialTooltip {
             ..Frame::NONE
         };
         let mut tooltip = place(tooltip, self.position)
-            .gap(GAP)
+            .gap(gap)
             .width(self.max_width)
             .accessible_name(self.text.clone());
         tooltip.popup = tooltip.popup.frame(frame);
