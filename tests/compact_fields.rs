@@ -104,7 +104,17 @@ fn compact_input_is_32_high_and_keeps_its_accessible_name() -> TestResult {
 
 #[test]
 fn density_steps_are_8_dp_and_states_still_paint() -> TestResult {
-    for (density, height) in [(0, 56.0), (-1, 48.0), (-2, 40.0), (-3, 32.0), (-9, 32.0)] {
+    // 8 dp steps to -3, then the desktop steps -4 (28) and -5 (24), the
+    // densest; anything denser clamps to -5.
+    for (density, height) in [
+        (0, 56.0),
+        (-1, 48.0),
+        (-2, 40.0),
+        (-3, 32.0),
+        (-4, 28.0),
+        (-5, 24.0),
+        (-9, 24.0),
+    ] {
         let text = RefCell::new(String::from("x"));
         let rect = Cell::new(Rect::NOTHING);
         let _harness = support::harness_for(light(), egui::vec2(320.0, 120.0), |ui| {
