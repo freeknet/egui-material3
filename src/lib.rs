@@ -409,7 +409,10 @@ pub use {
         MaterialImageList,
     },
     input::{InputVariant, MaterialInput},
-    layoutgrid::{debug_layout_grid, layout_grid, GridTile, GridTileBar, MaterialLayoutGrid},
+    layoutgrid::{
+        debug_layout_grid, layout_grid, GridRow, GridRowsResponse, GridTile, GridTileBar,
+        GridTileResponse, MaterialLayoutGrid,
+    },
     list::{
         list, list_item, ListItem, ListLeading, ListResponse, ListRowsResponse, ListTileStyle,
         ListTileTitleAlignment, MaterialList, MaterialListState, VisualDensity,

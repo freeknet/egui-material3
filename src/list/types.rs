@@ -123,6 +123,11 @@ pub struct MaterialList<'a> {
     pub(crate) segmented: bool,
     /// What each row senses besides clicks (e.g. drags)
     pub(crate) row_sense: Sense,
+    /// Whether `row_sense` replaces the default click sense instead of
+    /// adding to it
+    pub(crate) row_sense_exact: bool,
+    /// Space between rows of a non-segmented list, if not the default
+    pub(crate) row_gap: Option<f32>,
 }
 
 /// What [`MaterialList::show`] reports: the list's own response and one
@@ -130,7 +135,8 @@ pub struct MaterialList<'a> {
 ///
 /// Each row's response is the whole item container, with the row's id,
 /// and senses clicks (so secondary and double clicks too) plus whatever
-/// [`MaterialList::row_sense`] adds; a disabled row senses hover only.
+/// [`MaterialList::row_sense`] adds, or exactly what
+/// [`MaterialList::row_sense_exact`] sets; a disabled row senses hover only.
 /// Attach context menus, double-click handlers or drag sources to it:
 ///
 /// ```rust
@@ -349,4 +355,6 @@ pub struct ListItem<'a> {
     pub(crate) leading_ui: Option<(Vec2, ListItemUi<'a>)>,
     /// Custom UI replacing the leading, text and trailing content
     pub(crate) content_ui: Option<ListItemUi<'a>>,
+    /// Corners of the container, state layer and focus ring in every state
+    pub(crate) corner_radius: Option<egui::CornerRadius>,
 }

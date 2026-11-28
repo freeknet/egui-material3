@@ -521,7 +521,7 @@ fn show_row<'a>(
     let item_response = ui.interact(
         item_rect,
         row_id(env.list_id, index),
-        crate::a11y::sense(item.enabled, Sense::click() | env.row_sense),
+        crate::a11y::sense(item.enabled, env.row_sense),
     );
     match &item.leading {
         Some(ListLeading::Checkbox(checked)) => crate::a11y::toggle(
@@ -550,7 +550,9 @@ fn show_row<'a>(
     }
 
     let colors = item_colors(theme, &item, segmented);
-    let corners = item_corners(item.selected, segmented, index, count);
+    let corners = item
+        .corner_radius
+        .unwrap_or_else(|| item_corners(item.selected, segmented, index, count));
     let owned_painter = ui.painter().clone();
     let painter = &owned_painter;
 
@@ -878,6 +880,8 @@ impl<'a> MaterialList<'a> {
         let theme = MaterialTheme::of(ui.ctx());
         let segmented = self.segmented;
         let dividers = self.dividers && !segmented;
+        let gap = self.gap();
+        let row_sense = self.effective_row_sense();
 
         // Load persistent drawer state BEFORE calculating total height
         let list_id = self
@@ -937,7 +941,7 @@ impl<'a> MaterialList<'a> {
             }
         }
         if count > 1 {
-            total_height += (count - 1) as f32 * row_gap(dividers, segmented);
+            total_height += (count - 1) as f32 * gap;
         }
 
         let (rect, response) =
@@ -953,7 +957,7 @@ impl<'a> MaterialList<'a> {
             direction: theme.layout_direction,
             segmented,
             allow_drawer: self.allow_drawer,
-            row_sense: self.row_sense,
+            row_sense,
             list_id,
         };
         let mut current_y = rect.min.y;
@@ -1010,9 +1014,9 @@ impl<'a> MaterialList<'a> {
 
             if index + 1 < count {
                 if dividers {
-                    paint_divider(ui, &theme, rect, current_y);
+                    paint_divider(ui, &theme, rect, current_y + (gap - 1.0) / 2.0);
                 }
-                current_y += row_gap(dividers, segmented);
+                current_y += gap;
             }
         }
 
@@ -1032,8 +1036,9 @@ impl<'a> MaterialList<'a> {
 
     /// The rows of a [`show_rows`](Self::show_rows) list that fall inside
     /// `viewport`: the vertical span shown, in points from the list's top.
-    /// Rows are `row_height` apart, plus the 1 dp divider or the 2 dp
-    /// segmented gap this list puts between them.
+    /// Rows are `row_height` apart, plus the 1 dp divider, the 2 dp
+    /// segmented gap or the [`row_gap`](Self::row_gap) this list puts
+    /// between them.
     ///
     /// ```rust
     /// use egui_material3::MaterialList;
@@ -1048,8 +1053,7 @@ impl<'a> MaterialList<'a> {
         row_count: usize,
         row_height: f32,
     ) -> std::ops::Range<usize> {
-        let stride = sanitize_row_height(row_height)
-            + row_gap(self.dividers && !self.segmented, self.segmented);
+        let stride = sanitize_row_height(row_height) + self.gap();
         let row_at = |y: f32| {
             if y.is_finite() {
                 // Truncation is the point; negative and huge values clamp.
@@ -1121,7 +1125,8 @@ impl<'a> MaterialList<'a> {
         let segmented = self.segmented;
         let dividers = self.dividers && !segmented;
         let row_height = sanitize_row_height(row_height);
-        let gap = row_gap(dividers, segmented);
+        let gap = self.gap();
+        let row_sense = self.effective_row_sense();
         let stride = row_height + gap;
         let list_id = self
             .id
@@ -1182,7 +1187,7 @@ impl<'a> MaterialList<'a> {
             direction: theme.layout_direction,
             segmented,
             allow_drawer: false,
-            row_sense: self.row_sense,
+            row_sense,
             list_id,
         };
         let mut state = MaterialListState::default();
@@ -1218,7 +1223,7 @@ impl<'a> MaterialList<'a> {
                 ui.data_mut(|d| d.insert_temp(focus_key, index));
             }
             if dividers && index + 1 < row_count {
-                paint_divider(ui, &theme, rect, item_rect.max.y);
+                paint_divider(ui, &theme, rect, item_rect.max.y + (gap - 1.0) / 2.0);
             }
             rows.push((index, row));
         }
@@ -1245,16 +1250,34 @@ fn sanitize_row_height(height: f32) -> f32 {
     }
 }
 
-/// The space between two rows: the 1 dp divider, the 2 dp segmented gap,
-/// or none.
-fn row_gap(dividers: bool, segmented: bool) -> f32 {
-    if dividers {
-        // DividerTokens.Thickness.
-        1.0
-    } else if segmented {
-        SEGMENTED_GAP
-    } else {
-        0.0
+impl MaterialList<'_> {
+    /// The space between two rows: the 2 dp segmented gap, else the
+    /// [`row_gap`](Self::row_gap) (at least the 1 dp divider when dividers
+    /// show), else the divider or none.
+    fn gap(&self) -> f32 {
+        if self.segmented {
+            return SEGMENTED_GAP;
+        }
+        let custom = self
+            .row_gap
+            .filter(|gap| gap.is_finite())
+            .map_or(0.0, |gap| gap.max(0.0));
+        if self.dividers {
+            // DividerTokens.Thickness.
+            custom.max(1.0)
+        } else {
+            custom
+        }
+    }
+
+    /// What every row senses: the click sense plus `row_sense`, or exactly
+    /// `row_sense`.
+    fn effective_row_sense(&self) -> Sense {
+        if self.row_sense_exact {
+            self.row_sense
+        } else {
+            Sense::click() | self.row_sense
+        }
     }
 }
 
