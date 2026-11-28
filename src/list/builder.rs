@@ -33,6 +33,8 @@ impl<'a> MaterialList<'a> {
             fill_width: false,
             segmented: false,
             row_sense: egui::Sense::hover(),
+            row_sense_exact: false,
+            row_gap: None,
         }
     }
 
@@ -51,6 +53,46 @@ impl<'a> MaterialList<'a> {
     /// ```
     pub fn row_sense(mut self, sense: egui::Sense) -> Self {
         self.row_sense = sense;
+        self.row_sense_exact = false;
+        self
+    }
+
+    /// What every row senses, replacing the default click sense instead of
+    /// adding to it as [`row_sense`](Self::row_sense) does.
+    /// `Sense::hover()` makes status rows: they show the hover state layer
+    /// but cannot be clicked or focused (no Tab stop, no `on_click`, no
+    /// click action for assistive technology) and report a plain list item.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use egui_material3::*;
+    /// let status = MaterialList::new()
+    ///     .row_sense_exact(egui::Sense::hover())
+    ///     .item(ListItem::new("Indexing: 42 %"))
+    ///     .item(ListItem::new("Captions: done"));
+    /// ```
+    pub fn row_sense_exact(mut self, sense: egui::Sense) -> Self {
+        self.row_sense = sense;
+        self.row_sense_exact = true;
+        self
+    }
+
+    /// Space between the rows of a non-segmented list, e.g. to separate
+    /// rounded rows (see [`ListItem::corner_radius`]). Without dividers
+    /// the default is none; with dividers it is at least the 1 dp divider,
+    /// which sits in the middle of the gap. Segmented lists keep their
+    /// 2 dp `ListTokens.SegmentedGap`.
+    ///
+    /// # Example
+    /// ```rust
+    /// # use egui_material3::*;
+    /// let list = MaterialList::new()
+    ///     .dividers(false)
+    ///     .row_gap(4.0)
+    ///     .item(ListItem::new("Inbox").corner_radius(12.0));
+    /// ```
+    pub fn row_gap(mut self, gap: f32) -> Self {
+        self.row_gap = Some(gap);
         self
     }
 
@@ -204,7 +246,22 @@ impl<'a> ListItem<'a> {
             drawer: None,
             leading_ui: None,
             content_ui: None,
+            corner_radius: None,
         }
+    }
+
+    /// The corners of the item's container, state layer and focus ring in
+    /// every state, replacing the defaults (square, `CornerLarge` when
+    /// selected, the segmented outer and inner corners).
+    ///
+    /// # Example
+    /// ```rust
+    /// # use egui_material3::*;
+    /// let item = ListItem::new("Rounded").selected(true).corner_radius(8.0);
+    /// ```
+    pub fn corner_radius(mut self, corner_radius: impl Into<egui::CornerRadius>) -> Self {
+        self.corner_radius = Some(corner_radius.into());
+        self
     }
 
     /// A round avatar with a short text (initials) at the start.
